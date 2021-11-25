@@ -3,7 +3,8 @@ package rootapiserver
 import (
 	"context"
 	"fmt"
-	// "net/http"
+	"net/http"
+	"strings"
 	"time"
 
 	// corev1 "k8s.io/api/core/v1"
@@ -15,9 +16,16 @@ import (
 	// utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	genericapiserver "k8s.io/apiserver/pkg/server"
+	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
 
 	// genericmux "k8s.io/apiserver/pkg/server/mux"
+	"k8s.io/client-go/informers"
 	kubeinformers "k8s.io/client-go/informers"
+	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/client-go/kubernetes"
+	cacheddiscovery "k8s.io/client-go/discovery/cached"
+	rbacinformers "k8s.io/client-go/informers/rbac/v1"
+
 	// corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
@@ -31,6 +39,8 @@ import (
 	virtualapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 )
 
+type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)
+
 type RootAPIExtraConfig struct {
 	// we phrase it like this so we can build the post-start-hook, but no one can take more indirect dependencies on informers
 	InformerStart func(stopCh <-chan struct{})
@@ -39,7 +49,7 @@ type RootAPIExtraConfig struct {
 	KubeInformers             kubeinformers.SharedInformerFactory
 
 	GroupAPIServerBuilders []GroupAPIServerBuilder
-	RootPathResolver func(urlPath string, context context.Context) (bool, context.Context)
+	RootPathResolver RootPathResolverFunc
 
 	// these are all required to build our storage
 	RuleResolver   rbacregistryvalidation.AuthorizationRuleResolver
@@ -154,7 +164,9 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	// TODO: Positionner c.GenericConfig.BuildHandlerChainFunc pour appliquer le RootPathResolver
 	// Attention: vérifier que les delegate ne sont pas créés avec cette BuildHandlerChain spécifique.
 	// => Peut-être spécialement pour le withOpenAPI... Mais c'est peut-être pas un problème
-	// si on crée pas un autre apiServer + Config.  
+	// si on crée pas un autre apiServer + Config.
+	c.GenericConfig.BuildHandlerChainFunc = getRootHandlerChain(c.ExtraConfig, delegateAPIServer)
+
 	genericServer, err := c.GenericConfig.New("openshift-apiserver", delegateAPIServer)
 	if err != nil {
 		return nil, err
@@ -184,4 +196,137 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	})
 
 	return s, nil
+}
+
+func getRootHandlerChain(extraConfig *RootAPIExtraConfig, delegateAPIServer genericapiserver.DelegationTarget) func(http.Handler, *genericapiserver.Config) http.Handler {
+	return func(apiHandler http.Handler, genericConfig *genericapiserver.Config) http.Handler {
+		// this is the normal kube handler chain
+		defaultHandler := genericapiserver.DefaultBuildHandlerChain(apiHandler, genericConfig)
+
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if accepted, prefixToStrip, context := extraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
+				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefixToStrip)
+				req.URL.RawPath = strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
+				req.WithContext(context)
+				delegateAPIServer.UnprotectedHandler().ServeHTTP(w, req)
+				return
+			}
+			defaultHandler.ServeHTTP(w, req)
+		})
+	}
+}
+
+type RootAPIServerBuilder struct {
+	GroupAPIServerBuilders []GroupAPIServerBuilder
+	AdditionalInformers []internalinterfaces.SharedInformerFactory
+	RootPathresolver RootPathResolverFunc	
+}
+
+func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAPIServerBuilder, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions) (*RootAPIConfig, error) {
+	kubeClient, err := kubernetes.NewForConfig(kubeClientConfig)
+	if err != nil {
+		return nil, err
+	}
+	kubeInformers := informers.NewSharedInformerFactory(kubeClient, 10*time.Minute)
+
+	genericConfig := genericapiserver.NewRecommendedConfig(legacyscheme.Codecs)
+	// Current default values
+	//Serializer:                   codecs,
+	//ReadWritePort:                443,
+	//BuildHandlerChainFunc:        DefaultBuildHandlerChain,
+	//HandlerChainWaitGroup:        new(utilwaitgroup.SafeWaitGroup),
+	//LegacyAPIGroupPrefixes:       sets.NewString(DefaultLegacyAPIPrefix),
+	//DisabledPostStartHooks:       sets.NewString(),
+	//HealthzChecks:                []healthz.HealthzChecker{healthz.PingHealthz, healthz.LogHealthz},
+	//EnableIndex:                  true,
+	//EnableDiscovery:              true,
+	//EnableProfiling:              true,
+	//EnableMetrics:                true,
+	//MaxRequestsInFlight:          400,
+	//MaxMutatingRequestsInFlight:  200,
+	//RequestTimeout:               time.Duration(60) * time.Second,
+	//MinRequestTimeout:            1800,
+	//EnableAPIResponseCompression: utilfeature.DefaultFeatureGate.Enabled(features.APIResponseCompression),
+	//LongRunningFunc: genericfilters.BasicLongRunningRequestCheck(sets.NewString("watch"), sets.NewString()),
+
+	// TODO this is actually specific to the kubeapiserver
+	//RuleResolver authorizer.RuleResolver
+	genericConfig.SharedInformerFactory = kubeInformers
+	genericConfig.ClientConfig = kubeClientConfig
+
+	// these are set via options
+	//SecureServing *SecureServingInfo
+	//Authentication AuthenticationInfo
+	//Authorization AuthorizationInfo
+	//LoopbackClientConfig *restclient.Config
+	// this is set after the options are overlayed to get the authorizer we need.
+	//AdmissionControl      admission.Interface
+	//ReadWritePort int
+	//PublicAddress net.IP
+
+	// these are defaulted sanely during complete
+	//DiscoveryAddresses discovery.Addresses
+
+	// TODO: genericConfig.ExternalAddress = ... allow a command line flag or it to be overriden by a top-level multiroot apiServer
+
+	/*
+	// previously overwritten.  I don't know why
+	genericConfig.RequestTimeout = time.Duration(60) * time.Second
+	genericConfig.MinRequestTimeout = int((time.Duration(60) * time.Minute).Seconds())
+	genericConfig.MaxRequestsInFlight = -1 // TODO: allow configuring
+	genericConfig.MaxMutatingRequestsInFlight = -1 // TODO configuring
+	genericConfig.LongRunningFunc = apiserverconfig.IsLongRunningRequest
+	*/
+
+	if err := authenticationOptions.ApplyTo(&genericConfig.Authentication, genericConfig.SecureServing, genericConfig.OpenAPIConfig); err != nil {
+		return nil, err
+	}
+	if err := authorizationOptions.ApplyTo(&genericConfig.Authorization); err != nil {
+		return nil, err
+	}
+
+	discoveryClient := cacheddiscovery.NewMemCacheClient(kubeClient.Discovery())
+	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
+
+	subjectLocator := NewSubjectLocator(kubeInformers.Rbac().V1())	
+	ruleResolver := NewRuleResolver(kubeInformers.Rbac().V1())
+
+	ret := &RootAPIConfig{
+		GenericConfig: genericConfig,
+		ExtraConfig: RootAPIExtraConfig{
+			InformerStart:                      func(stopCh <-chan struct{}) {
+				for _, inf := range rootAPIServerBuilder.AdditionalInformers {
+					inf.Start(stopCh)
+				}
+			},
+			KubeAPIServerClientConfig:          kubeClientConfig,
+			KubeInformers:                      kubeInformers, // TODO remove this and use the one from the genericconfig
+			RuleResolver:                       ruleResolver,
+			SubjectLocator:                     subjectLocator,
+			RESTMapper:                         restMapper,
+			GroupAPIServerBuilders: 			rootAPIServerBuilder.GroupAPIServerBuilders,
+			RootPathResolver: rootAPIServerBuilder.RootPathresolver,
+		},
+	}
+
+	return ret, ret.ExtraConfig.Validate()
+}
+
+func NewRuleResolver(informers rbacinformers.Interface) rbacregistryvalidation.AuthorizationRuleResolver {
+	return rbacregistryvalidation.NewDefaultRuleResolver(
+		&rbacauthorizer.RoleGetter{Lister: informers.Roles().Lister()},
+		&rbacauthorizer.RoleBindingLister{Lister: informers.RoleBindings().Lister()},
+		&rbacauthorizer.ClusterRoleGetter{Lister: informers.ClusterRoles().Lister()},
+		&rbacauthorizer.ClusterRoleBindingLister{Lister: informers.ClusterRoleBindings().Lister()},
+	)
+}
+
+func NewSubjectLocator(informers rbacinformers.Interface) rbacauthorizer.SubjectLocator {
+	return rbacauthorizer.NewSubjectAccessEvaluator(
+		&rbacauthorizer.RoleGetter{Lister: informers.Roles().Lister()},
+		&rbacauthorizer.RoleBindingLister{Lister: informers.RoleBindings().Lister()},
+		&rbacauthorizer.ClusterRoleGetter{Lister: informers.ClusterRoles().Lister()},
+		&rbacauthorizer.ClusterRoleBindingLister{Lister: informers.ClusterRoleBindings().Lister()},
+		"",
+	)
 }
