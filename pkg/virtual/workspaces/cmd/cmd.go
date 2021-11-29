@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,7 +15,12 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	kubeoptions "k8s.io/kubernetes/pkg/kubeapiserver/options"
+	"k8s.io/apiserver/pkg/registry/rest"
+
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
@@ -22,15 +29,19 @@ import (
 
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
+	virtualapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 	virtualgenericcmd "github.com/kcp-dev/kcp/pkg/virtual/generic/cmd"
 	virtualrootapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/rootapiserver"
-	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
+	virtualworkspacesregistry "github.com/kcp-dev/kcp/pkg/virtual/workspaces/registry"
+
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 )
 
 type WorkspacesAPIServer struct {
 	KubeConfigFile string
 	Output     io.Writer
 
+	SecureServing *genericapiserveroptions.SecureServingOptionsWithLoopback
 	Authentication *genericapiserveroptions.DelegatingAuthenticationOptions
 	Authorization  *genericapiserveroptions.DelegatingAuthorizationOptions
 }
@@ -41,6 +52,7 @@ var longDescription = templates.LongDesc(`
 func NewWorkspacesAPIServerCommand(out, errout io.Writer, stopCh <-chan struct{}) *cobra.Command {
 	options := &WorkspacesAPIServer{
 		Output:         out,
+		SecureServing:  kubeoptions.NewSecureServingOptions().WithLoopback(),
 		Authentication: genericapiserveroptions.NewDelegatingAuthenticationOptions(),
 		Authorization:  genericapiserveroptions.NewDelegatingAuthorizationOptions().WithAlwaysAllowPaths("/healthz", "/healthz/").WithAlwaysAllowGroups("system:masters"),
 	}
@@ -77,6 +89,7 @@ func (o *WorkspacesAPIServer) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.KubeConfigFile, "kubeconfig", "", "Kubeconfig of the Kube API server to proxy to.")
 	cobra.MarkFlagRequired(flags, "kubeconfig")
 
+	o.SecureServing.AddFlags(flags)
 	o.Authentication.AddFlags(flags)
 	o.Authorization.AddFlags(flags)
 }
@@ -86,6 +99,7 @@ func (o *WorkspacesAPIServer) Validate() error {
 	if len(o.KubeConfigFile) == 0 {
 		errs = append(errs, errors.New("--kubeconfig is required for this command"))
 	}
+	errs = append(errs, o.SecureServing.Validate()...)
 	errs = append(errs, o.Authentication.Validate()...)
 	errs = append(errs, o.Authorization.Validate()...)
 	return utilerrors.NewAggregate(errs)
@@ -117,11 +131,40 @@ func (o *WorkspacesAPIServer) RunAPIServer(stopCh <-chan struct{}) error {
 		return err
 	}
 	kcpInformer := kcpinformer.NewSharedInformerFactory(kcpClient, 10 * time.Minute)
+	
+	utilruntime.Must(tenancyv1alpha1.AddToScheme(legacyscheme.Scheme))
+	legacyscheme.Scheme.SetVersionPriority(tenancyv1alpha1.SchemeGroupVersion)
+	
 	rootAPIServerBuilder := virtualrootapiserver.RootAPIServerBuilder {
-		AdditionalInformers: []internalinterfaces.SharedInformerFactory {
-			kcpInformer.(internalinterfaces.SharedInformerFactory),
-			
+		InformerStarts: []func(stopCh <-chan struct{}) {
+			kcpInformer.Start,			
+		},
+		RootPathresolver: func(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
+			completedContext = requestContext
+			if path := urlPath; strings.HasPrefix(path, "/services/applications/") {
+				path = strings.TrimPrefix(path, "/services/applications/")
+				i := strings.Index(path, "/")
+				if i == -1 {
+					return 
+				}
+				workspacesScope := path[:i]
+				if workspacesScope != "personal" && workspacesScope != "organization" && workspacesScope != "global" {
+					return
+				}
+				return true, "/services/applications/" + workspacesScope + "/", context.WithValue(requestContext, "VirtualWorkspaceWorkspacesScope", workspacesScope)
+			}
+			return
+		},
+		GroupAPIServerBuilders: []virtualrootapiserver.GroupAPIServerBuilder {
+			{
+				GroupVersion: tenancyv1alpha1.SchemeGroupVersion,
+				StorageBuilders: map[string]virtualapiserver.RestStorageBuidler{
+					"workspaces": func(config virtualapiserver.CompletedConfig) (rest.Storage, error) {
+						return virtualworkspacesregistry.NewREST(), nil
+					},
+				},
+			},
 		},
 	}
-	return virtualgenericcmd.RunRootAPIServer(kubeClientConfig, rootAPIServerBuilder, o.Authentication, o.Authorization, stopCh)
+	return virtualgenericcmd.RunRootAPIServer(kubeClientConfig, rootAPIServerBuilder, o.SecureServing, o.Authentication, o.Authorization, stopCh)
 }

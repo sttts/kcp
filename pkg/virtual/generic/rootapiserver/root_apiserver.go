@@ -17,11 +17,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 
 	// genericmux "k8s.io/apiserver/pkg/server/mux"
 	"k8s.io/client-go/informers"
 	kubeinformers "k8s.io/client-go/informers"
-	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/kubernetes"
 	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	rbacinformers "k8s.io/client-go/informers/rbac/v1"
@@ -35,6 +35,7 @@ import (
 	// rbacrest "k8s.io/kubernetes/pkg/registry/rbac/rest"
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	rbacauthorizer "k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
+
 
 	virtualapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 )
@@ -118,13 +119,17 @@ type GroupAPIServerBuilder struct {
 
 func (c *completedConfig) withGroupAPIServer(groupAPIServerBuilder GroupAPIServerBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
+		var additionalConfig interface{}
+		if groupAPIServerBuilder.AdditionalExtraConfigGetter != nil {
+			groupAPIServerBuilder.AdditionalExtraConfigGetter(CompletedConfig{c})
+		} 
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
 				KubeAPIServerClientConfig: c.ExtraConfig.KubeAPIServerClientConfig,
 				Codecs:                    legacyscheme.Codecs,
 				Scheme:                    legacyscheme.Scheme,
-				AdditionalConfig: 		   groupAPIServerBuilder.AdditionalExtraConfigGetter(CompletedConfig{c}),
+				AdditionalConfig: 		   additionalConfig,
 				GroupVersion: groupAPIServerBuilder.GroupVersion,
 				StorageBuilders: groupAPIServerBuilder.StorageBuilders,
 			},
@@ -177,10 +182,9 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	}
 
 	// register our poststarthooks
-	s.GenericAPIServer.AddPostStartHookOrDie("just-a-placeholder-that-does-nothing",
-		func(context genericapiserver.PostStartHookContext) error {
-			return nil
-		})
+	s.GenericAPIServer.AddPostStartHookOrDie("just-a-placeholder-that-does-nothing", func(context genericapiserver.PostStartHookContext) error {
+		return nil
+	})
 	s.GenericAPIServer.AddPostStartHookOrDie("virtual-workspace-startinformers", func(context genericapiserver.PostStartHookContext) error {
 		c.ExtraConfig.InformerStart(context.StopCh)
 		return nil
@@ -201,28 +205,26 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 func getRootHandlerChain(extraConfig *RootAPIExtraConfig, delegateAPIServer genericapiserver.DelegationTarget) func(http.Handler, *genericapiserver.Config) http.Handler {
 	return func(apiHandler http.Handler, genericConfig *genericapiserver.Config) http.Handler {
 		// this is the normal kube handler chain
-		defaultHandler := genericapiserver.DefaultBuildHandlerChain(apiHandler, genericConfig)
-
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if accepted, prefixToStrip, context := extraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefixToStrip)
 				req.URL.RawPath = strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
-				req.WithContext(context)
+				req = req.WithContext(genericapirequest.WithCluster(context, genericapirequest.Cluster{Name: "virtual"}))
 				delegateAPIServer.UnprotectedHandler().ServeHTTP(w, req)
 				return
 			}
-			defaultHandler.ServeHTTP(w, req)
+			http.NotFoundHandler().ServeHTTP(w, req)
 		})
 	}
 }
 
 type RootAPIServerBuilder struct {
 	GroupAPIServerBuilders []GroupAPIServerBuilder
-	AdditionalInformers []internalinterfaces.SharedInformerFactory
+	InformerStarts []func(stopCh <-chan struct{})
 	RootPathresolver RootPathResolverFunc	
 }
 
-func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAPIServerBuilder, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions) (*RootAPIConfig, error) {
+func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAPIServerBuilder, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions) (*RootAPIConfig, error) {
 	kubeClient, err := kubernetes.NewForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, err
@@ -278,6 +280,10 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAP
 	genericConfig.LongRunningFunc = apiserverconfig.IsLongRunningRequest
 	*/
 
+	if err := secureServing.ApplyTo(&genericConfig.Config.SecureServing, &genericConfig.Config.LoopbackClientConfig); err != nil {
+		return nil, err
+	}
+
 	if err := authenticationOptions.ApplyTo(&genericConfig.Authentication, genericConfig.SecureServing, genericConfig.OpenAPIConfig); err != nil {
 		return nil, err
 	}
@@ -295,8 +301,8 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAP
 		GenericConfig: genericConfig,
 		ExtraConfig: RootAPIExtraConfig{
 			InformerStart:                      func(stopCh <-chan struct{}) {
-				for _, inf := range rootAPIServerBuilder.AdditionalInformers {
-					inf.Start(stopCh)
+				for _, informerStart := range rootAPIServerBuilder.InformerStarts {
+					informerStart(stopCh)
 				}
 			},
 			KubeAPIServerClientConfig:          kubeClientConfig,
