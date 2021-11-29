@@ -7,6 +7,9 @@
 		{
 			"name": "kcp",
 			"path": ".."
+		},
+		{
+			"path": "../../../openshift/openshift-apiserver"
 		}
 	],
 	"tasks": {
