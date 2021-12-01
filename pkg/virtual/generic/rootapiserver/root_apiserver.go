@@ -2,6 +2,7 @@ package rootapiserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	// utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -41,6 +43,7 @@ import (
 )
 
 type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)
+type InformerStartsFunc []func(stopCh <-chan struct{})
 
 type RootAPIExtraConfig struct {
 	// we phrase it like this so we can build the post-start-hook, but no one can take more indirect dependencies on informers
@@ -49,8 +52,7 @@ type RootAPIExtraConfig struct {
 	KubeAPIServerClientConfig *rest.Config
 	KubeInformers             kubeinformers.SharedInformerFactory
 
-	GroupAPIServerBuilders []GroupAPIServerBuilder
-	RootPathResolver RootPathResolverFunc
+	VirtualWorkspaces         []RootAPIServerBuilder
 
 	// these are all required to build our storage
 	RuleResolver   rbacregistryvalidation.AuthorizationRuleResolver
@@ -117,11 +119,11 @@ type GroupAPIServerBuilder struct {
 	StorageBuilders map[string]virtualapiserver.RestStorageBuidler
 }
 
-func (c *completedConfig) withGroupAPIServer(groupAPIServerBuilder GroupAPIServerBuilder) apiServerAppenderFunc {
+func (c *completedConfig) withGroupAPIServer(virtualWorkspaceName string, groupAPIServerBuilder GroupAPIServerBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
 		var additionalConfig interface{}
 		if groupAPIServerBuilder.AdditionalExtraConfigGetter != nil {
-			groupAPIServerBuilder.AdditionalExtraConfigGetter(CompletedConfig{c})
+			additionalConfig = groupAPIServerBuilder.AdditionalExtraConfigGetter(CompletedConfig{c})
 		} 
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
@@ -135,7 +137,7 @@ func (c *completedConfig) withGroupAPIServer(groupAPIServerBuilder GroupAPIServe
 			},
 		}
 		config := cfg.Complete()
-		server, err := config.New(delegateAPIServer)
+		server, err := config.New(virtualWorkspaceName, delegateAPIServer)
 		if err != nil {
 			return nil, err
 		}
@@ -162,8 +164,16 @@ func addAPIServerOrDie(delegateAPIServer genericapiserver.DelegationTarget, apiS
 func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget) (*RootAPIServer, error) {
 	delegateAPIServer := delegationTarget
 
-	for _, groupAPIServerBuilder := range c.ExtraConfig.GroupAPIServerBuilders {
-		delegateAPIServer = addAPIServerOrDie(delegateAPIServer, c.withGroupAPIServer(groupAPIServerBuilder))
+	vwNames := sets.NewString()
+	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
+		name := virtualWorkspace.Name
+		if vwNames.Has(name) {
+			return nil, errors.New("Several virtual workspaces with the same name: " + name)
+		}
+		vwNames.Insert(name)
+		for _, groupAPIServerBuilder := range virtualWorkspace.GroupAPIServerBuilders {
+			delegateAPIServer = addAPIServerOrDie(delegateAPIServer, c.withGroupAPIServer(name, groupAPIServerBuilder))
+		}
 	}
 
 	// TODO: Positionner c.GenericConfig.BuildHandlerChainFunc pour appliquer le RootPathResolver
@@ -203,10 +213,20 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	return s, nil
 }
 
+func (c completedConfig) resolveRootPaths(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
+	completedContext = requestContext
+	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
+		if accepted, prefixToStrip, completedContext := virtualWorkspace.RootPathresolver(urlPath, requestContext); accepted {
+			return accepted, prefixToStrip, context.WithValue(completedContext, "VirtualWorkspaceName", virtualWorkspace.Name)
+		}
+	}
+	return
+}
+
 func (c completedConfig) getRootHandlerChain(delegateAPIServer genericapiserver.DelegationTarget) func(http.Handler, *genericapiserver.Config) http.Handler {
 	return func(apiHandler http.Handler, genericConfig *genericapiserver.Config) http.Handler {
 		return genericapiserver.DefaultBuildHandlerChain(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if accepted, prefixToStrip, context := c.ExtraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
+			if accepted, prefixToStrip, context := c.resolveRootPaths(req.URL.Path, req.Context()); accepted {
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefixToStrip)
 				req.URL.RawPath = strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
 				req = req.WithContext(genericapirequest.WithCluster(context, genericapirequest.Cluster{Name: "virtual"}))
@@ -222,7 +242,7 @@ func (c completedConfig) getRootHandlerChain(delegateAPIServer genericapiserver.
 var _ genericapirequest.RequestInfoResolver = (*completedConfig)(nil)
 func (c completedConfig) NewRequestInfo(req *http.Request) (*genericapirequest.RequestInfo, error) {
 	defaultResolver := genericapiserver.NewRequestInfoResolver(c.GenericConfig.Config)	
-	if accepted, prefixToStrip, _ := c.ExtraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
+	if accepted, prefixToStrip, _ := c.resolveRootPaths(req.URL.Path, req.Context()); accepted {
 		p := strings.TrimPrefix(req.URL.Path, prefixToStrip)
 		rp := strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
 		r2 := new(http.Request)
@@ -237,12 +257,12 @@ func (c completedConfig) NewRequestInfo(req *http.Request) (*genericapirequest.R
 } 
 
 type RootAPIServerBuilder struct {
+	Name string
 	GroupAPIServerBuilders []GroupAPIServerBuilder
-	InformerStarts []func(stopCh <-chan struct{})
 	RootPathresolver RootPathResolverFunc	
 }
 
-func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAPIServerBuilder, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions) (*RootAPIConfig, error) {
+func NewRootAPIConfig(kubeClientConfig *rest.Config, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, informerStarts InformerStartsFunc, rootAPIServerBuilders... RootAPIServerBuilder) (*RootAPIConfig, error) {
 	kubeClient, err := kubernetes.NewForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, err
@@ -319,7 +339,7 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAP
 		GenericConfig: genericConfig,
 		ExtraConfig: RootAPIExtraConfig{
 			InformerStart:                      func(stopCh <-chan struct{}) {
-				for _, informerStart := range rootAPIServerBuilder.InformerStarts {
+				for _, informerStart := range informerStarts {
 					informerStart(stopCh)
 				}
 			},
@@ -328,8 +348,7 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, rootAPIServerBuilder RootAP
 			RuleResolver:                       ruleResolver,
 			SubjectLocator:                     subjectLocator,
 			RESTMapper:                         restMapper,
-			GroupAPIServerBuilders: 			rootAPIServerBuilder.GroupAPIServerBuilders,
-			RootPathResolver: rootAPIServerBuilder.RootPathresolver,
+			VirtualWorkspaces: 			        rootAPIServerBuilders,
 		},
 	}
 

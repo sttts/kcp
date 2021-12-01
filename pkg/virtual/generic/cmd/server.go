@@ -11,8 +11,8 @@ import (
 	virtualrootapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/rootapiserver"
 )
 
-func RunRootAPIServer(kubeClientConfig *rest.Config, rootAPIServerBuilder virtualrootapiserver.RootAPIServerBuilder, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, stopCh <-chan struct{}) error {
-	rootAPIServerConfig, err := virtualrootapiserver.NewRootAPIConfig(kubeClientConfig, rootAPIServerBuilder, secureServing, authenticationOptions, authorizationOptions)
+func RunRootAPIServer(kubeClientConfig *rest.Config, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, stopCh <-chan struct{}, informerStarts virtualrootapiserver.InformerStartsFunc, rootAPIServerBuilders ...virtualrootapiserver.RootAPIServerBuilder) error {
+	rootAPIServerConfig, err := virtualrootapiserver.NewRootAPIConfig(kubeClientConfig, secureServing, authenticationOptions, authorizationOptions, informerStarts, rootAPIServerBuilders...)
 	if err != nil {
 		return err
 	}

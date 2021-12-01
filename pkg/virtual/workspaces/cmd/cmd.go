@@ -135,10 +135,11 @@ func (o *WorkspacesAPIServer) RunAPIServer(stopCh <-chan struct{}) error {
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(legacyscheme.Scheme))
 	legacyscheme.Scheme.SetVersionPriority(tenancyv1alpha1.SchemeGroupVersion)
 	
+	informerStarts := []func(stopCh <-chan struct{}) {
+		kcpInformer.Start,			
+	}
+
 	rootAPIServerBuilder := virtualrootapiserver.RootAPIServerBuilder {
-		InformerStarts: []func(stopCh <-chan struct{}) {
-			kcpInformer.Start,			
-		},
 		RootPathresolver: func(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
 			completedContext = requestContext
 			if path := urlPath; strings.HasPrefix(path, "/services/applications/") {
@@ -166,5 +167,5 @@ func (o *WorkspacesAPIServer) RunAPIServer(stopCh <-chan struct{}) error {
 			},
 		},
 	}
-	return virtualgenericcmd.RunRootAPIServer(kubeClientConfig, rootAPIServerBuilder, o.SecureServing, o.Authentication, o.Authorization, stopCh)
+	return virtualgenericcmd.RunRootAPIServer(kubeClientConfig, o.SecureServing, o.Authentication, o.Authorization, stopCh, informerStarts, rootAPIServerBuilder)
 }

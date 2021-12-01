@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"net/http"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,11 +62,23 @@ func (c *GroupAPIServerConfig) Complete() completedConfig {
 }
 
 // New returns a new instance of VirtualWorkspaceAPIServer from the given config.
-func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget) (*GroupAPIServer, error) {
-	genericServer, err := c.GenericConfig.New(c.ExtraConfig.GroupVersion.Group + "-virtual-workspace-apiserver", delegationTarget)
+func (c completedConfig) New(virtualWorkspaceName string, delegationTarget genericapiserver.DelegationTarget) (*GroupAPIServer, error) {
+	genericServer, err := c.GenericConfig.New(virtualWorkspaceName + "-" + c.ExtraConfig.GroupVersion.Group + "-virtual-workspace-apiserver", delegationTarget)
 	if err != nil {
 		return nil, err
 	}
+
+	director := genericServer.Handler.Director
+	genericServer.Handler.Director = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if vwName := r.Context().Value("VirtualWorkspaceName"); vwName != nil {
+			if vwNameString, isString := vwName.(string); isString && vwNameString == virtualWorkspaceName {
+				director.ServeHTTP(rw, r)
+				return
+			}
+		}
+		delegationTarget.UnprotectedHandler().ServeHTTP(rw, r)
+	})
+
 
 	s := &GroupAPIServer{
 		GenericAPIServer: genericServer,
