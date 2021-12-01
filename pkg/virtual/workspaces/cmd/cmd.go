@@ -151,7 +151,7 @@ func (o *WorkspacesAPIServer) RunAPIServer(stopCh <-chan struct{}) error {
 				if workspacesScope != "personal" && workspacesScope != "organization" && workspacesScope != "global" {
 					return
 				}
-				return true, "/services/applications/" + workspacesScope + "/", context.WithValue(requestContext, "VirtualWorkspaceWorkspacesScope", workspacesScope)
+				return true, "/services/applications/" + workspacesScope, context.WithValue(requestContext, "VirtualWorkspaceWorkspacesScope", workspacesScope)
 			}
 			return
 		},

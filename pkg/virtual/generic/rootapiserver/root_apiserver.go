@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -15,16 +16,16 @@ import (
 
 	// utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 
 	// genericmux "k8s.io/apiserver/pkg/server/mux"
+	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	"k8s.io/client-go/informers"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	rbacinformers "k8s.io/client-go/informers/rbac/v1"
+	"k8s.io/client-go/kubernetes"
 
 	// corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -35,7 +36,6 @@ import (
 	// rbacrest "k8s.io/kubernetes/pkg/registry/rbac/rest"
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	rbacauthorizer "k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
-
 
 	virtualapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 )
@@ -170,7 +170,8 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	// Attention: vérifier que les delegate ne sont pas créés avec cette BuildHandlerChain spécifique.
 	// => Peut-être spécialement pour le withOpenAPI... Mais c'est peut-être pas un problème
 	// si on crée pas un autre apiServer + Config.
-	c.GenericConfig.BuildHandlerChainFunc = getRootHandlerChain(c.ExtraConfig, delegateAPIServer)
+	c.GenericConfig.BuildHandlerChainFunc = c.getRootHandlerChain(delegateAPIServer)
+	c.GenericConfig.RequestInfoResolver = c
 
 	genericServer, err := c.GenericConfig.New("openshift-apiserver", delegateAPIServer)
 	if err != nil {
@@ -202,11 +203,10 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	return s, nil
 }
 
-func getRootHandlerChain(extraConfig *RootAPIExtraConfig, delegateAPIServer genericapiserver.DelegationTarget) func(http.Handler, *genericapiserver.Config) http.Handler {
+func (c completedConfig) getRootHandlerChain(delegateAPIServer genericapiserver.DelegationTarget) func(http.Handler, *genericapiserver.Config) http.Handler {
 	return func(apiHandler http.Handler, genericConfig *genericapiserver.Config) http.Handler {
-		// this is the normal kube handler chain
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if accepted, prefixToStrip, context := extraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
+		return genericapiserver.DefaultBuildHandlerChain(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if accepted, prefixToStrip, context := c.ExtraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefixToStrip)
 				req.URL.RawPath = strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
 				req = req.WithContext(genericapirequest.WithCluster(context, genericapirequest.Cluster{Name: "virtual"}))
@@ -214,9 +214,27 @@ func getRootHandlerChain(extraConfig *RootAPIExtraConfig, delegateAPIServer gene
 				return
 			}
 			http.NotFoundHandler().ServeHTTP(w, req)
-		})
+		}), c.GenericConfig.Config)
 	}
 }
+
+
+var _ genericapirequest.RequestInfoResolver = (*completedConfig)(nil)
+func (c completedConfig) NewRequestInfo(req *http.Request) (*genericapirequest.RequestInfo, error) {
+	defaultResolver := genericapiserver.NewRequestInfoResolver(c.GenericConfig.Config)	
+	if accepted, prefixToStrip, _ := c.ExtraConfig.RootPathResolver(req.URL.Path, req.Context()); accepted {
+		p := strings.TrimPrefix(req.URL.Path, prefixToStrip)
+		rp := strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
+		r2 := new(http.Request)
+		*r2 = *req
+		r2.URL = new(url.URL)
+		*r2.URL = *req.URL
+		r2.URL.Path = p
+		r2.URL.RawPath = rp
+		return defaultResolver.NewRequestInfo(r2)
+	}
+	return defaultResolver.NewRequestInfo(req)
+} 
 
 type RootAPIServerBuilder struct {
 	GroupAPIServerBuilders []GroupAPIServerBuilder
