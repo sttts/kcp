@@ -15,6 +15,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
 	virtualworkspacescmd "github.com/kcp-dev/kcp/pkg/virtual/workspaces/cmd"
+	virtualgenericcmd "github.com/kcp-dev/kcp/pkg/virtual/generic/cmd"
 )
 
 // wordSepNormalizeFunc changes all flags that contain "_" separators
@@ -55,8 +56,9 @@ func NewVirtualWorkspaceApiServerCommand(stopCh <-chan struct{}) *cobra.Command 
 			os.Exit(1)
 		},
 	}
-	workspaces := virtualworkspacescmd.NewWorkspacesAPIServerCommand(os.Stdout, os.Stderr, stopCh)
-	cmd.AddCommand(workspaces)
+	workspacesAPIServerSubCommandOptions := &virtualworkspacescmd.WorkspacesSubCommandOptions {}
+	workspacesAPIServerSubCommand := virtualgenericcmd.APIServerCommand(os.Stdout, os.Stderr, stopCh, workspacesAPIServerSubCommandOptions)
+	cmd.AddCommand(workspacesAPIServerSubCommand)
 
 	return cmd
 }

@@ -4,23 +4,21 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	restclient "k8s.io/client-go/rest"
 )
 
-type RestStorageBuidler func(config CompletedConfig) (rest.Storage, error)
-
 type ExtraConfig struct {
-	KubeAPIServerClientConfig *restclient.Config
+	builders.SharedExtraConfig
 	AdditionalConfig          interface{}
 
 	GroupVersion schema.GroupVersion
-	StorageBuilders map[string] RestStorageBuidler
+	StorageBuilders map[string]builders.RestStorageBuidler
 
 	// TODO these should all become local eventually
 	Scheme *runtime.Scheme
@@ -34,6 +32,20 @@ type ExtraConfig struct {
 type GroupAPIServerConfig struct {
 	GenericConfig *genericapiserver.RecommendedConfig
 	ExtraConfig   ExtraConfig
+}
+
+var _ builders.APIGroupConfigProvider = (*completedConfig)(nil)
+
+func (c *completedConfig) CompletedConfig() genericapiserver.CompletedConfig {
+	return c.GenericConfig
+}
+
+func (c *completedConfig) SharedExtraConfig() builders.SharedExtraConfig {
+	return c.ExtraConfig.SharedExtraConfig
+}
+
+func (c *completedConfig) AdditionalConfig() interface{} {
+	return c.ExtraConfig.AdditionalConfig
 }
 
 // GroupAPIServer contains state for a Kubernetes cluster master/api server.

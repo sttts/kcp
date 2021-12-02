@@ -12,7 +12,6 @@ import (
 	// corev1 "k8s.io/api/core/v1"
 	// kapierror "k8s.io/apimachinery/pkg/api/errors"
 	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -25,7 +24,6 @@ import (
 	// genericmux "k8s.io/apiserver/pkg/server/mux"
 	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	"k8s.io/client-go/informers"
-	kubeinformers "k8s.io/client-go/informers"
 	rbacinformers "k8s.io/client-go/informers/rbac/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -39,35 +37,29 @@ import (
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	rbacauthorizer "k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
+	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
+
 	virtualapiserver "github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
+	"github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
 )
 
-type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)
-type InformerStartsFunc []func(stopCh <-chan struct{})
+type InformerStart func(stopCh <-chan struct{})
+type InformerStarts []InformerStart
 
 type RootAPIExtraConfig struct {
+	builders.SharedExtraConfig
+
 	// we phrase it like this so we can build the post-start-hook, but no one can take more indirect dependencies on informers
-	InformerStart func(stopCh <-chan struct{})
+	informerStart func(stopCh <-chan struct{})
 
-	KubeAPIServerClientConfig *rest.Config
-	KubeInformers             kubeinformers.SharedInformerFactory
-
-	VirtualWorkspaces         []RootAPIServerBuilder
-
-	// these are all required to build our storage
-	RuleResolver   rbacregistryvalidation.AuthorizationRuleResolver
-	SubjectLocator rbacauthorizer.SubjectLocator
-
-	RESTMapper                *restmapper.DeferredDiscoveryRESTMapper
+	VirtualWorkspaces         []builders.VirtualWorkspaceBuilder
 }
 
 // Validate helps ensure that we build this config correctly, because there are lots of bits to remember for now
 func (c *RootAPIExtraConfig) Validate() error {
 	ret := []error{}
 
-	if c.KubeInformers == nil {
-		ret = append(ret, fmt.Errorf("KubeInformers is required"))
-	}
 	if c.RuleResolver == nil {
 		ret = append(ret, fmt.Errorf("RuleResolver is required"))
 	}
@@ -113,13 +105,17 @@ func (c *RootAPIConfig) Complete() completedConfig {
 	return cfg
 }
 
-type GroupAPIServerBuilder struct {
-	GroupVersion schema.GroupVersion
-	AdditionalExtraConfigGetter func(rootAPIServerCompletedConfig CompletedConfig) interface{}
-	StorageBuilders map[string]virtualapiserver.RestStorageBuidler
+var _ builders.MainConfigProvider = (*completedConfig)(nil)
+
+func (c *completedConfig) CompletedConfig() genericapiserver.CompletedConfig {
+	return c.GenericConfig
 }
 
-func (c *completedConfig) withGroupAPIServer(virtualWorkspaceName string, groupAPIServerBuilder GroupAPIServerBuilder) apiServerAppenderFunc {
+func (c *completedConfig) SharedExtraConfig() builders.SharedExtraConfig {
+	return c.ExtraConfig.SharedExtraConfig
+}
+
+func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.APIGroupAPIServerBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
 		var additionalConfig interface{}
 		if groupAPIServerBuilder.AdditionalExtraConfigGetter != nil {
@@ -128,7 +124,7 @@ func (c *completedConfig) withGroupAPIServer(virtualWorkspaceName string, groupA
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
-				KubeAPIServerClientConfig: c.ExtraConfig.KubeAPIServerClientConfig,
+				SharedExtraConfig: c.ExtraConfig.SharedExtraConfig,
 				Codecs:                    legacyscheme.Codecs,
 				Scheme:                    legacyscheme.Scheme,
 				AdditionalConfig: 		   additionalConfig,
@@ -172,18 +168,14 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		}
 		vwNames.Insert(name)
 		for _, groupAPIServerBuilder := range virtualWorkspace.GroupAPIServerBuilders {
-			delegateAPIServer = addAPIServerOrDie(delegateAPIServer, c.withGroupAPIServer(name, groupAPIServerBuilder))
+			delegateAPIServer = addAPIServerOrDie(delegateAPIServer, c.withAPIServerForAPIGroup(name, groupAPIServerBuilder))
 		}
 	}
 
-	// TODO: Positionner c.GenericConfig.BuildHandlerChainFunc pour appliquer le RootPathResolver
-	// Attention: vérifier que les delegate ne sont pas créés avec cette BuildHandlerChain spécifique.
-	// => Peut-être spécialement pour le withOpenAPI... Mais c'est peut-être pas un problème
-	// si on crée pas un autre apiServer + Config.
 	c.GenericConfig.BuildHandlerChainFunc = c.getRootHandlerChain(delegateAPIServer)
 	c.GenericConfig.RequestInfoResolver = c
 
-	genericServer, err := c.GenericConfig.New("openshift-apiserver", delegateAPIServer)
+	genericServer, err := c.GenericConfig.New("virtual-workspaces-root-apiserver", delegateAPIServer)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +189,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		return nil
 	})
 	s.GenericAPIServer.AddPostStartHookOrDie("virtual-workspace-startinformers", func(context genericapiserver.PostStartHookContext) error {
-		c.ExtraConfig.InformerStart(context.StopCh)
+		c.ExtraConfig.informerStart(context.StopCh)
 		return nil
 	})
 	s.GenericAPIServer.AddPostStartHookOrDie("openshift.io-restmapperupdater", func(context genericapiserver.PostStartHookContext) error {
@@ -256,13 +248,7 @@ func (c completedConfig) NewRequestInfo(req *http.Request) (*genericapirequest.R
 	return defaultResolver.NewRequestInfo(req)
 } 
 
-type RootAPIServerBuilder struct {
-	Name string
-	GroupAPIServerBuilders []GroupAPIServerBuilder
-	RootPathresolver RootPathResolverFunc	
-}
-
-func NewRootAPIConfig(kubeClientConfig *rest.Config, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, informerStarts InformerStartsFunc, rootAPIServerBuilders... RootAPIServerBuilder) (*RootAPIConfig, error) {
+func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Clientset, kcpInformer kcpinformer.SharedInformerFactory, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, informerStarts InformerStarts, rootAPIServerBuilders... builders.VirtualWorkspaceBuilder) (*RootAPIConfig, error) {
 	kubeClient, err := kubernetes.NewForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, err
@@ -338,16 +324,20 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, secureServing *genericapise
 	ret := &RootAPIConfig{
 		GenericConfig: genericConfig,
 		ExtraConfig: RootAPIExtraConfig{
-			InformerStart:                      func(stopCh <-chan struct{}) {
+			informerStart: func(stopCh <-chan struct{}) {
+				kubeInformers.Start(stopCh)
 				for _, informerStart := range informerStarts {
 					informerStart(stopCh)
 				}
 			},
-			KubeAPIServerClientConfig:          kubeClientConfig,
-			KubeInformers:                      kubeInformers, // TODO remove this and use the one from the genericconfig
-			RuleResolver:                       ruleResolver,
-			SubjectLocator:                     subjectLocator,
-			RESTMapper:                         restMapper,
+			SharedExtraConfig: builders.SharedExtraConfig {
+				KubeAPIServerClientConfig:          kubeClientConfig,
+				KcpClient:  kcpClient,
+				KcpInformer: kcpInformer,
+				RuleResolver:                       ruleResolver,
+				SubjectLocator:                     subjectLocator,
+				RESTMapper:                         restMapper,
+			},
 			VirtualWorkspaces: 			        rootAPIServerBuilders,
 		},
 	}

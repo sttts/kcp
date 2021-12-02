@@ -3,11 +3,14 @@ package registry
 import (
 	"context"
 
+	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	metainternal "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
+	"k8s.io/client-go/informers"
 	"k8s.io/kubernetes/pkg/printers"
 	printerstorage "k8s.io/kubernetes/pkg/printers/storage"
 )
@@ -25,7 +28,7 @@ var _ rest.Lister = &REST{}
 var _ rest.Scoper = &REST{}
 
 // NewREST returns a RESTStorage object that will work against Workspace resources
-func NewREST() *REST {
+func NewREST(kubeInformers informers.SharedInformerFactory, kcpClient *kcpclient.Clientset, kcpInformer kcpinformer.SharedInformerFactory) *REST {
 	return &REST{
 		createStrategy: Strategy,
 		updateStrategy: Strategy,
