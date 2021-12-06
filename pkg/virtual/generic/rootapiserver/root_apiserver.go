@@ -285,7 +285,7 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Client
 	// these are defaulted sanely during complete
 	//DiscoveryAddresses discovery.Addresses
 
-	// TODO: genericConfig.ExternalAddress = ... allow a command line flag or it to be overriden by a top-level multiroot apiServer
+	// TODO: genericConfig.ExternalAddress = ... allow a command line flag or it to be overridden by a top-level multiroot apiServer
 
 	/*
 		// previously overwritten.  I don't know why
