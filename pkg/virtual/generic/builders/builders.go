@@ -4,19 +4,15 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
+	restStorage "k8s.io/apiserver/pkg/registry/rest"
+	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
-
-	restStorage "k8s.io/apiserver/pkg/registry/rest"
-
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	rbacauthorizer "k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
-
-	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
 type MainConfigProvider interface {

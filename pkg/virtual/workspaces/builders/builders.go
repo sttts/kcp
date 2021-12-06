@@ -4,12 +4,12 @@ import (
 	"context"
 	"strings"
 
-	builders "github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
-	virtualworkspacesregistry "github.com/kcp-dev/kcp/pkg/virtual/workspaces/registry"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	builders "github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
+	virtualworkspacesregistry "github.com/kcp-dev/kcp/pkg/virtual/workspaces/registry"
 )
 
 const WorkspacesVirtualWorkspaceName string = "workspaces"

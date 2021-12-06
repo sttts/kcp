@@ -3,9 +3,6 @@ package registry
 import (
 	"context"
 
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
-	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
-	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
 	metainternal "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,6 +11,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/printers"
 	printerstorage "k8s.io/kubernetes/pkg/printers/storage"
+
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
 )
 
 type REST struct {
@@ -73,7 +74,7 @@ func NewREST(kubeInformers informers.SharedInformerFactory, kcpClient *kcpclient
 			); err != nil {
 				klog.Warning(err)
 			}
-			
+
 			if err := ph.TableHandler(
 				[]metav1.TableColumnDefinition{
 					{
