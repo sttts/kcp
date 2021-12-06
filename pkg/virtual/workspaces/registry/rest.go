@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/informers"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/printers"
 	printerstorage "k8s.io/kubernetes/pkg/printers/storage"
 )
@@ -34,7 +35,7 @@ func NewREST(kubeInformers informers.SharedInformerFactory, kcpClient *kcpclient
 		updateStrategy: Strategy,
 
 		TableConvertor: printerstorage.TableConvertor{TableGenerator: printers.NewTableGenerator().With(func(ph printers.PrintHandler) {
-			ph.TableHandler(
+			if err := ph.TableHandler(
 				[]metav1.TableColumnDefinition{
 					{
 						Name:        "Name",
@@ -57,19 +58,23 @@ func NewREST(kubeInformers informers.SharedInformerFactory, kcpClient *kcpclient
 				},
 				func(wsl *tenancyv1alpha1.WorkspaceList, options printers.GenerateOptions) (rows []metav1.TableRow, err error) {
 					for _, ws := range wsl.Items {
+						workspace := ws
 						rows = append(rows, metav1.TableRow{
 							Cells: []interface{}{
-								ws.Name,
-								ws.Status.Phase,
-								ws.Status.BaseURL,
+								workspace.Name,
+								workspace.Status.Phase,
+								workspace.Status.BaseURL,
 							},
-							Object: runtime.RawExtension{Object: &ws},
+							Object: runtime.RawExtension{Object: &workspace},
 						})
 					}
 					return rows, nil
 				},
-			)
-			ph.TableHandler(
+			); err != nil {
+				klog.Warning(err)
+			}
+			
+			if err := ph.TableHandler(
 				[]metav1.TableColumnDefinition{
 					{
 						Name:        "Name",
@@ -102,7 +107,9 @@ func NewREST(kubeInformers informers.SharedInformerFactory, kcpClient *kcpclient
 						},
 					}, nil
 				},
-			)
+			); err != nil {
+				klog.Warning(err)
+			}
 		})},
 	}
 }

@@ -77,7 +77,9 @@ func APIServerCommand(out, errout io.Writer, stopCh <-chan struct{}, subCommandO
 
 			if err := options.RunAPIServer(stopCh); err != nil {
 				if kerrors.IsInvalid(err) {
-					if details := err.(*kerrors.StatusError).ErrStatus.Details; details != nil {
+					var statusError *kerrors.StatusError
+					if isStatusError := errors.As(err, &statusError); isStatusError && statusError.ErrStatus.Details != nil {
+						details := statusError.ErrStatus.Details
 						fmt.Fprintf(errout, "Invalid %s %s\n", details.Kind, details.Name)
 						for _, cause := range details.Causes {
 							fmt.Fprintf(errout, "  %s: %s\n", cause.Field, cause.Message)
@@ -98,7 +100,7 @@ func APIServerCommand(out, errout io.Writer, stopCh <-chan struct{}, subCommandO
 func (o *APIServerOptions) AddFlags(flags *pflag.FlagSet) {
 	// This command only supports reading from config
 	flags.StringVar(&o.KubeConfigFile, "kubeconfig", "", "Kubeconfig of the Kube API server to proxy to.")
-	cobra.MarkFlagRequired(flags, "kubeconfig")
+	_ = cobra.MarkFlagRequired(flags, "kubeconfig")
 
 	o.secureServing.AddFlags(flags)
 	o.authentication.AddFlags(flags)
@@ -146,7 +148,9 @@ func (o *APIServerOptions) RunAPIServer(stopCh <-chan struct{}) error {
 	kcpInformer := kcpinformer.NewSharedInformerFactory(kcpClient, 10*time.Minute)
 
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(legacyscheme.Scheme))
-	legacyscheme.Scheme.SetVersionPriority(tenancyv1alpha1.SchemeGroupVersion)
+	if err := legacyscheme.Scheme.SetVersionPriority(tenancyv1alpha1.SchemeGroupVersion); err != nil {
+		return err
+	}
 
 	informerStarts := []virtualrootapiserver.InformerStart{
 		kcpInformer.Start,

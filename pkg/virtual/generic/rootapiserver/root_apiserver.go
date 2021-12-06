@@ -198,11 +198,14 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	return s, nil
 }
 
+type virtualNamespaceNameKeyType string
+const virtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceName"
+
 func (c completedConfig) resolveRootPaths(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
 	completedContext = requestContext
 	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
 		if accepted, prefixToStrip, completedContext := virtualWorkspace.RootPathresolver(urlPath, requestContext); accepted {
-			return accepted, prefixToStrip, context.WithValue(completedContext, "VirtualWorkspaceName", virtualWorkspace.Name)
+			return accepted, prefixToStrip, context.WithValue(completedContext, virtualNamespaceNameKey, virtualWorkspace.Name)
 		}
 	}
 	return

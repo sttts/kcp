@@ -50,7 +50,7 @@ func NewVirtualWorkspaceApiServerCommand(stopCh <-chan struct{}) *cobra.Command 
 		Use:   "virtual-workspaces",
 		Short: "Command for virtual workspaces API Servers",
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 			os.Exit(1)
 		},
 	}
