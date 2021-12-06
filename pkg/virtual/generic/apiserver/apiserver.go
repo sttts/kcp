@@ -14,6 +14,10 @@ import (
 	"github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
 )
 
+type virtualNamespaceNameKeyType string
+
+const VirtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceName"
+
 type ExtraConfig struct {
 	builders.SharedExtraConfig
 	AdditionalConfig interface{}
@@ -83,13 +87,16 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 
 	director := genericServer.Handler.Director
 	genericServer.Handler.Director = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		if vwName := r.Context().Value("VirtualWorkspaceName"); vwName != nil {
+		if vwName := r.Context().Value(VirtualNamespaceNameKey); vwName != nil {
 			if vwNameString, isString := vwName.(string); isString && vwNameString == virtualWorkspaceName {
 				director.ServeHTTP(rw, r)
 				return
 			}
 		}
-		delegationTarget.UnprotectedHandler().ServeHTTP(rw, r)
+		delegatedHandler := delegationTarget.UnprotectedHandler()
+		if delegatedHandler != nil {
+			delegatedHandler.ServeHTTP(rw, r)
+		}
 	})
 
 	s := &GroupAPIServer{

@@ -193,15 +193,11 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	return s, nil
 }
 
-type virtualNamespaceNameKeyType string
-
-const virtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceName"
-
 func (c completedConfig) resolveRootPaths(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
 	completedContext = requestContext
 	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
 		if accepted, prefixToStrip, completedContext := virtualWorkspace.RootPathresolver(urlPath, requestContext); accepted {
-			return accepted, prefixToStrip, context.WithValue(completedContext, virtualNamespaceNameKey, virtualWorkspace.Name)
+			return accepted, prefixToStrip, context.WithValue(completedContext, virtualapiserver.VirtualNamespaceNameKey, virtualWorkspace.Name)
 		}
 	}
 	return
@@ -214,7 +210,10 @@ func (c completedConfig) getRootHandlerChain(delegateAPIServer genericapiserver.
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefixToStrip)
 				req.URL.RawPath = strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
 				req = req.WithContext(genericapirequest.WithCluster(context, genericapirequest.Cluster{Name: "virtual"}))
-				delegateAPIServer.UnprotectedHandler().ServeHTTP(w, req)
+				delegatedHandler := delegateAPIServer.UnprotectedHandler()
+				if delegatedHandler != nil {
+					delegatedHandler.ServeHTTP(w, req)
+				}
 				return
 			}
 			http.NotFoundHandler().ServeHTTP(w, req)
