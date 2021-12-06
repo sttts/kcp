@@ -388,6 +388,7 @@ github.com/kcp-dev/kubernetes/staging/src/k8s.io/apimachinery v0.0.0-20211203153
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/apimachinery v0.0.0-20211203153731-1f4695370a63/go.mod h1:J+pXqtTbzz3Sg3WGrq6bFtKQ2D9xbnRY3VdVaX0lJjw=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiserver v0.0.0-20211203153731-1f4695370a63 h1:UrDa4lR/BGH2Yx4Ich8ViaW0eAcbUJovS7u3I/HqM70=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiserver v0.0.0-20211203153731-1f4695370a63/go.mod h1:IpeVKsnwInYf7NCGiePI9VMXcHHAlBiZIgvNiMAkyAw=
+github.com/kcp-dev/kubernetes/staging/src/k8s.io/cli-runtime v0.0.0-20211203153731-1f4695370a63 h1:UZgI2WizPNO+1n48hvYkjeJaqvpXlMx/ce7Z6rLigWc=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/cli-runtime v0.0.0-20211203153731-1f4695370a63/go.mod h1:/G/EQBeZVcKQ6+aqZhYUZUB7zh13XkshYpnX4m75hGM=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/client-go v0.0.0-20211203153731-1f4695370a63 h1:p+lIpQPG1tWosQCq9g8oGC5XlGQD3ONEnHThUvFzL7E=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/client-go v0.0.0-20211203153731-1f4695370a63/go.mod h1:n1bRYCJq9UxbItQh0czjVsV9jyPrw3eyuVcldthrIAs=
@@ -409,6 +410,7 @@ github.com/kcp-dev/kubernetes/staging/src/k8s.io/kube-aggregator v0.0.0-20211203
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/kube-controller-manager v0.0.0-20211203153731-1f4695370a63/go.mod h1:46iKO45TZat/zvPyqe8TjLLrTS/U/nGB92Ft63PEPF0=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/kube-proxy v0.0.0-20211203153731-1f4695370a63/go.mod h1:6mEp02ABsuOeeBuUrrol78v9LYysX7Z8CZOMFlkPOOI=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/kube-scheduler v0.0.0-20211203153731-1f4695370a63/go.mod h1:xZnfOrGTta6rB9IWNKl82yzWKpMSUXVmyGHRilQ9kzM=
+github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubectl v0.0.0-20211203153731-1f4695370a63 h1:EBb7pIx2yF/zBJrqhSBtSlzHn2UWK+VOvLVGyd+2w3g=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubectl v0.0.0-20211203153731-1f4695370a63/go.mod h1:bdkJAgdbfEwcH39xZympq6yCtuf9jgrAZfnwIohROao=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubelet v0.0.0-20211203153731-1f4695370a63 h1:vC3mqiPfspi8yYnjzXYkfMZdFr0UnUPYm9xpaO274Hw=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubelet v0.0.0-20211203153731-1f4695370a63/go.mod h1:ykhJBi1kXSUeYSTzHe2F6A8nDAfF2jjClsagmgX96vk=
