@@ -9,31 +9,24 @@ import (
 	"strings"
 	"time"
 
-	// corev1 "k8s.io/api/core/v1"
-	// kapierror "k8s.io/apimachinery/pkg/api/errors"
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	// utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
 
-	// genericmux "k8s.io/apiserver/pkg/server/mux"
 	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	"k8s.io/client-go/informers"
 	rbacinformers "k8s.io/client-go/informers/rbac/v1"
 	"k8s.io/client-go/kubernetes"
 
-	// corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
-	// rbacrest "k8s.io/kubernetes/pkg/registry/rbac/rest"
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	rbacauthorizer "k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
@@ -53,7 +46,7 @@ type RootAPIExtraConfig struct {
 	// we phrase it like this so we can build the post-start-hook, but no one can take more indirect dependencies on informers
 	informerStart func(stopCh <-chan struct{})
 
-	VirtualWorkspaces         []builders.VirtualWorkspaceBuilder
+	VirtualWorkspaces []builders.VirtualWorkspaceBuilder
 }
 
 // Validate helps ensure that we build this config correctly, because there are lots of bits to remember for now
@@ -120,16 +113,16 @@ func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, 
 		var additionalConfig interface{}
 		if groupAPIServerBuilder.AdditionalExtraConfigGetter != nil {
 			additionalConfig = groupAPIServerBuilder.AdditionalExtraConfigGetter(CompletedConfig{c})
-		} 
+		}
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
 				SharedExtraConfig: c.ExtraConfig.SharedExtraConfig,
-				Codecs:                    legacyscheme.Codecs,
-				Scheme:                    legacyscheme.Scheme,
-				AdditionalConfig: 		   additionalConfig,
-				GroupVersion: groupAPIServerBuilder.GroupVersion,
-				StorageBuilders: groupAPIServerBuilder.StorageBuilders,
+				Codecs:            legacyscheme.Codecs,
+				Scheme:            legacyscheme.Scheme,
+				AdditionalConfig:  additionalConfig,
+				GroupVersion:      groupAPIServerBuilder.GroupVersion,
+				StorageBuilders:   groupAPIServerBuilder.StorageBuilders,
 			},
 		}
 		config := cfg.Complete()
@@ -137,7 +130,7 @@ func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, 
 		if err != nil {
 			return nil, err
 		}
-	
+
 		return server.GenericAPIServer, nil
 	}
 }
@@ -230,10 +223,10 @@ func (c completedConfig) getRootHandlerChain(delegateAPIServer genericapiserver.
 	}
 }
 
-
 var _ genericapirequest.RequestInfoResolver = (*completedConfig)(nil)
+
 func (c completedConfig) NewRequestInfo(req *http.Request) (*genericapirequest.RequestInfo, error) {
-	defaultResolver := genericapiserver.NewRequestInfoResolver(c.GenericConfig.Config)	
+	defaultResolver := genericapiserver.NewRequestInfoResolver(c.GenericConfig.Config)
 	if accepted, prefixToStrip, _ := c.resolveRootPaths(req.URL.Path, req.Context()); accepted {
 		p := strings.TrimPrefix(req.URL.Path, prefixToStrip)
 		rp := strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
@@ -246,9 +239,9 @@ func (c completedConfig) NewRequestInfo(req *http.Request) (*genericapirequest.R
 		return defaultResolver.NewRequestInfo(r2)
 	}
 	return defaultResolver.NewRequestInfo(req)
-} 
+}
 
-func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Clientset, kcpInformer kcpinformer.SharedInformerFactory, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, informerStarts InformerStarts, rootAPIServerBuilders... builders.VirtualWorkspaceBuilder) (*RootAPIConfig, error) {
+func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Clientset, kcpInformer kcpinformer.SharedInformerFactory, secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback, authenticationOptions *genericapiserveroptions.DelegatingAuthenticationOptions, authorizationOptions *genericapiserveroptions.DelegatingAuthorizationOptions, informerStarts InformerStarts, rootAPIServerBuilders ...builders.VirtualWorkspaceBuilder) (*RootAPIConfig, error) {
 	kubeClient, err := kubernetes.NewForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, err
@@ -296,12 +289,12 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Client
 	// TODO: genericConfig.ExternalAddress = ... allow a command line flag or it to be overriden by a top-level multiroot apiServer
 
 	/*
-	// previously overwritten.  I don't know why
-	genericConfig.RequestTimeout = time.Duration(60) * time.Second
-	genericConfig.MinRequestTimeout = int((time.Duration(60) * time.Minute).Seconds())
-	genericConfig.MaxRequestsInFlight = -1 // TODO: allow configuring
-	genericConfig.MaxMutatingRequestsInFlight = -1 // TODO configuring
-	genericConfig.LongRunningFunc = apiserverconfig.IsLongRunningRequest
+		// previously overwritten.  I don't know why
+		genericConfig.RequestTimeout = time.Duration(60) * time.Second
+		genericConfig.MinRequestTimeout = int((time.Duration(60) * time.Minute).Seconds())
+		genericConfig.MaxRequestsInFlight = -1 // TODO: allow configuring
+		genericConfig.MaxMutatingRequestsInFlight = -1 // TODO configuring
+		genericConfig.LongRunningFunc = apiserverconfig.IsLongRunningRequest
 	*/
 
 	if err := secureServing.ApplyTo(&genericConfig.Config.SecureServing, &genericConfig.Config.LoopbackClientConfig); err != nil {
@@ -318,7 +311,7 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Client
 	discoveryClient := cacheddiscovery.NewMemCacheClient(kubeClient.Discovery())
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
 
-	subjectLocator := NewSubjectLocator(kubeInformers.Rbac().V1())	
+	subjectLocator := NewSubjectLocator(kubeInformers.Rbac().V1())
 	ruleResolver := NewRuleResolver(kubeInformers.Rbac().V1())
 
 	ret := &RootAPIConfig{
@@ -330,15 +323,15 @@ func NewRootAPIConfig(kubeClientConfig *rest.Config, kcpClient *kcpclient.Client
 					informerStart(stopCh)
 				}
 			},
-			SharedExtraConfig: builders.SharedExtraConfig {
-				KubeAPIServerClientConfig:          kubeClientConfig,
-				KcpClient:  kcpClient,
-				KcpInformer: kcpInformer,
-				RuleResolver:                       ruleResolver,
-				SubjectLocator:                     subjectLocator,
-				RESTMapper:                         restMapper,
+			SharedExtraConfig: builders.SharedExtraConfig{
+				KubeAPIServerClientConfig: kubeClientConfig,
+				KcpClient:                 kcpClient,
+				KcpInformer:               kcpInformer,
+				RuleResolver:              ruleResolver,
+				SubjectLocator:            subjectLocator,
+				RESTMapper:                restMapper,
 			},
-			VirtualWorkspaces: 			        rootAPIServerBuilders,
+			VirtualWorkspaces: rootAPIServerBuilders,
 		},
 	}
 

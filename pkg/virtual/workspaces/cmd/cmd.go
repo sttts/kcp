@@ -16,16 +16,17 @@ import (
 )
 
 var _ virtualgenericcmd.SubCommandOptions = (*WorkspacesSubCommandOptions)(nil)
+
 type WorkspacesSubCommandOptions struct {
-	rootPathPrefix string	
+	rootPathPrefix string
 }
 
 func (o *WorkspacesSubCommandOptions) Description() virtualgenericcmd.SubCommandDescription {
-	return virtualgenericcmd.SubCommandDescription {
-		Name: "workspaces",
-		Use: "workspaces",
+	return virtualgenericcmd.SubCommandDescription{
+		Name:  "workspaces",
+		Use:   "workspaces",
 		Short: "Launch workspaces virtual workspace apiserver",
-		Long: "Start a virtual workspace apiserver to managing personal, organizational or global workspaces",
+		Long:  "Start a virtual workspace apiserver to managing personal, organizational or global workspaces",
 	}
 }
 
@@ -44,8 +45,8 @@ func (o *WorkspacesSubCommandOptions) Validate() []error {
 		return nil
 	}
 	errors := []error{}
-	
-	if ! strings.HasPrefix(o.rootPathPrefix, "/") {
+
+	if !strings.HasPrefix(o.rootPathPrefix, "/") {
 		errors = append(errors, fmt.Errorf("--workspaces:root-path-prefix %v should start with /", o.rootPathPrefix))
 	}
 
@@ -53,7 +54,7 @@ func (o *WorkspacesSubCommandOptions) Validate() []error {
 }
 
 func (o *WorkspacesSubCommandOptions) InitializeBuilders(cc clientcmd.ClientConfig, c *rest.Config) ([]virtualrootapiserver.InformerStart, []builders.VirtualWorkspaceBuilder, error) {
-	builders := []builders.VirtualWorkspaceBuilder {
+	builders := []builders.VirtualWorkspaceBuilder{
 		virtualworkspacesbuilders.WorkspacesVirtualWorkspaceBuilder(o.rootPathPrefix),
 	}
 	return nil, builders, nil

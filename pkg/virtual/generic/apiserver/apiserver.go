@@ -15,9 +15,9 @@ import (
 
 type ExtraConfig struct {
 	builders.SharedExtraConfig
-	AdditionalConfig          interface{}
+	AdditionalConfig interface{}
 
-	GroupVersion schema.GroupVersion
+	GroupVersion    schema.GroupVersion
 	StorageBuilders map[string]builders.RestStorageBuidler
 
 	// TODO these should all become local eventually
@@ -75,7 +75,7 @@ func (c *GroupAPIServerConfig) Complete() completedConfig {
 
 // New returns a new instance of VirtualWorkspaceAPIServer from the given config.
 func (c completedConfig) New(virtualWorkspaceName string, delegationTarget genericapiserver.DelegationTarget) (*GroupAPIServer, error) {
-	genericServer, err := c.GenericConfig.New(virtualWorkspaceName + "-" + c.ExtraConfig.GroupVersion.Group + "-virtual-workspace-apiserver", delegationTarget)
+	genericServer, err := c.GenericConfig.New(virtualWorkspaceName+"-"+c.ExtraConfig.GroupVersion.Group+"-virtual-workspace-apiserver", delegationTarget)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,6 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 		}
 		delegationTarget.UnprotectedHandler().ServeHTTP(rw, r)
 	})
-
 
 	s := &GroupAPIServer{
 		GenericAPIServer: genericServer,

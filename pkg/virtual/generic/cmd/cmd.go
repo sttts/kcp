@@ -16,9 +16,9 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/client-go/pkg/version"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	kubeoptions "k8s.io/kubernetes/pkg/kubeapiserver/options"
-	"k8s.io/client-go/pkg/version"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -37,34 +37,34 @@ import (
 
 type APIServerOptions struct {
 	KubeConfigFile string
-	Output     io.Writer
+	Output         io.Writer
 
-	secureServing *genericapiserveroptions.SecureServingOptionsWithLoopback
-	authentication *genericapiserveroptions.DelegatingAuthenticationOptions
-	authorization  *genericapiserveroptions.DelegatingAuthorizationOptions
+	secureServing     *genericapiserveroptions.SecureServingOptionsWithLoopback
+	authentication    *genericapiserveroptions.DelegatingAuthenticationOptions
+	authorization     *genericapiserveroptions.DelegatingAuthorizationOptions
 	subCommandOptions SubCommandOptions
 }
 
 type SubCommandDescription struct {
-	Name string
-	Use string
+	Name  string
+	Use   string
 	Short string
-	Long string
+	Long  string
 }
 
 type SubCommandOptions interface {
 	Description() SubCommandDescription
 	AddFlags(flags *pflag.FlagSet)
 	Validate() []error
-	InitializeBuilders(clientcmd.ClientConfig, *rest.Config)([]virtualrootapiserver.InformerStart,[]virtualbuilders.VirtualWorkspaceBuilder, error)
+	InitializeBuilders(clientcmd.ClientConfig, *rest.Config) ([]virtualrootapiserver.InformerStart, []virtualbuilders.VirtualWorkspaceBuilder, error)
 }
 
 func APIServerCommand(out, errout io.Writer, stopCh <-chan struct{}, subCommandOptions SubCommandOptions) *cobra.Command {
 	options := &APIServerOptions{
-		Output:         out,
-		secureServing:  kubeoptions.NewSecureServingOptions().WithLoopback(),
-		authentication: genericapiserveroptions.NewDelegatingAuthenticationOptions(),
-		authorization:  genericapiserveroptions.NewDelegatingAuthorizationOptions().WithAlwaysAllowPaths("/healthz", "/healthz/").WithAlwaysAllowGroups("system:masters"),
+		Output:            out,
+		secureServing:     kubeoptions.NewSecureServingOptions().WithLoopback(),
+		authentication:    genericapiserveroptions.NewDelegatingAuthenticationOptions(),
+		authorization:     genericapiserveroptions.NewDelegatingAuthorizationOptions().WithAlwaysAllowPaths("/healthz", "/healthz/").WithAlwaysAllowGroups("system:masters"),
 		subCommandOptions: subCommandOptions,
 	}
 
@@ -143,13 +143,13 @@ func (o *APIServerOptions) RunAPIServer(stopCh <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
-	kcpInformer := kcpinformer.NewSharedInformerFactory(kcpClient, 10 * time.Minute)
-	
+	kcpInformer := kcpinformer.NewSharedInformerFactory(kcpClient, 10*time.Minute)
+
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(legacyscheme.Scheme))
 	legacyscheme.Scheme.SetVersionPriority(tenancyv1alpha1.SchemeGroupVersion)
-	
-	informerStarts := []virtualrootapiserver.InformerStart {
-		kcpInformer.Start,			
+
+	informerStarts := []virtualrootapiserver.InformerStart{
+		kcpInformer.Start,
 	}
 	newInformerStarts, virtualWorkspaceBuilders, err := o.subCommandOptions.InitializeBuilders(kubeConfig, kubeClientConfig)
 	if err != nil {

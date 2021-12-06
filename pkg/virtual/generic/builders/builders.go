@@ -27,39 +27,42 @@ type MainConfigProvider interface {
 type APIGroupConfigProvider interface {
 	CompletedConfig() genericapiserver.CompletedConfig
 	SharedExtraConfig() SharedExtraConfig
-	AdditionalConfig() interface{} 
+	AdditionalConfig() interface{}
 }
 
 type SharedExtraConfig struct {
 	KubeAPIServerClientConfig *rest.Config
-	KcpClient *kcpclient.Clientset
-	KcpInformer kcpinformer.SharedInformerFactory
-	RuleResolver   rbacregistryvalidation.AuthorizationRuleResolver
-	SubjectLocator rbacauthorizer.SubjectLocator
+	KcpClient                 *kcpclient.Clientset
+	KcpInformer               kcpinformer.SharedInformerFactory
+	RuleResolver              rbacregistryvalidation.AuthorizationRuleResolver
+	SubjectLocator            rbacauthorizer.SubjectLocator
 	RESTMapper                *restmapper.DeferredDiscoveryRESTMapper
 }
 
 type RestStorageBuidler func(apiGroupConfig APIGroupConfigProvider) (restStorage.Storage, error)
 
 type APIGroupAPIServerBuilder struct {
-	GroupVersion schema.GroupVersion
+	GroupVersion                schema.GroupVersion
 	AdditionalExtraConfigGetter func(mainConfig MainConfigProvider) interface{}
-	StorageBuilders map[string]RestStorageBuidler
+	StorageBuilders             map[string]RestStorageBuidler
 }
 
 type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)
 
 type VirtualWorkspaceBuilder struct {
-	Name string
+	Name                   string
 	GroupAPIServerBuilders []APIGroupAPIServerBuilder
-	RootPathresolver RootPathResolverFunc	
+	RootPathresolver       RootPathResolverFunc
 }
 
 type VirtualWorkspaceBuilderProvider interface {
 	VirtualWorkspaceBuilder() VirtualWorkspaceBuilder
 }
+
 var _ VirtualWorkspaceBuilderProvider = VirtualWorkspaceBuilderProviderFunc(nil)
+
 type VirtualWorkspaceBuilderProviderFunc func() VirtualWorkspaceBuilder
+
 func (f VirtualWorkspaceBuilderProviderFunc) VirtualWorkspaceBuilder() VirtualWorkspaceBuilder {
 	return f()
 }
