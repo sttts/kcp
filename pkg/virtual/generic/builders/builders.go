@@ -34,7 +34,7 @@ type MainConfigProvider interface {
 }
 
 type APIGroupConfigProvider interface {
-	CompletedConfig() genericapiserver.CompletedConfig
+	CompletedGenericConfig() genericapiserver.CompletedConfig
 	SharedExtraConfig() SharedExtraConfig
 	AdditionalConfig() interface{}
 }

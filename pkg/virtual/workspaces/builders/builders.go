@@ -65,7 +65,7 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string) builders.VirtualWo
 				},
 				StorageBuilders: map[string]builders.RestStorageBuidler{
 					"workspaces": func(config builders.APIGroupConfigProvider) (rest.Storage, error) {
-						kubeInformers := config.CompletedConfig().SharedInformerFactory
+						kubeInformers := config.CompletedGenericConfig().SharedInformerFactory
 						kcpInformer := config.SharedExtraConfig().KcpInformer
 						kcpClient := config.SharedExtraConfig().KcpClient
 						return virtualworkspacesregistry.NewREST(kubeInformers, kcpClient, kcpInformer), nil

@@ -54,7 +54,7 @@ type GroupAPIServerConfig struct {
 
 var _ builders.APIGroupConfigProvider = (*completedConfig)(nil)
 
-func (c *completedConfig) CompletedConfig() genericapiserver.CompletedConfig {
+func (c *completedConfig) CompletedGenericConfig() genericapiserver.CompletedConfig {
 	return c.GenericConfig
 }
 
