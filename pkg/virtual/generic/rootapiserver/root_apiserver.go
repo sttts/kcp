@@ -106,8 +106,6 @@ func (c *RootAPIConfig) Complete() completedConfig {
 	return cfg
 }
 
-var _ builders.MainConfigProvider = (*completedConfig)(nil)
-
 func (c *completedConfig) CompletedConfig() genericapiserver.CompletedConfig {
 	return c.GenericConfig
 }
@@ -118,17 +116,12 @@ func (c *completedConfig) SharedExtraConfig() builders.SharedExtraConfig {
 
 func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.APIGroupAPIServerBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
-		var additionalConfig interface{}
-		if groupAPIServerBuilder.AdditionalExtraConfigGetter != nil {
-			additionalConfig = groupAPIServerBuilder.AdditionalExtraConfigGetter(CompletedConfig{c})
-		}
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
 				SharedExtraConfig: c.ExtraConfig.SharedExtraConfig,
 				Codecs:            legacyscheme.Codecs,
 				Scheme:            legacyscheme.Scheme,
-				AdditionalConfig:  additionalConfig,
 				GroupVersion:      groupAPIServerBuilder.GroupVersion,
 				StorageBuilders:   groupAPIServerBuilder.StorageBuilders,
 			},

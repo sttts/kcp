@@ -61,9 +61,6 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string) builders.VirtualWo
 		GroupAPIServerBuilders: []builders.APIGroupAPIServerBuilder{
 			{
 				GroupVersion: tenancyv1alpha1.SchemeGroupVersion,
-				AdditionalExtraConfigGetter: func(mainConfig builders.MainConfigProvider) interface{} {
-					return nil
-				},
 				StorageBuilders: map[string]builders.RestStorageBuidler{
 					"workspaces": func(config apiserver.CompletedConfig) (rest.Storage, error) {
 						kubeInformers := config.GenericConfig.SharedInformerFactory

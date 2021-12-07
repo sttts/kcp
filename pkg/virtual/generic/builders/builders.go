@@ -18,7 +18,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	restStorage "k8s.io/apiserver/pkg/registry/rest"
-	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
@@ -28,11 +27,6 @@ import (
 	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
 	"github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 )
-
-type MainConfigProvider interface {
-	CompletedConfig() genericapiserver.CompletedConfig
-	SharedExtraConfig() SharedExtraConfig
-}
 
 type SharedExtraConfig struct {
 	KubeAPIServerClientConfig *rest.Config
@@ -47,7 +41,6 @@ type RestStorageBuidler func(apiGroupConfig apiserver.CompletedConfig) (restStor
 
 type APIGroupAPIServerBuilder struct {
 	GroupVersion                schema.GroupVersion
-	AdditionalExtraConfigGetter func(mainConfig MainConfigProvider) interface{}
 	StorageBuilders             map[string]RestStorageBuidler
 }
 
