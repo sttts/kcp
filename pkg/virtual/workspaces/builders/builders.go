@@ -21,6 +21,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	"github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 	builders "github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
 	virtualworkspacesregistry "github.com/kcp-dev/kcp/pkg/virtual/workspaces/registry"
 )
@@ -64,10 +65,10 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string) builders.VirtualWo
 					return nil
 				},
 				StorageBuilders: map[string]builders.RestStorageBuidler{
-					"workspaces": func(config builders.APIGroupConfigProvider) (rest.Storage, error) {
-						kubeInformers := config.CompletedGenericConfig().SharedInformerFactory
-						kcpInformer := config.SharedExtraConfig().KcpInformer
-						kcpClient := config.SharedExtraConfig().KcpClient
+					"workspaces": func(config apiserver.CompletedConfig) (rest.Storage, error) {
+						kubeInformers := config.GenericConfig.SharedInformerFactory
+						kcpInformer := config.ExtraConfig.KcpInformer
+						kcpClient := config.ExtraConfig.KcpClient
 						return virtualworkspacesregistry.NewREST(kubeInformers, kcpClient, kcpInformer), nil
 					},
 				},

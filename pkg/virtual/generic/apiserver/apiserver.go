@@ -33,7 +33,6 @@ const VirtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceNam
 
 type ExtraConfig struct {
 	builders.SharedExtraConfig
-	AdditionalConfig interface{}
 
 	GroupVersion    schema.GroupVersion
 	StorageBuilders map[string]builders.RestStorageBuidler
@@ -50,20 +49,6 @@ type ExtraConfig struct {
 type GroupAPIServerConfig struct {
 	GenericConfig *genericapiserver.RecommendedConfig
 	ExtraConfig   ExtraConfig
-}
-
-var _ builders.APIGroupConfigProvider = (*completedConfig)(nil)
-
-func (c *completedConfig) CompletedGenericConfig() genericapiserver.CompletedConfig {
-	return c.GenericConfig
-}
-
-func (c *completedConfig) SharedExtraConfig() builders.SharedExtraConfig {
-	return c.ExtraConfig.SharedExtraConfig
-}
-
-func (c *completedConfig) AdditionalConfig() interface{} {
-	return c.ExtraConfig.AdditionalConfig
 }
 
 // GroupAPIServer contains state for a Kubernetes cluster master/api server.

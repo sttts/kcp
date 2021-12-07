@@ -26,17 +26,12 @@ import (
 
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
+	"github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
 )
 
 type MainConfigProvider interface {
 	CompletedConfig() genericapiserver.CompletedConfig
 	SharedExtraConfig() SharedExtraConfig
-}
-
-type APIGroupConfigProvider interface {
-	CompletedGenericConfig() genericapiserver.CompletedConfig
-	SharedExtraConfig() SharedExtraConfig
-	AdditionalConfig() interface{}
 }
 
 type SharedExtraConfig struct {
@@ -48,7 +43,7 @@ type SharedExtraConfig struct {
 	RESTMapper                *restmapper.DeferredDiscoveryRESTMapper
 }
 
-type RestStorageBuidler func(apiGroupConfig APIGroupConfigProvider) (restStorage.Storage, error)
+type RestStorageBuidler func(apiGroupConfig apiserver.CompletedConfig) (restStorage.Storage, error)
 
 type APIGroupAPIServerBuilder struct {
 	GroupVersion                schema.GroupVersion
