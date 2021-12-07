@@ -17,7 +17,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	restStorage "k8s.io/apiserver/pkg/registry/rest"
+	reststorage "k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
@@ -37,19 +37,17 @@ type SharedExtraConfig struct {
 	RESTMapper                *restmapper.DeferredDiscoveryRESTMapper
 }
 
-type RestStorageBuidler func(apiGroupConfig apiserver.CompletedConfig) (restStorage.Storage, error)
-
-type APIGroupAPIServerBuilder struct {
-	GroupVersion                schema.GroupVersion
-	StorageBuilders             map[string]RestStorageBuidler
+type GroupVersionStorage struct {
+	GroupVersion    schema.GroupVersion
+	ResourceStorage map[string]reststorage.Storage
 }
 
 type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)
 
 type VirtualWorkspaceBuilder struct {
-	Name                   string
-	GroupAPIServerBuilders []APIGroupAPIServerBuilder
-	RootPathresolver       RootPathResolverFunc
+	Name             string
+	GroupsVersions   func(config apiserver.CompletedConfig) []GroupVersionStorage
+	RootPathResolver RootPathResolverFunc
 }
 
 type VirtualWorkspaceBuilderProvider interface {

@@ -18,11 +18,11 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apiserver/pkg/registry/rest"
+	reststorage "k8s.io/apiserver/pkg/registry/rest"
 
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/virtual/generic/apiserver"
-	builders "github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
+	"github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
 	virtualworkspacesregistry "github.com/kcp-dev/kcp/pkg/virtual/workspaces/registry"
 )
 
@@ -41,7 +41,7 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string) builders.VirtualWo
 	}
 	return builders.VirtualWorkspaceBuilder{
 		Name: WorkspacesVirtualWorkspaceName,
-		RootPathresolver: func(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
+		RootPathResolver: func(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
 			completedContext = requestContext
 			if path := urlPath; strings.HasPrefix(path, rootPathPrefix) {
 				path = strings.TrimPrefix(path, rootPathPrefix)
@@ -58,18 +58,19 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string) builders.VirtualWo
 			}
 			return
 		},
-		GroupAPIServerBuilders: []builders.APIGroupAPIServerBuilder{
-			{
-				GroupVersion: tenancyv1alpha1.SchemeGroupVersion,
-				StorageBuilders: map[string]builders.RestStorageBuidler{
-					"workspaces": func(config apiserver.CompletedConfig) (rest.Storage, error) {
-						kubeInformers := config.GenericConfig.SharedInformerFactory
-						kcpInformer := config.ExtraConfig.KcpInformer
-						kcpClient := config.ExtraConfig.KcpClient
-						return virtualworkspacesregistry.NewREST(kubeInformers, kcpClient, kcpInformer), nil
+		GroupsVersions: func(config apiserver.CompletedConfig) []builders.GroupVersionStorage {
+			return []builders.GroupVersionStorage{
+				{
+					GroupVersion: tenancyv1alpha1.SchemeGroupVersion,
+					ResourceStorage: map[string]reststorage.Storage{
+						"workspaces": virtualworkspacesregistry.NewREST(
+							config.GenericConfig.SharedInformerFactory,
+							config.ExtraConfig.KcpClient,
+							config.ExtraConfig.KcpInformer,
+						),
 					},
 				},
-			},
+			}
 		},
 	}
 }

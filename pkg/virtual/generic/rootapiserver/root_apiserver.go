@@ -89,6 +89,8 @@ type RootAPIServer struct {
 type completedConfig struct {
 	GenericConfig genericapiserver.CompletedConfig
 	ExtraConfig   *RootAPIExtraConfig
+
+	rootPathResolvers map[string]builders.RootPathResolverFunc // by name
 }
 
 type CompletedConfig struct {
@@ -101,6 +103,7 @@ func (c *RootAPIConfig) Complete() completedConfig {
 	cfg := completedConfig{
 		c.GenericConfig.Complete(),
 		&c.ExtraConfig,
+		map[string]builders.RootPathResolverFunc{},
 	}
 
 	return cfg
@@ -114,7 +117,7 @@ func (c *completedConfig) SharedExtraConfig() builders.SharedExtraConfig {
 	return c.ExtraConfig.SharedExtraConfig
 }
 
-func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.APIGroupAPIServerBuilder) apiServerAppenderFunc {
+func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, builder func(config virtualapiserver.CompletedConfig) []builders.GroupVersionStorage) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
@@ -122,12 +125,10 @@ func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, 
 				SharedExtraConfig: c.ExtraConfig.SharedExtraConfig,
 				Codecs:            legacyscheme.Codecs,
 				Scheme:            legacyscheme.Scheme,
-				GroupVersion:      groupAPIServerBuilder.GroupVersion,
-				StorageBuilders:   groupAPIServerBuilder.StorageBuilders,
 			},
 		}
 		config := cfg.Complete()
-		server, err := config.New(virtualWorkspaceName, delegateAPIServer)
+		server, err := config.New(virtualWorkspaceName, builder(config.CompletedConfig()), delegateAPIServer)
 		if err != nil {
 			return nil, err
 		}
@@ -156,14 +157,12 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 
 	vwNames := sets.NewString()
 	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
-		name := virtualWorkspace.Name
-		if vwNames.Has(name) {
-			return nil, errors.New("Several virtual workspaces with the same name: " + name)
+		if vwNames.Has(virtualWorkspace.Name) {
+			return nil, errors.New("Several virtual workspaces with the same name: " + virtualWorkspace.Name)
 		}
-		vwNames.Insert(name)
-		for _, groupAPIServerBuilder := range virtualWorkspace.GroupAPIServerBuilders {
-			delegateAPIServer = addAPIServerOrDie(delegateAPIServer, c.withAPIServerForAPIGroup(name, groupAPIServerBuilder))
-		}
+		vwNames.Insert(virtualWorkspace.Name)
+		delegateAPIServer = addAPIServerOrDie(delegateAPIServer, c.withAPIServerForAPIGroup(virtualWorkspace.Name, virtualWorkspace.GroupsVersions))
+		c.rootPathResolvers[virtualWorkspace.Name] = virtualWorkspace.RootPathResolver
 	}
 
 	c.GenericConfig.BuildHandlerChainFunc = c.getRootHandlerChain(delegateAPIServer)
@@ -201,9 +200,9 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 
 func (c completedConfig) resolveRootPaths(urlPath string, requestContext context.Context) (accepted bool, prefixToStrip string, completedContext context.Context) {
 	completedContext = requestContext
-	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
-		if accepted, prefixToStrip, completedContext := virtualWorkspace.RootPathresolver(urlPath, requestContext); accepted {
-			return accepted, prefixToStrip, context.WithValue(completedContext, virtualapiserver.VirtualNamespaceNameKey, virtualWorkspace.Name)
+	for name, resolver := range c.rootPathResolvers {
+		if accepted, prefixToStrip, completedContext := resolver(urlPath, requestContext); accepted {
+			return accepted, prefixToStrip, context.WithValue(completedContext, virtualapiserver.VirtualNamespaceNameKey, name)
 		}
 	}
 	return
