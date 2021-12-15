@@ -50,6 +50,7 @@ import (
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -681,6 +682,38 @@ func (s *Server) Run(ctx context.Context) error {
 	prepared := server.PrepareRun()
 
 	return prepared.Run(ctx.Done())
+}
+
+const clusterNameIndexName = "clusterName"
+
+func clusterNameIndex(obj interface{}) ([]string, error) {
+	acc, err := meta.Accessor(obj)
+	if err != nil {
+		return []string{}, err
+	}
+	return []string{acc.GetClusterName()}, nil
+}
+
+const clusterNameAndNamespaceIndexName = "clusterName/namespace"
+
+func clusterNameAndNamespaceIndex(obj interface{}) ([]string, error) {
+	acc, err := meta.Accessor(obj)
+	if err != nil {
+		return []string{}, err
+	}
+	ns := acc.GetNamespace()
+	if ns == "" {
+		return []string{}, nil
+	}
+	return []string{acc.GetClusterName() + "/" + ns}, nil
+}
+
+func clusterAwareNSKeyFunc(ctx context.Context, ns string) string {
+	return ""
+}
+
+func clusterAwareKeyFunc(ctx context.Context, obj interface{}) (string, error) {
+	return "", nil
 }
 
 // AddPostStartHook allows you to add a PostStartHook that gets passed to the underlying genericapiserver implementation.

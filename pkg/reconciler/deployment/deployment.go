@@ -22,10 +22,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -43,7 +42,7 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 		if err != nil {
 			return err
 		}
-		leafs, err := c.lister.List(sel)
+		leafs, err := c.deploymentLister.ListWithContext(ctx, sel)
 		if err != nil {
 			return err
 		}
@@ -61,28 +60,18 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 		if err != nil {
 			return err
 		}
-		others, err := c.lister.List(sel)
+		others, err := c.deploymentLister.ListWithContext(ctx, sel)
 		if err != nil {
 			return err
 		}
 
-		var rootDeployment *appsv1.Deployment
-
-		rootIf, exists, err := c.indexer.Get(&appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   deployment.Namespace,
-				Name:        rootDeploymentName,
-				ClusterName: deployment.GetClusterName(),
-			},
-		})
+		rootDeployment, err := c.deploymentLister.Deployments(deployment.Namespace).GetWithContext(ctx, rootDeploymentName)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("Root deployment not found: %s", rootDeploymentName)
+			}
 			return err
 		}
-		if !exists {
-			return fmt.Errorf("Root deployment not found: %s", rootDeploymentName)
-		}
-
-		rootDeployment = rootIf.(*appsv1.Deployment)
 
 		// Aggregate .status from all leafs.
 
@@ -106,15 +95,7 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 			rootDeployment.Status.Conditions = others[0].Status.Conditions
 		}
 
-		if _, err := c.client.Deployments(rootDeployment.Namespace).UpdateStatus(ctx, rootDeployment, metav1.UpdateOptions{}); err != nil {
-			if errors.IsConflict(err) {
-				key, err := cache.MetaNamespaceKeyFunc(deployment)
-				if err != nil {
-					return err
-				}
-				c.queue.AddRateLimited(key)
-				return nil
-			}
+		if _, err := c.deploymentClient.Deployments(rootDeployment.Namespace).UpdateStatus(ctx, rootDeployment, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
 	}
@@ -170,7 +151,7 @@ func (c *Controller) createLeafs(ctx context.Context, root *appsv1.Deployment) e
 
 		// TODO: munge namespace
 		vd.SetResourceVersion("")
-		if _, err := c.kubeClient.AppsV1().Deployments(root.Namespace).Create(ctx, vd, metav1.CreateOptions{}); err != nil {
+		if _, err := c.deploymentClient.Deployments(root.Namespace).Create(ctx, vd, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		klog.Infof("created child deployment %q", vd.Name)
