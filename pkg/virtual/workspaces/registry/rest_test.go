@@ -25,9 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	rbacv1 "k8s.io/api/rbac/v1"
-
-	//	"strings"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,14 +38,11 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	//	corev1 "k8s.io/api/core/v1"
-	//	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/controller"
 
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	tenancyv1fake "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/fake"
 	workspaceauth "github.com/kcp-dev/kcp/pkg/virtual/workspaces/auth"
-	//	"k8s.io/apiserver/pkg/registry/rest"
 )
 
 // mockLister returns the workspaces in the list
