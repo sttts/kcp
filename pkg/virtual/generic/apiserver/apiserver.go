@@ -97,7 +97,7 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 		return nil, err
 	}
 
-	builders, err := c.ExtraConfig.Initialize(c.GenericConfig)
+	builders, err := c.ExtraConfig.NewRestStorageBuilders(c.GenericConfig)
 	if err != nil {
 		return nil, err
 	}

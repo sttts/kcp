@@ -28,9 +28,9 @@ import (
 type RestStorageBuilder func(apiGroupAPIServerConfig genericapiserver.CompletedConfig) (restStorage.Storage, error)
 
 type GroupBuilder struct {
-	GroupVersion schema.GroupVersion
-	AddToScheme  func(*runtime.Scheme) error
-	Initialize   func(genericapiserver.CompletedConfig) (map[string]RestStorageBuilder, error)
+	GroupVersion           schema.GroupVersion
+	AddToScheme            func(*runtime.Scheme) error
+	NewRestStorageBuilders func(genericapiserver.CompletedConfig) (map[string]RestStorageBuilder, error)
 }
 
 type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)

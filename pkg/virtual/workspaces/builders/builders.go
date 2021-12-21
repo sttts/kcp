@@ -70,7 +70,7 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string, workspaces workspa
 			{
 				GroupVersion: tenancyv1alpha1.SchemeGroupVersion,
 				AddToScheme:  tenancyv1alpha1.AddToScheme,
-				Initialize: func(mainConfig genericapiserver.CompletedConfig) (map[string]builders.RestStorageBuilder, error) {
+				NewRestStorageBuilders: func(mainConfig genericapiserver.CompletedConfig) (map[string]builders.RestStorageBuilder, error) {
 					reviewerProvider := workspaceauth.NewAuthorizerReviewerProvider(subjectLocator)
 					workspaceAuthorizationCache := workspaceauth.NewAuthorizationCache(
 						workspaces.Lister(),
