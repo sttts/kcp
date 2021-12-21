@@ -18,7 +18,6 @@ package apiserver
 
 import (
 	"net/http"
-	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,10 +40,6 @@ type ExtraConfig struct {
 	// TODO these should all become local eventually
 	Scheme *runtime.Scheme
 	Codecs serializer.CodecFactory
-
-	makeStorage sync.Once
-	storage     map[string]rest.Storage
-	storageErr  error
 }
 
 type GroupAPIServerConfig struct {
@@ -102,7 +97,7 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 		GenericAPIServer: genericServer,
 	}
 
-	storage, err := c.RESTStorage()
+	storage, err := c.newRESTStorage()
 	if err != nil {
 		return nil, err
 	}
@@ -114,14 +109,6 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 	}
 
 	return s, nil
-}
-
-func (c *completedConfig) RESTStorage() (map[string]rest.Storage, error) {
-	c.ExtraConfig.makeStorage.Do(func() {
-		c.ExtraConfig.storage, c.ExtraConfig.storageErr = c.newRESTStorage()
-	})
-
-	return c.ExtraConfig.storage, c.ExtraConfig.storageErr
 }
 
 func (c *completedConfig) newRESTStorage() (map[string]rest.Storage, error) {
