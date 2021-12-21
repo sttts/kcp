@@ -98,7 +98,7 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string, workspaces workspa
 						return nil, err
 					}
 
-					return map[string]builders.RestStorageBuidler{
+					return map[string]builders.RestStorageBuilder{
 						"workspaces": func(apiGroupAPIServerConfig genericapiserver.CompletedConfig) (rest.Storage, error) {
 							return virtualworkspacesregistry.NewREST(workspaceClient, kubeClient.RbacV1(), crbInformer, reviewerProvider, workspaceAuthorizationCache), nil
 						},
