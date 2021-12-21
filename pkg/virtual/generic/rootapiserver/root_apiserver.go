@@ -86,23 +86,14 @@ func (c *RootAPIConfig) Complete() completedConfig {
 
 func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.APIGroupAPIServerBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
-		restStorageBuilders, err := groupAPIServerBuilder.Initialize(c.GenericConfig)
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
-				Codecs:          legacyscheme.Codecs,
-				Scheme:          legacyscheme.Scheme,
-				GroupVersion:    groupAPIServerBuilder.GroupVersion,
-				StorageBuilders: restStorageBuilders,
+				APIGroupAPIServerBuilder: groupAPIServerBuilder,
 			},
 		}
 		cfg.GenericConfig.PostStartHooks = map[string]genericapiserver.PostStartHookConfigEntry{}
-		config := cfg.Complete()
-		if err != nil {
-			return nil, err
-		}
-
-		server, err := config.New(virtualWorkspaceName, delegateAPIServer)
+		server, err := cfg.Complete().New(virtualWorkspaceName, delegateAPIServer)
 		if err != nil {
 			return nil, err
 		}
