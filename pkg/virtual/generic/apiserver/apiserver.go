@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -33,7 +34,9 @@ type virtualNamespaceNameKeyType string
 const VirtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceName"
 
 type ExtraConfig struct {
-	builders.APIGroupAPIServerBuilder
+	GroupVersion    schema.GroupVersion
+	AddToScheme     func(*runtime.Scheme) error
+	StorageBuilders map[string]builders.RestStorageBuilder
 }
 
 type GroupAPIServerConfig struct {
@@ -97,12 +100,8 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 		return nil, err
 	}
 
-	builders, err := c.ExtraConfig.Initialize(c.GenericConfig)
-	if err != nil {
-		return nil, err
-	}
 	storage := map[string]rest.Storage{}
-	for resource, storageBuilder := range builders {
+	for resource, storageBuilder := range c.ExtraConfig.StorageBuilders {
 		restStorage, err := storageBuilder(c.GenericConfig)
 		if err != nil {
 			return nil, err

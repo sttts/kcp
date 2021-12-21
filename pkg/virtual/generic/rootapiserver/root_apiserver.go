@@ -86,10 +86,17 @@ func (c *RootAPIConfig) Complete() completedConfig {
 
 func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.APIGroupAPIServerBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
+		storageBuilders, err := groupAPIServerBuilder.Initialize(c.GenericConfig)
+		if err != nil {
+			return nil, err
+		}
+
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
-				APIGroupAPIServerBuilder: groupAPIServerBuilder,
+				GroupVersion:    groupAPIServerBuilder.GroupVersion,
+				AddToScheme:     groupAPIServerBuilder.AddToScheme,
+				StorageBuilders: storageBuilders,
 			},
 		}
 		cfg.GenericConfig.PostStartHooks = map[string]genericapiserver.PostStartHookConfigEntry{}
