@@ -161,7 +161,7 @@ func (c completedConfig) resolveRootPaths(urlPath string, requestContext context
 	completedContext = requestContext
 	for _, virtualWorkspace := range c.ExtraConfig.VirtualWorkspaces {
 		if accepted, prefixToStrip, completedContext := virtualWorkspace.RootPathResolver(urlPath, requestContext); accepted {
-			return accepted, prefixToStrip, context.WithValue(completedContext, virtualapiserver.VirtualNamespaceNameKey, virtualWorkspace.Name)
+			return accepted, prefixToStrip, virtualapiserver.WithVirtualWorkspaceName(completedContext, virtualWorkspace.Name)
 		}
 	}
 	return

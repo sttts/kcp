@@ -30,10 +30,6 @@ import (
 	"github.com/kcp-dev/kcp/pkg/virtual/generic/builders"
 )
 
-type virtualNamespaceNameKeyType string
-
-const VirtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceName"
-
 type ExtraConfig struct {
 	GroupVersion    schema.GroupVersion
 	StorageBuilders map[string]builders.RestStorageBuidler
@@ -86,8 +82,8 @@ func (c completedConfig) New(virtualWorkspaceName string, delegationTarget gener
 
 	director := genericServer.Handler.Director
 	genericServer.Handler.Director = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		if vwName := r.Context().Value(VirtualNamespaceNameKey); vwName != nil {
-			if vwNameString, isString := vwName.(string); isString && vwNameString == virtualWorkspaceName {
+		if vw := VirtualWorkspaceNameFrom(r.Context()); vw != "" {
+			if vw == virtualWorkspaceName {
 				director.ServeHTTP(rw, r)
 				return
 			}
