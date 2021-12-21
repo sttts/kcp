@@ -33,7 +33,7 @@ type virtualNamespaceNameKeyType string
 const VirtualNamespaceNameKey virtualNamespaceNameKeyType = "VirtualWorkspaceName"
 
 type ExtraConfig struct {
-	builders.APIGroupAPIServerBuilder
+	builders.GroupBuilder
 }
 
 type GroupAPIServerConfig struct {

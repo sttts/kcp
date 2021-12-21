@@ -84,12 +84,12 @@ func (c *RootAPIConfig) Complete() completedConfig {
 	return cfg
 }
 
-func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.APIGroupAPIServerBuilder) apiServerAppenderFunc {
+func (c *completedConfig) withAPIServerForAPIGroup(virtualWorkspaceName string, groupAPIServerBuilder builders.GroupBuilder) apiServerAppenderFunc {
 	return func(delegateAPIServer genericapiserver.DelegationTarget) (genericapiserver.DelegationTarget, error) {
 		cfg := &virtualapiserver.GroupAPIServerConfig{
 			GenericConfig: &genericapiserver.RecommendedConfig{Config: *c.GenericConfig.Config, SharedInformerFactory: c.GenericConfig.SharedInformerFactory},
 			ExtraConfig: virtualapiserver.ExtraConfig{
-				APIGroupAPIServerBuilder: groupAPIServerBuilder,
+				GroupBuilder: groupAPIServerBuilder,
 			},
 		}
 		cfg.GenericConfig.PostStartHooks = map[string]genericapiserver.PostStartHookConfigEntry{}
@@ -118,7 +118,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 			return nil, errors.New("Several virtual workspaces with the same name: " + name)
 		}
 		vwNames.Insert(name)
-		for _, groupAPIServerBuilder := range virtualWorkspace.GroupAPIServerBuilders {
+		for _, groupAPIServerBuilder := range virtualWorkspace.GroupBuilders {
 			var err error
 			delegateAPIServer, err = c.withAPIServerForAPIGroup(name, groupAPIServerBuilder)(delegateAPIServer)
 			if err != nil {

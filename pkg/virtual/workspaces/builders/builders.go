@@ -66,7 +66,7 @@ func WorkspacesVirtualWorkspaceBuilder(rootPathPrefix string, workspaces workspa
 			}
 			return
 		},
-		GroupAPIServerBuilders: []builders.APIGroupAPIServerBuilder{
+		GroupBuilders: []builders.GroupBuilder{
 			{
 				GroupVersion: tenancyv1alpha1.SchemeGroupVersion,
 				AddToScheme:  tenancyv1alpha1.AddToScheme,

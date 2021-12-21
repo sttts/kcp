@@ -27,7 +27,7 @@ import (
 
 type RestStorageBuilder func(apiGroupAPIServerConfig genericapiserver.CompletedConfig) (restStorage.Storage, error)
 
-type APIGroupAPIServerBuilder struct {
+type GroupBuilder struct {
 	GroupVersion schema.GroupVersion
 	AddToScheme  func(*runtime.Scheme) error
 	Initialize   func(genericapiserver.CompletedConfig) (map[string]RestStorageBuilder, error)
@@ -36,9 +36,9 @@ type APIGroupAPIServerBuilder struct {
 type RootPathResolverFunc func(urlPath string, context context.Context) (accepted bool, prefixToStrip string, completedContext context.Context)
 
 type VirtualWorkspaceBuilder struct {
-	Name                   string
-	GroupAPIServerBuilders []APIGroupAPIServerBuilder
-	RootPathResolver       RootPathResolverFunc
+	Name             string
+	GroupBuilders    []GroupBuilder
+	RootPathResolver RootPathResolverFunc
 }
 
 type VirtualWorkspaceBuilderProvider interface {
