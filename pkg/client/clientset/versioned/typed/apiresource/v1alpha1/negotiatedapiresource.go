@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,13 +22,12 @@ import (
 	"context"
 	"time"
 
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
-
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 )
 
 // NegotiatedAPIResourcesGetter has a method to return a NegotiatedAPIResourceInterface.

@@ -19,18 +19,13 @@ package main
 import (
 	"context"
 	"flag"
-	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
@@ -52,75 +47,7 @@ func main() {
 
 	flag.Parse()
 
-	// TODO: export these and make them part of a KCP library that consumers can use
-	clusterAwareKeyFunc := func(obj interface{}) (string, error) {
-		acc, err := meta.Accessor(obj)
-		if err != nil {
-			return "", err
-		}
-		return acc.GetClusterName() + "|" + acc.GetNamespace() + "|" + acc.GetName(), nil
-	}
-
-	clusterAwareDecodeKeyFunc := func(key string) cache.QueueKey {
-		parts := strings.Split(key, "|")
-		clusterName := parts[0]
-		namespace := parts[1]
-		name := parts[2]
-		return controllerz.NewKCPQueueKey(clusterName, namespace, name)
-	}
-
-	clusterNameIndex := func(obj interface{}) ([]string, error) {
-		acc, err := meta.Accessor(obj)
-		if err != nil {
-			return []string{}, err
-		}
-		return []string{acc.GetClusterName()}, nil
-	}
-
-	clusterNameAndNamespaceIndex := func(obj interface{}) ([]string, error) {
-		acc, err := meta.Accessor(obj)
-		if err != nil {
-			return []string{}, err
-		}
-		ns := acc.GetNamespace()
-		if ns == "" {
-			return []string{}, nil
-		}
-		return []string{acc.GetClusterName() + "|" + ns}, nil
-	}
-
-	clusterAwareNSKeyFunc := func(ctx context.Context, ns string) (string, error) {
-		lcluster, err := cluster.FromContext(ctx)
-		if err != nil {
-			return "", err
-		}
-		return lcluster + "|" + ns, nil
-	}
-
-	clusterAwareNSNameKeyFunc := func(ctx context.Context, ns, name string) (string, error) {
-		lcluster, err := cluster.FromContext(ctx)
-		if err != nil {
-			return "", err
-		}
-		return lcluster + "|" + ns + "|" + name, nil
-	}
-
-	listAllIndexName := "lcluster"
-	namespaceIndexName := "lcluster+namespace"
-
-	controllerConfig := cache.ControllerzConfig{
-		ObjectKeyFunc:         clusterAwareKeyFunc,
-		DecodeKeyFunc:         clusterAwareDecodeKeyFunc,
-		ListAllIndex:          listAllIndexName,
-		ListAllIndexFunc:      clusterNameIndex,
-		ListAllIndexValueFunc: cluster.FromContext,
-		NamespaceIndex:        namespaceIndexName,
-		NamespaceIndexFunc:    clusterNameAndNamespaceIndex,
-		NamespaceKeyFunc:      clusterAwareNSKeyFunc,
-		NamespaceNameKeyFunc:  clusterAwareNSNameKeyFunc,
-	}
-
-	cache.Complete(controllerConfig)
+	controllerz.EnableLogicalClusters()
 
 	var overrides clientcmd.ConfigOverrides
 	if *kubecontext != "" {
@@ -151,10 +78,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	andyHTTPClient := &kcpHTTPClient{
-		delegate: restClient,
-	}
-	andyKubeClient, err := kubernetes.NewForConfigAndClient(cfg, andyHTTPClient)
+	clusterAwareHTTPClient := cluster.NewHTTPClient(restClient)
+	kubeClient, err := kubernetes.NewForConfigAndClient(cfg, clusterAwareHTTPClient)
 
 	// TODO: make a custom rest.HTTPClient that always does "*"
 	kubeSharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(crossKubeClient.Cluster("*"), 0)
@@ -162,7 +87,7 @@ func main() {
 	deploymentController := deployment.NewController(
 		kcpSharedInformerFactory.Cluster().V1alpha1().Clusters(),
 		crossKubeClient,
-		andyKubeClient.AppsV1(),
+		kubeClient.AppsV1(),
 		kubeSharedInformerFactory.Apps().V1().Deployments(),
 		kcpSharedInformerFactory.Cluster().V1alpha1().Clusters().Informer().HasSynced,
 		kubeSharedInformerFactory.Apps().V1().Deployments().Informer().HasSynced,
@@ -172,41 +97,4 @@ func main() {
 	kcpSharedInformerFactory.Start(ctx.Done())
 
 	deploymentController.Start(ctx, numThreads)
-}
-
-type kcpHTTPClient struct {
-	delegate rest.HTTPClient
-}
-
-func (c *kcpHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	clusterName, err := cluster.FromContext(req.Context())
-	if err != nil {
-		// Couldn't find cluster name in context
-		return c.delegate.Do(req)
-	}
-
-	if !strings.HasPrefix(req.URL.Path, "/clusters/") {
-		originalPath := req.URL.Path
-
-		// start with /clusters/$name
-		req.URL.Path = "/clusters/" + clusterName
-
-		// if the original path is relative, add a / separator
-		if len(originalPath) > 0 && originalPath[0] != '/' {
-			req.URL.Path += "/"
-		}
-
-		// finally append the original path
-		req.URL.Path += originalPath
-	}
-
-	return c.delegate.Do(req)
-}
-
-func (c *kcpHTTPClient) Timeout() time.Duration {
-	return c.delegate.Timeout()
-}
-
-func (c *kcpHTTPClient) Transport() http.RoundTripper {
-	return c.delegate.Transport()
 }

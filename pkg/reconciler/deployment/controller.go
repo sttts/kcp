@@ -36,7 +36,6 @@ import (
 
 	clusterinformers "github.com/kcp-dev/kcp/pkg/client/informers/externalversions/cluster/v1alpha1"
 	clusterlisters "github.com/kcp-dev/kcp/pkg/client/listers/cluster/v1alpha1"
-	"github.com/kcp-dev/kcp/pkg/cluster"
 )
 
 const resyncPeriod = 10 * time.Hour
@@ -125,8 +124,15 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	// other workers.
 	defer c.queue.Done(k)
 
-	key := cache.DecodeKeyFunc(k.(string))
-	ctx = cluster.NewContext(ctx, key)
+	key, err := cache.DecodeKeyFunc(k.(string))
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("%q controller unable to decode key %s: %w", controllerName, k, err))
+		return true
+	}
+
+	ctx = cache.NewSyncContext(ctx, key)
+
+	// c.clusterLister.Filter(cache.ListAllIndex, kcp.FilterValues(ctx)}/* lcluster name */)
 
 	if err := c.process(ctx, key); err != nil {
 		runtime.HandleError(fmt.Errorf("%q controller failed to sync %q, err: %w", controllerName, key, err))

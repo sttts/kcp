@@ -27,6 +27,7 @@ import (
 	"k8s.io/component-base/cli"
 
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/pkg/server"
 )
 
@@ -75,6 +76,9 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 			defer cancel()
+
+			controllerz.EnableLogicalClusters()
+
 			srv := server.NewServer(cfg)
 			return srv.Run(ctx)
 		},

@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,14 +23,13 @@ import (
 	sync "sync"
 	time "time"
 
+	versioned "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/clientset/versioned"
+	internalinterfaces "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/informers/externalversions/internalinterfaces"
+	wildwest "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/informers/externalversions/wildwest"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-
-	versioned "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/clientset/versioned"
-	internalinterfaces "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/informers/externalversions/internalinterfaces"
-	wildwest "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/informers/externalversions/wildwest"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.

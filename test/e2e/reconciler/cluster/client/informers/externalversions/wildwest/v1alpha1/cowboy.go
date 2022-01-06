@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,15 +22,14 @@ import (
 	"context"
 	time "time"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	watch "k8s.io/apimachinery/pkg/watch"
-	cache "k8s.io/client-go/tools/cache"
-
 	wildwestv1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
 	versioned "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/clientset/versioned"
 	internalinterfaces "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/listers/wildwest/v1alpha1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	watch "k8s.io/apimachinery/pkg/watch"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CowboyInformer provides access to a shared informer and lister for
@@ -79,7 +78,7 @@ func NewFilteredCowboyInformer(client versioned.Interface, namespace string, res
 }
 
 func (f *cowboyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredCowboyInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredCowboyInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.ListAllIndex: cache.ListAllIndexFunc(), cache.NamespaceIndex: cache.NamespaceIndexFunc()}, f.tweakListOptions)
 }
 
 func (f *cowboyInformer) Informer() cache.SharedIndexInformer {

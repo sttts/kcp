@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,11 +21,10 @@ package v1alpha1
 import (
 	"context"
 
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
-
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 )
 
 // NegotiatedAPIResourceLister helps list NegotiatedAPIResources.
@@ -63,7 +62,7 @@ func (s *negotiatedAPIResourceLister) List(selector labels.Selector) (ret []*v1a
 
 // ListWithContext lists all NegotiatedAPIResources in the indexer.
 func (s *negotiatedAPIResourceLister) ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.NegotiatedAPIResource, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+	err = cache.IndexedListAll(ctx, s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.NegotiatedAPIResource))
 	})
 	return ret, err
@@ -76,7 +75,11 @@ func (s *negotiatedAPIResourceLister) Get(name string) (*v1alpha1.NegotiatedAPIR
 
 // GetWithContext retrieves the NegotiatedAPIResource from the index for a given name.
 func (s *negotiatedAPIResourceLister) GetWithContext(ctx context.Context, name string) (*v1alpha1.NegotiatedAPIResource, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
+	key, err := cache.NameKeyFunc(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	obj, exists, err := s.indexer.GetByKey(key)
 	if err != nil {
 		return nil, err
 	}

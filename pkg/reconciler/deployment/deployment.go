@@ -104,7 +104,7 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 }
 
 func (c *Controller) createLeafs(ctx context.Context, root *appsv1.Deployment) error {
-	cls, err := c.clusterLister.List(labels.Everything())
+	cls, err := c.clusterLister.ListWithContext(ctx, labels.Everything())
 	if err != nil {
 		return err
 	}

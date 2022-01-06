@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,14 +21,13 @@ package fake
 import (
 	"context"
 
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
-
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 )
 
 // FakeNegotiatedAPIResources implements NegotiatedAPIResourceInterface
@@ -111,7 +110,7 @@ func (c *FakeNegotiatedAPIResources) UpdateStatus(ctx context.Context, negotiate
 // Delete takes name of the negotiatedAPIResource and deletes it. Returns an error if one occurs.
 func (c *FakeNegotiatedAPIResources) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(negotiatedapiresourcesResource, name), &v1alpha1.NegotiatedAPIResource{})
+		Invokes(testing.NewRootDeleteActionWithOptions(negotiatedapiresourcesResource, name, opts), &v1alpha1.NegotiatedAPIResource{})
 	return err
 }
 

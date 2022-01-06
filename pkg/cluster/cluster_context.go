@@ -2,8 +2,8 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 
+	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -24,8 +24,14 @@ func NewContext(ctx context.Context, key cache.QueueKey) context.Context {
 
 func FromContext(ctx context.Context) (string, error) {
 	v := ctx.Value(clusterKey)
-	if v == nil {
-		return "", fmt.Errorf("NO CLUSTER IN CONTEXT")
+	if v != nil {
+		return v.(string), nil
 	}
-	return v.(string), nil
+
+	clusterName, err := request.ClusterNameFrom(ctx)
+	if err != nil {
+		return "", nil
+	}
+
+	return clusterName, nil
 }

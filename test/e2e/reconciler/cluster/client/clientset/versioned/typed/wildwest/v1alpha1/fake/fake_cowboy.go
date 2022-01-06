@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,14 +21,13 @@ package fake
 import (
 	"context"
 
+	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
-
-	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
 )
 
 // FakeCowboys implements CowboyInterface
@@ -118,7 +117,7 @@ func (c *FakeCowboys) UpdateStatus(ctx context.Context, cowboy *v1alpha1.Cowboy,
 // Delete takes name of the cowboy and deletes it. Returns an error if one occurs.
 func (c *FakeCowboys) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cowboysResource, c.ns, name), &v1alpha1.Cowboy{})
+		Invokes(testing.NewDeleteActionWithOptions(cowboysResource, c.ns, name, opts), &v1alpha1.Cowboy{})
 
 	return err
 }
