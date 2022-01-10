@@ -19,15 +19,18 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rest "k8s.io/client-go/rest"
+
 	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
-	rest "k8s.io/client-go/rest"
 )
 
 type ApiresourceV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	APIResourceImportsGetter
+	ScopedAPIResourceImportsGetter
 	NegotiatedAPIResourcesGetter
+	ScopedNegotiatedAPIResourcesGetter
 }
 
 // ApiresourceV1alpha1Client is used to interact with features provided by the apiresource.kcp.dev group.
@@ -37,11 +40,19 @@ type ApiresourceV1alpha1Client struct {
 }
 
 func (c *ApiresourceV1alpha1Client) APIResourceImports() APIResourceImportInterface {
-	return newAPIResourceImports(c)
+	return newAPIResourceImports(c, nil)
+}
+
+func (c *ApiresourceV1alpha1Client) ScopedAPIResourceImports(scope rest.Scope) APIResourceImportInterface {
+	return newAPIResourceImports(c, scope)
 }
 
 func (c *ApiresourceV1alpha1Client) NegotiatedAPIResources() NegotiatedAPIResourceInterface {
-	return newNegotiatedAPIResources(c)
+	return newNegotiatedAPIResources(c, nil)
+}
+
+func (c *ApiresourceV1alpha1Client) ScopedNegotiatedAPIResources(scope rest.Scope) NegotiatedAPIResourceInterface {
+	return newNegotiatedAPIResources(c, scope)
 }
 
 // NewForConfig creates a new ApiresourceV1alpha1Client for the given config.

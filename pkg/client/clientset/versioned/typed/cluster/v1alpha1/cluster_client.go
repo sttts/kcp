@@ -19,14 +19,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rest "k8s.io/client-go/rest"
+
 	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
-	rest "k8s.io/client-go/rest"
 )
 
 type ClusterV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClustersGetter
+	ScopedClustersGetter
 }
 
 // ClusterV1alpha1Client is used to interact with features provided by the cluster.example.dev group.
@@ -36,7 +38,11 @@ type ClusterV1alpha1Client struct {
 }
 
 func (c *ClusterV1alpha1Client) Clusters() ClusterInterface {
-	return newClusters(c)
+	return newClusters(c, nil)
+}
+
+func (c *ClusterV1alpha1Client) ScopedClusters(scope rest.Scope) ClusterInterface {
+	return newClusters(c, scope)
 }
 
 // NewForConfig creates a new ClusterV1alpha1Client for the given config.

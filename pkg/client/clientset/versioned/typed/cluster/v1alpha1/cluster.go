@@ -22,18 +22,23 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 )
 
 // ClustersGetter has a method to return a ClusterInterface.
 // A group's client should implement this interface.
 type ClustersGetter interface {
 	Clusters() ClusterInterface
+}
+
+type ScopedClustersGetter interface {
+	ScopedClusters(scope rest.Scope) ClusterInterface
 }
 
 // ClusterInterface has methods to work with Cluster resources.
@@ -54,13 +59,15 @@ type ClusterInterface interface {
 type clusters struct {
 	client  rest.Interface
 	cluster string
+	scope   rest.Scope
 }
 
 // newClusters returns a Clusters
-func newClusters(c *ClusterV1alpha1Client) *clusters {
+func newClusters(c *ClusterV1alpha1Client, scope rest.Scope) *clusters {
 	return &clusters{
 		client:  c.RESTClient(),
 		cluster: c.cluster,
+		scope:   scope,
 	}
 }
 
@@ -69,6 +76,7 @@ func (c *clusters) Get(ctx context.Context, name string, options v1.GetOptions) 
 	result = &v1alpha1.Cluster{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -86,6 +94,7 @@ func (c *clusters) List(ctx context.Context, opts v1.ListOptions) (result *v1alp
 	result = &v1alpha1.ClusterList{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -103,6 +112,7 @@ func (c *clusters) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interf
 	opts.Watch = true
 	return c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -114,6 +124,7 @@ func (c *clusters) Create(ctx context.Context, cluster *v1alpha1.Cluster, opts v
 	result = &v1alpha1.Cluster{}
 	err = c.client.Post().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(cluster).
@@ -127,6 +138,7 @@ func (c *clusters) Update(ctx context.Context, cluster *v1alpha1.Cluster, opts v
 	result = &v1alpha1.Cluster{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		Name(cluster.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -142,6 +154,7 @@ func (c *clusters) UpdateStatus(ctx context.Context, cluster *v1alpha1.Cluster, 
 	result = &v1alpha1.Cluster{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		Name(cluster.Name).
 		SubResource("status").
@@ -156,6 +169,7 @@ func (c *clusters) UpdateStatus(ctx context.Context, cluster *v1alpha1.Cluster, 
 func (c *clusters) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		Name(name).
 		Body(&opts).
@@ -171,6 +185,7 @@ func (c *clusters) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, 
 	}
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -184,6 +199,7 @@ func (c *clusters) Patch(ctx context.Context, name string, pt types.PatchType, d
 	result = &v1alpha1.Cluster{}
 	err = c.client.Patch(pt).
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("clusters").
 		Name(name).
 		SubResource(subresources...).

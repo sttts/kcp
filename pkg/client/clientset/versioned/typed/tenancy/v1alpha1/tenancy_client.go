@@ -19,15 +19,18 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rest "k8s.io/client-go/rest"
+
 	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
-	rest "k8s.io/client-go/rest"
 )
 
 type TenancyV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	WorkspacesGetter
+	ScopedWorkspacesGetter
 	WorkspaceShardsGetter
+	ScopedWorkspaceShardsGetter
 }
 
 // TenancyV1alpha1Client is used to interact with features provided by the tenancy.kcp.dev group.
@@ -37,11 +40,19 @@ type TenancyV1alpha1Client struct {
 }
 
 func (c *TenancyV1alpha1Client) Workspaces() WorkspaceInterface {
-	return newWorkspaces(c)
+	return newWorkspaces(c, nil)
+}
+
+func (c *TenancyV1alpha1Client) ScopedWorkspaces(scope rest.Scope) WorkspaceInterface {
+	return newWorkspaces(c, scope)
 }
 
 func (c *TenancyV1alpha1Client) WorkspaceShards() WorkspaceShardInterface {
-	return newWorkspaceShards(c)
+	return newWorkspaceShards(c, nil)
+}
+
+func (c *TenancyV1alpha1Client) ScopedWorkspaceShards(scope rest.Scope) WorkspaceShardInterface {
+	return newWorkspaceShards(c, scope)
 }
 
 // NewForConfig creates a new TenancyV1alpha1Client for the given config.

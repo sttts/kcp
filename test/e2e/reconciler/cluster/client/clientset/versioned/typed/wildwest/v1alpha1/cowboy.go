@@ -22,18 +22,23 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/clientset/versioned/scheme"
 )
 
 // CowboysGetter has a method to return a CowboyInterface.
 // A group's client should implement this interface.
 type CowboysGetter interface {
 	Cowboys(namespace string) CowboyInterface
+}
+
+type ScopedCowboysGetter interface {
+	ScopedCowboys(scope rest.Scope, namespace string) CowboyInterface
 }
 
 // CowboyInterface has methods to work with Cowboy resources.
@@ -54,14 +59,16 @@ type CowboyInterface interface {
 type cowboys struct {
 	client  rest.Interface
 	cluster string
+	scope   rest.Scope
 	ns      string
 }
 
 // newCowboys returns a Cowboys
-func newCowboys(c *WildwestV1alpha1Client, namespace string) *cowboys {
+func newCowboys(c *WildwestV1alpha1Client, scope rest.Scope, namespace string) *cowboys {
 	return &cowboys{
 		client:  c.RESTClient(),
 		cluster: c.cluster,
+		scope:   scope,
 		ns:      namespace,
 	}
 }
@@ -71,6 +78,7 @@ func (c *cowboys) Get(ctx context.Context, name string, options v1.GetOptions) (
 	result = &v1alpha1.Cowboy{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		Name(name).
@@ -89,6 +97,7 @@ func (c *cowboys) List(ctx context.Context, opts v1.ListOptions) (result *v1alph
 	result = &v1alpha1.CowboyList{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -107,6 +116,7 @@ func (c *cowboys) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interfa
 	opts.Watch = true
 	return c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -119,6 +129,7 @@ func (c *cowboys) Create(ctx context.Context, cowboy *v1alpha1.Cowboy, opts v1.C
 	result = &v1alpha1.Cowboy{}
 	err = c.client.Post().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -133,6 +144,7 @@ func (c *cowboys) Update(ctx context.Context, cowboy *v1alpha1.Cowboy, opts v1.U
 	result = &v1alpha1.Cowboy{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		Name(cowboy.Name).
@@ -149,6 +161,7 @@ func (c *cowboys) UpdateStatus(ctx context.Context, cowboy *v1alpha1.Cowboy, opt
 	result = &v1alpha1.Cowboy{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		Name(cowboy.Name).
@@ -164,6 +177,7 @@ func (c *cowboys) UpdateStatus(ctx context.Context, cowboy *v1alpha1.Cowboy, opt
 func (c *cowboys) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		Name(name).
@@ -180,6 +194,7 @@ func (c *cowboys) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, l
 	}
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
@@ -194,6 +209,7 @@ func (c *cowboys) Patch(ctx context.Context, name string, pt types.PatchType, da
 	result = &v1alpha1.Cowboy{}
 	err = c.client.Patch(pt).
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Namespace(c.ns).
 		Resource("cowboys").
 		Name(name).

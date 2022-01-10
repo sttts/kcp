@@ -25,13 +25,11 @@ import (
 
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	"github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
-	"github.com/kcp-dev/kcp/pkg/cluster"
 	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/pkg/reconciler/deployment"
 )
@@ -74,19 +72,19 @@ func main() {
 	// TODO: make a custom rest.HTTPClient that always does "*"
 	kcpSharedInformerFactory := externalversions.NewSharedInformerFactoryWithOptions(crossKCPClient.Cluster("*"), 0)
 
-	restClient, err := rest.HTTPClientFor(cfg)
-	if err != nil {
-		panic(err)
-	}
-	clusterAwareHTTPClient := cluster.NewHTTPClient(restClient)
-	kubeClient, err := kubernetes.NewForConfigAndClient(cfg, clusterAwareHTTPClient)
+	// restClient, err := rest.HTTPClientFor(cfg)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// clusterAwareHTTPClient := cluster.NewHTTPClient(restClient)
+	// kubeClient, err := kubernetes.NewForConfigAndClient(cfg, clusterAwareHTTPClient)
+	kubeClient, err := kubernetes.NewForConfig(cfg)
 
 	// TODO: make a custom rest.HTTPClient that always does "*"
 	kubeSharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(crossKubeClient.Cluster("*"), 0)
 
 	deploymentController := deployment.NewController(
 		kcpSharedInformerFactory.Cluster().V1alpha1().Clusters(),
-		crossKubeClient,
 		kubeClient.AppsV1(),
 		kubeSharedInformerFactory.Apps().V1().Deployments(),
 		kcpSharedInformerFactory.Cluster().V1alpha1().Clusters().Informer().HasSynced,

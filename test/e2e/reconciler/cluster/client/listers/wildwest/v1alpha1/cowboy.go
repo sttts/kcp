@@ -19,23 +19,21 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
-
-	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+
+	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
 )
 
 // CowboyLister helps list Cowboys.
 // All objects returned here must be treated as read-only.
 type CowboyLister interface {
+	Scoped(scope rest.Scope) CowboyLister
 	// List lists all Cowboys in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Cowboy, err error)
-	// ListWithContext lists all Cowboys in the indexer.
-	// Objects returned here must be treated as read-only.
-	ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.Cowboy, err error)
 	// Cowboys returns an object that can list and get Cowboys.
 	Cowboys(namespace string) CowboyNamespaceLister
 	CowboyListerExpansion
@@ -44,6 +42,7 @@ type CowboyLister interface {
 // cowboyLister implements the CowboyLister interface.
 type cowboyLister struct {
 	indexer cache.Indexer
+	scope   rest.Scope
 }
 
 // NewCowboyLister returns a new CowboyLister.
@@ -51,14 +50,20 @@ func NewCowboyLister(indexer cache.Indexer) CowboyLister {
 	return &cowboyLister{indexer: indexer}
 }
 
-// List lists all Cowboys in the indexer.
-func (s *cowboyLister) List(selector labels.Selector) (ret []*v1alpha1.Cowboy, err error) {
-	return s.ListWithContext(context.Background(), selector)
+func (s *cowboyLister) Scoped(scope rest.Scope) CowboyLister {
+	return &cowboyLister{
+		indexer: s.indexer,
+		scope:   scope,
+	}
 }
 
-// ListWithContext lists all Cowboys in the indexer.
-func (s *cowboyLister) ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.Cowboy, err error) {
-	err = cache.IndexedListAll(ctx, s.indexer, selector, func(m interface{}) {
+// List lists all Cowboys in the indexer.
+func (s *cowboyLister) List(selector labels.Selector) (ret []*v1alpha1.Cowboy, err error) {
+	var indexValue string
+	if s.scope != nil {
+		indexValue = s.scope.Name()
+	}
+	err = cache.ListAllByIndexAndValue(s.indexer, cache.ListAllIndex, indexValue, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Cowboy))
 	})
 	return ret, err
@@ -66,7 +71,7 @@ func (s *cowboyLister) ListWithContext(ctx context.Context, selector labels.Sele
 
 // Cowboys returns an object that can list and get Cowboys.
 func (s *cowboyLister) Cowboys(namespace string) CowboyNamespaceLister {
-	return cowboyNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return cowboyNamespaceLister{indexer: s.indexer, namespace: namespace, scope: s.scope}
 }
 
 // CowboyNamespaceLister helps list and get Cowboys.
@@ -75,15 +80,9 @@ type CowboyNamespaceLister interface {
 	// List lists all Cowboys in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Cowboy, err error)
-	// ListWithContext lists all Cowboys in the indexer.
-	// Objects returned here must be treated as read-only.
-	ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.Cowboy, err error)
 	// Get retrieves the Cowboy from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.Cowboy, error)
-	// GetWithContext retrieves the Cowboy from the index for a given name.
-	// Objects returned here must be treated as read-only.
-	GetWithContext(ctx context.Context, name string) (*v1alpha1.Cowboy, error)
 	CowboyNamespaceListerExpansion
 }
 
@@ -92,16 +91,16 @@ type CowboyNamespaceLister interface {
 type cowboyNamespaceLister struct {
 	indexer   cache.Indexer
 	namespace string
+	scope     rest.Scope
 }
 
 // List lists all Cowboys in the indexer for a given namespace.
 func (s cowboyNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Cowboy, err error) {
-	return s.ListWithContext(context.Background(), selector)
-}
-
-// ListWithContext lists all Cowboys in the indexer for a given namespace.
-func (s cowboyNamespaceLister) ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.Cowboy, err error) {
-	err = cache.ListAllByNamespace2(ctx, s.indexer, s.namespace, selector, func(m interface{}) {
+	indexValue := s.namespace
+	if s.scope != nil {
+		indexValue = s.scope.CacheKey(s.namespace)
+	}
+	err = cache.ListAllByIndexAndValue(s.indexer, cache.NamespaceIndex, indexValue, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Cowboy))
 	})
 	return ret, err
@@ -109,14 +108,9 @@ func (s cowboyNamespaceLister) ListWithContext(ctx context.Context, selector lab
 
 // Get retrieves the Cowboy from the indexer for a given namespace and name.
 func (s cowboyNamespaceLister) Get(name string) (*v1alpha1.Cowboy, error) {
-	return s.GetWithContext(context.Background(), name)
-}
-
-// GetWithContext retrieves the Cowboy from the indexer for a given namespace and name.
-func (s cowboyNamespaceLister) GetWithContext(ctx context.Context, name string) (*v1alpha1.Cowboy, error) {
-	key, err := cache.NamespaceNameKeyFunc(ctx, s.namespace, name)
-	if err != nil {
-		return nil, err
+	key := s.namespace + "/" + name
+	if s.scope != nil {
+		key = s.scope.CacheKey(key)
 	}
 	obj, exists, err := s.indexer.GetByKey(key)
 	if err != nil {

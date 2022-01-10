@@ -19,14 +19,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rest "k8s.io/client-go/rest"
+
 	v1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
 	"github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/client/clientset/versioned/scheme"
-	rest "k8s.io/client-go/rest"
 )
 
 type WildwestV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	CowboysGetter
+	ScopedCowboysGetter
 }
 
 // WildwestV1alpha1Client is used to interact with features provided by the wildwest.dev group.
@@ -36,7 +38,11 @@ type WildwestV1alpha1Client struct {
 }
 
 func (c *WildwestV1alpha1Client) Cowboys(namespace string) CowboyInterface {
-	return newCowboys(c, namespace)
+	return newCowboys(c, nil, namespace)
+}
+
+func (c *WildwestV1alpha1Client) ScopedCowboys(scope rest.Scope, namespace string) CowboyInterface {
+	return newCowboys(c, scope, namespace)
 }
 
 // NewForConfig creates a new WildwestV1alpha1Client for the given config.

@@ -22,18 +22,23 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 )
 
 // APIResourceImportsGetter has a method to return a APIResourceImportInterface.
 // A group's client should implement this interface.
 type APIResourceImportsGetter interface {
 	APIResourceImports() APIResourceImportInterface
+}
+
+type ScopedAPIResourceImportsGetter interface {
+	ScopedAPIResourceImports(scope rest.Scope) APIResourceImportInterface
 }
 
 // APIResourceImportInterface has methods to work with APIResourceImport resources.
@@ -54,13 +59,15 @@ type APIResourceImportInterface interface {
 type aPIResourceImports struct {
 	client  rest.Interface
 	cluster string
+	scope   rest.Scope
 }
 
 // newAPIResourceImports returns a APIResourceImports
-func newAPIResourceImports(c *ApiresourceV1alpha1Client) *aPIResourceImports {
+func newAPIResourceImports(c *ApiresourceV1alpha1Client, scope rest.Scope) *aPIResourceImports {
 	return &aPIResourceImports{
 		client:  c.RESTClient(),
 		cluster: c.cluster,
+		scope:   scope,
 	}
 }
 
@@ -69,6 +76,7 @@ func (c *aPIResourceImports) Get(ctx context.Context, name string, options v1.Ge
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -86,6 +94,7 @@ func (c *aPIResourceImports) List(ctx context.Context, opts v1.ListOptions) (res
 	result = &v1alpha1.APIResourceImportList{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -103,6 +112,7 @@ func (c *aPIResourceImports) Watch(ctx context.Context, opts v1.ListOptions) (wa
 	opts.Watch = true
 	return c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -114,6 +124,7 @@ func (c *aPIResourceImports) Create(ctx context.Context, aPIResourceImport *v1al
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Post().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(aPIResourceImport).
@@ -127,6 +138,7 @@ func (c *aPIResourceImports) Update(ctx context.Context, aPIResourceImport *v1al
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(aPIResourceImport.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -142,6 +154,7 @@ func (c *aPIResourceImports) UpdateStatus(ctx context.Context, aPIResourceImport
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(aPIResourceImport.Name).
 		SubResource("status").
@@ -156,6 +169,7 @@ func (c *aPIResourceImports) UpdateStatus(ctx context.Context, aPIResourceImport
 func (c *aPIResourceImports) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(name).
 		Body(&opts).
@@ -171,6 +185,7 @@ func (c *aPIResourceImports) DeleteCollection(ctx context.Context, opts v1.Delet
 	}
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -184,6 +199,7 @@ func (c *aPIResourceImports) Patch(ctx context.Context, name string, pt types.Pa
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Patch(pt).
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(name).
 		SubResource(subresources...).

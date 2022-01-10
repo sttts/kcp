@@ -378,7 +378,7 @@ func (s *Server) Run(ctx context.Context) error {
 			// This is a CRUD request for somethig like pods. Try to see if there is a CRD for the resource. If so, let the CRD
 			// server handle it.
 			crdName := requestInfo.Resource + ".core"
-			_, err := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister().GetWithContext(ctx, crdName)
+			_, err := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister().Get(crdName)
 			if err == nil {
 				serverChain.CustomResourceDefinitions.GenericAPIServer.Handler.NonGoRestfulMux.ServeHTTP(res.ResponseWriter, req.Request)
 				return
@@ -407,7 +407,7 @@ func (s *Server) Run(ctx context.Context) error {
 			// If we're here, it means it's an initial /api/v1 request from a client.
 
 			// Get all the CRDs (in the context's logical cluster) to see if any of them are in v1
-			crds, err := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister().ListWithContext(ctx, labels.Everything())
+			crds, err := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister().List(labels.Everything())
 			if err != nil {
 				// Listing from a lister can really only ever fail if invoking meta.Accesor() on an item in the list fails.
 				// Which means it essentially will never fail. But just in case...
@@ -822,6 +822,7 @@ func adaptContext(parent genericapiserver.PostStartHookContext) context.Context 
 
 // inheritanceCRDLister is a CRD lister that add support for Workspace API inheritance.
 type inheritanceCRDLister struct {
+	scope           rest.Scope
 	crdLister       apiextensionslisters.CustomResourceDefinitionLister
 	crdIndexer      cache.Indexer
 	workspaceLister tenancylisters.WorkspaceLister
@@ -829,20 +830,21 @@ type inheritanceCRDLister struct {
 
 var _ apiextensionslisters.CustomResourceDefinitionLister = (*inheritanceCRDLister)(nil)
 
+func (c *inheritanceCRDLister) Scoped(scope rest.Scope) apiextensionslisters.CustomResourceDefinitionLister {
+	return &inheritanceCRDLister{
+		scope:           scope,
+		crdLister:       c.crdLister,
+		crdIndexer:      c.crdIndexer,
+		workspaceLister: c.workspaceLister,
+	}
+}
+
 // List lists all CustomResourceDefinitions in the underlying store matching selector. This method does not
 // support scoping to logical clusters or workspace inheritance.
 func (c *inheritanceCRDLister) List(selector labels.Selector) ([]*apiextensionsv1.CustomResourceDefinition, error) {
-	return c.crdLister.ListWithContext(context.Background(), selector)
-}
-
-// ListWithContext lists all CustomResourceDefinitions in the logical cluster associated with ctx that match
-// selector. Workspace API inheritance is also supported: if the Workspace for ctx's logical cluster
-// has spec.inheritFrom set, it will aggregate all CustomResourceDefinitions from the Workspace named
-// spec.inheritFrom with the CustomResourceDefinitions from the Workspace for ctx's logical cluster.
-func (c *inheritanceCRDLister) ListWithContext(ctx context.Context, selector labels.Selector) ([]*apiextensionsv1.CustomResourceDefinition, error) {
-	cluster, err := genericapirequest.ValidClusterFrom(ctx)
-	if err != nil {
-		return nil, err
+	var clusterName string
+	if c.scope != nil {
+		clusterName = c.scope.Name()
 	}
 
 	// Check for API inheritance
@@ -856,8 +858,8 @@ func (c *inheritanceCRDLister) ListWithContext(ctx context.Context, selector lab
 	// before we can try to get said Workspace, but if we fail listing because the Workspace doesn't
 	// exist, we'll never be able to create it. Only check if the target workspace exists for
 	// non-default keys.
-	if cluster.Name != adminClusterName && c.workspaceLister != nil {
-		targetWorkspaceKey := controllerz.ClusterScopedKey(adminClusterName, cluster.Name)
+	if clusterName != adminClusterName && c.workspaceLister != nil {
+		targetWorkspaceKey := controllerz.ClusterScopedKey(adminClusterName, clusterName)
 		workspace, err := c.workspaceLister.Get(targetWorkspaceKey)
 		if err != nil && !apierrors.IsNotFound(err) {
 			// Only return errors other than not-found. If we couldn't find the workspace, let's continue
@@ -888,7 +890,7 @@ func (c *inheritanceCRDLister) ListWithContext(ctx context.Context, selector lab
 	}
 
 	var ret []*apiextensionsv1.CustomResourceDefinition
-	clusterCRDs, err := c.crdIndexer.ByIndex(cache.ListAllIndex, cluster.Name)
+	clusterCRDs, err := c.crdIndexer.ByIndex(cache.ListAllIndex, clusterName)
 	if err != nil {
 		// index doesn't exist
 		return nil, err
@@ -913,27 +915,33 @@ func (c *inheritanceCRDLister) ListWithContext(ctx context.Context, selector lab
 	return ret, nil
 }
 
+// ListWithContext lists all CustomResourceDefinitions in the logical cluster associated with ctx that match
+// selector. Workspace API inheritance is also supported: if the Workspace for ctx's logical cluster
+// has spec.inheritFrom set, it will aggregate all CustomResourceDefinitions from the Workspace named
+// spec.inheritFrom with the CustomResourceDefinitions from the Workspace for ctx's logical cluster.
+func (c *inheritanceCRDLister) ListWithContext(ctx context.Context, selector labels.Selector) ([]*apiextensionsv1.CustomResourceDefinition, error) {
+	panic("no")
+}
+
 // Get gets a CustomResourceDefinitions in the underlying store by name. This method does not
 // support scoping to logical clusters or workspace inheritance.
 func (c *inheritanceCRDLister) Get(name string) (*apiextensionsv1.CustomResourceDefinition, error) {
-	return c.crdLister.GetWithContext(context.Background(), name)
-}
-
-// GetWithContext gets a CustomResourceDefinitions in the logical cluster associated with ctx by
-// name. Workspace API inheritance is also supported: if ctx's logical cluster does not contain the
-// CRD, and if the Workspace for ctx's logical cluster has spec.inheritFrom set, it will try to find
-// the CRD in the referenced Workspace/logical cluster.
-func (c *inheritanceCRDLister) GetWithContext(ctx context.Context, name string) (*apiextensionsv1.CustomResourceDefinition, error) {
-	cluster, err := genericapirequest.ValidClusterFrom(ctx)
+	// Sometimes name = cluster$name, but scope=someOtherCluster
+	// Sometimes it's just name (with a scope)
+	scope, err := cache.ScopeFromKey(name)
 	if err != nil {
-		return nil, err
+		if c.scope != nil {
+			scope = c.scope
+		} else {
+			return nil, fmt.Errorf("no scope in either key %q or lister", name)
+		}
 	}
 
 	if strings.HasSuffix(name, ".") {
 		name = name + "core"
 	}
 
-	if cluster.Wildcard {
+	if w, ok := scope.(interface{ Wildcard() bool }); ok && w.Wildcard() {
 		// HACK: Search for the right logical cluster hosting the given CRD when watching or listing with wildcards.
 		// This is a temporary fix for issue https://github.com/kcp-dev/kcp/issues/183: One cannot watch with wildcards
 		// (across logical clusters) if the CRD of the related API Resource hasn't been added in the admin logical cluster first.
@@ -960,7 +968,8 @@ func (c *inheritanceCRDLister) GetWithContext(ctx context.Context, name string) 
 		return crds[0], nil
 	}
 
-	crd, err := c.crdLister.Get(controllerz.ClusterScopedKey(cluster.Name, name))
+	clusterName := scope.Name()
+	crd, err := c.crdLister.Get(controllerz.ClusterScopedKey(clusterName, name))
 	if err != nil && !apierrors.IsNotFound(err) {
 		// something went wrong w/the lister - could only happen if meta.Accessor() fails on an item in the store.
 		return nil, err
@@ -981,7 +990,7 @@ func (c *inheritanceCRDLister) GetWithContext(ctx context.Context, name string) 
 	const adminClusterName = "admin"
 
 	// Check for API inheritance
-	targetWorkspaceKey := controllerz.ClusterScopedKey(adminClusterName, cluster.Name)
+	targetWorkspaceKey := controllerz.ClusterScopedKey(adminClusterName, clusterName)
 	workspace, err := c.workspaceLister.Get(targetWorkspaceKey)
 	if err != nil {
 		// If we're here it means ctx's logical cluster doesn't have the CRD and there isn't a
@@ -1015,6 +1024,14 @@ func (c *inheritanceCRDLister) GetWithContext(ctx context.Context, name string) 
 	sourceWorkspaceCRDKey := controllerz.ClusterScopedKey(workspace.Spec.InheritFrom, name)
 	crd, err = c.crdLister.Get(sourceWorkspaceCRDKey)
 	return crd, err
+}
+
+// GetWithContext gets a CustomResourceDefinitions in the logical cluster associated with ctx by
+// name. Workspace API inheritance is also supported: if ctx's logical cluster does not contain the
+// CRD, and if the Workspace for ctx's logical cluster has spec.inheritFrom set, it will try to find
+// the CRD in the referenced Workspace/logical cluster.
+func (c *inheritanceCRDLister) GetWithContext(ctx context.Context, name string) (*apiextensionsv1.CustomResourceDefinition, error) {
+	panic("no")
 }
 
 // crdsHaveEquivalentSchemas returns true if all the crd specs are equivalent.

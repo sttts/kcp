@@ -22,18 +22,23 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 )
 
 // NegotiatedAPIResourcesGetter has a method to return a NegotiatedAPIResourceInterface.
 // A group's client should implement this interface.
 type NegotiatedAPIResourcesGetter interface {
 	NegotiatedAPIResources() NegotiatedAPIResourceInterface
+}
+
+type ScopedNegotiatedAPIResourcesGetter interface {
+	ScopedNegotiatedAPIResources(scope rest.Scope) NegotiatedAPIResourceInterface
 }
 
 // NegotiatedAPIResourceInterface has methods to work with NegotiatedAPIResource resources.
@@ -54,13 +59,15 @@ type NegotiatedAPIResourceInterface interface {
 type negotiatedAPIResources struct {
 	client  rest.Interface
 	cluster string
+	scope   rest.Scope
 }
 
 // newNegotiatedAPIResources returns a NegotiatedAPIResources
-func newNegotiatedAPIResources(c *ApiresourceV1alpha1Client) *negotiatedAPIResources {
+func newNegotiatedAPIResources(c *ApiresourceV1alpha1Client, scope rest.Scope) *negotiatedAPIResources {
 	return &negotiatedAPIResources{
 		client:  c.RESTClient(),
 		cluster: c.cluster,
+		scope:   scope,
 	}
 }
 
@@ -69,6 +76,7 @@ func (c *negotiatedAPIResources) Get(ctx context.Context, name string, options v
 	result = &v1alpha1.NegotiatedAPIResource{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -86,6 +94,7 @@ func (c *negotiatedAPIResources) List(ctx context.Context, opts v1.ListOptions) 
 	result = &v1alpha1.NegotiatedAPIResourceList{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -103,6 +112,7 @@ func (c *negotiatedAPIResources) Watch(ctx context.Context, opts v1.ListOptions)
 	opts.Watch = true
 	return c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -114,6 +124,7 @@ func (c *negotiatedAPIResources) Create(ctx context.Context, negotiatedAPIResour
 	result = &v1alpha1.NegotiatedAPIResource{}
 	err = c.client.Post().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(negotiatedAPIResource).
@@ -127,6 +138,7 @@ func (c *negotiatedAPIResources) Update(ctx context.Context, negotiatedAPIResour
 	result = &v1alpha1.NegotiatedAPIResource{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		Name(negotiatedAPIResource.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -142,6 +154,7 @@ func (c *negotiatedAPIResources) UpdateStatus(ctx context.Context, negotiatedAPI
 	result = &v1alpha1.NegotiatedAPIResource{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		Name(negotiatedAPIResource.Name).
 		SubResource("status").
@@ -156,6 +169,7 @@ func (c *negotiatedAPIResources) UpdateStatus(ctx context.Context, negotiatedAPI
 func (c *negotiatedAPIResources) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		Name(name).
 		Body(&opts).
@@ -171,6 +185,7 @@ func (c *negotiatedAPIResources) DeleteCollection(ctx context.Context, opts v1.D
 	}
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -184,6 +199,7 @@ func (c *negotiatedAPIResources) Patch(ctx context.Context, name string, pt type
 	result = &v1alpha1.NegotiatedAPIResource{}
 	err = c.client.Patch(pt).
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("negotiatedapiresources").
 		Name(name).
 		SubResource(subresources...).

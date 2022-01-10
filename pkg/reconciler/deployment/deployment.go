@@ -33,7 +33,7 @@ const (
 	ownedByLabel = "kcp.dev/owned-by"
 )
 
-func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deployment) error {
+func (c *scopedProcessor) reconcile(ctx context.Context, deployment *appsv1.Deployment) error {
 	klog.Infof("reconciling deployment %q", deployment.Name)
 
 	if deployment.Labels == nil || deployment.Labels[clusterLabel] == "" {
@@ -42,7 +42,7 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 		if err != nil {
 			return err
 		}
-		leafs, err := c.deploymentLister.ListWithContext(ctx, sel)
+		leafs, err := c.deploymentLister.List(sel)
 		if err != nil {
 			return err
 		}
@@ -60,12 +60,12 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 		if err != nil {
 			return err
 		}
-		others, err := c.deploymentLister.ListWithContext(ctx, sel)
+		others, err := c.deploymentLister.List(sel)
 		if err != nil {
 			return err
 		}
 
-		rootDeployment, err := c.deploymentLister.Deployments(deployment.Namespace).GetWithContext(ctx, rootDeploymentName)
+		rootDeployment, err := c.deploymentLister.Deployments(deployment.Namespace).Get(rootDeploymentName)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return fmt.Errorf("Root deployment not found: %s", rootDeploymentName)
@@ -95,7 +95,7 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 			rootDeployment.Status.Conditions = others[0].Status.Conditions
 		}
 
-		if _, err := c.deploymentClient.Deployments(rootDeployment.Namespace).UpdateStatus(ctx, rootDeployment, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.deploymentClient.ScopedDeployments(c.scope, rootDeployment.Namespace).UpdateStatus(ctx, rootDeployment, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
 	}
@@ -103,8 +103,8 @@ func (c *Controller) reconcile(ctx context.Context, deployment *appsv1.Deploymen
 	return nil
 }
 
-func (c *Controller) createLeafs(ctx context.Context, root *appsv1.Deployment) error {
-	cls, err := c.clusterLister.ListWithContext(ctx, labels.Everything())
+func (c *scopedProcessor) createLeafs(ctx context.Context, root *appsv1.Deployment) error {
+	cls, err := c.clusterLister.List(labels.Everything())
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (c *Controller) createLeafs(ctx context.Context, root *appsv1.Deployment) e
 
 		// TODO: munge namespace
 		vd.SetResourceVersion("")
-		if _, err := c.deploymentClient.Deployments(root.Namespace).Create(ctx, vd, metav1.CreateOptions{}); err != nil {
+		if _, err := c.deploymentClient.ScopedDeployments(c.scope, root.Namespace).Create(ctx, vd, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		klog.Infof("created child deployment %q", vd.Name)

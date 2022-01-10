@@ -27,9 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
-	"k8s.io/client-go/kubernetes"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	appsv1lister "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -46,8 +46,7 @@ const controllerName = "deployment"
 // the Deployment is created.
 func NewController(
 	clusterInformer clusterinformers.ClusterInformer,
-	kubeClient kubernetes.ClusterInterface,
-	deploymentClient appsv1client.DeploymentsGetter,
+	deploymentClient appsv1client.ScopedDeploymentsGetter,
 	deploymentInformer appsinformers.DeploymentInformer,
 	syncFuncs ...cache.InformerSynced,
 ) *Controller {
@@ -56,9 +55,7 @@ func NewController(
 	c := &Controller{
 		queue:            queue,
 		clusterLister:    clusterInformer.Lister(),
-		kubeClient:       kubeClient,
 		deploymentClient: deploymentClient,
-		// deploymentIndexer: deploymentInformer.Informer().GetIndexer(),
 		deploymentLister: deploymentInformer.Lister(),
 		syncFuncs:        syncFuncs,
 	}
@@ -74,9 +71,7 @@ func NewController(
 type Controller struct {
 	queue            workqueue.RateLimitingInterface
 	clusterLister    clusterlisters.ClusterLister
-	kubeClient       kubernetes.ClusterInterface
-	deploymentClient appsv1client.DeploymentsGetter
-	// deploymentIndexer cache.Indexer
+	deploymentClient appsv1client.ScopedDeploymentsGetter
 	deploymentLister appsv1lister.DeploymentLister
 	syncFuncs        []cache.InformerSynced
 }
@@ -124,27 +119,43 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	// other workers.
 	defer c.queue.Done(k)
 
-	key, err := cache.DecodeKeyFunc(k.(string))
+	key := k.(string)
+	scope, err := cache.ScopeFromKey(key)
 	if err != nil {
-		runtime.HandleError(fmt.Errorf("%q controller unable to decode key %s: %w", controllerName, k, err))
+		runtime.HandleError(fmt.Errorf("%q controller failed to sync %q, error getting scope from key: %w", controllerName, key, err))
 		return true
 	}
 
-	ctx = cache.NewSyncContext(ctx, key)
+	sp := &scopedProcessor{
+		scope:            scope,
+		clusterLister:    c.clusterLister.Scoped(scope),
+		deploymentClient: c.deploymentClient,
+		deploymentLister: c.deploymentLister.Scoped(scope),
+	}
 
-	// c.clusterLister.Filter(cache.ListAllIndex, kcp.FilterValues(ctx)}/* lcluster name */)
-
-	if err := c.process(ctx, key); err != nil {
+	if err := sp.process(ctx, key); err != nil {
 		runtime.HandleError(fmt.Errorf("%q controller failed to sync %q, err: %w", controllerName, key, err))
 		c.queue.AddRateLimited(k)
 		return true
 	}
-	c.queue.Forget(key)
+	c.queue.Forget(k)
 	return true
 }
 
-func (c *Controller) process(ctx context.Context, key cache.QueueKey) error {
-	deployment, err := c.deploymentLister.Deployments(key.Namespace()).GetWithContext(ctx, key.Name())
+type scopedProcessor struct {
+	scope            rest.Scope
+	clusterLister    clusterlisters.ClusterLister
+	deploymentClient appsv1client.ScopedDeploymentsGetter
+	deploymentLister appsv1lister.DeploymentLister
+}
+
+func (c *scopedProcessor) process(ctx context.Context, key string) error {
+	queueKey, err := cache.DecodeKeyFunc(key)
+	if err != nil {
+		runtime.HandleError(fmt.Errorf("can't decode key %q: %w", key, err))
+		return nil
+	}
+	deployment, err := c.deploymentLister.Deployments(queueKey.Namespace()).Get(queueKey.Name())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -161,8 +172,7 @@ func (c *Controller) process(ctx context.Context, key cache.QueueKey) error {
 
 	// If the object being reconciled changed as a result, update it.
 	if !equality.Semantic.DeepEqual(previous, current) {
-		// _, uerr := c.kubeClient.Cluster(current.ClusterName).AppsV1().Deployments(current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
-		_, uerr := c.deploymentClient.Deployments(current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
+		_, uerr := c.deploymentClient.ScopedDeployments(c.scope, current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
 		return uerr
 	}
 

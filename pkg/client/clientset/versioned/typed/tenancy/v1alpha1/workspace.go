@@ -22,18 +22,23 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 )
 
 // WorkspacesGetter has a method to return a WorkspaceInterface.
 // A group's client should implement this interface.
 type WorkspacesGetter interface {
 	Workspaces() WorkspaceInterface
+}
+
+type ScopedWorkspacesGetter interface {
+	ScopedWorkspaces(scope rest.Scope) WorkspaceInterface
 }
 
 // WorkspaceInterface has methods to work with Workspace resources.
@@ -54,13 +59,15 @@ type WorkspaceInterface interface {
 type workspaces struct {
 	client  rest.Interface
 	cluster string
+	scope   rest.Scope
 }
 
 // newWorkspaces returns a Workspaces
-func newWorkspaces(c *TenancyV1alpha1Client) *workspaces {
+func newWorkspaces(c *TenancyV1alpha1Client, scope rest.Scope) *workspaces {
 	return &workspaces{
 		client:  c.RESTClient(),
 		cluster: c.cluster,
+		scope:   scope,
 	}
 }
 
@@ -69,6 +76,7 @@ func (c *workspaces) Get(ctx context.Context, name string, options v1.GetOptions
 	result = &v1alpha1.Workspace{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -86,6 +94,7 @@ func (c *workspaces) List(ctx context.Context, opts v1.ListOptions) (result *v1a
 	result = &v1alpha1.WorkspaceList{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -103,6 +112,7 @@ func (c *workspaces) Watch(ctx context.Context, opts v1.ListOptions) (watch.Inte
 	opts.Watch = true
 	return c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -114,6 +124,7 @@ func (c *workspaces) Create(ctx context.Context, workspace *v1alpha1.Workspace, 
 	result = &v1alpha1.Workspace{}
 	err = c.client.Post().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(workspace).
@@ -127,6 +138,7 @@ func (c *workspaces) Update(ctx context.Context, workspace *v1alpha1.Workspace, 
 	result = &v1alpha1.Workspace{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		Name(workspace.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -142,6 +154,7 @@ func (c *workspaces) UpdateStatus(ctx context.Context, workspace *v1alpha1.Works
 	result = &v1alpha1.Workspace{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		Name(workspace.Name).
 		SubResource("status").
@@ -156,6 +169,7 @@ func (c *workspaces) UpdateStatus(ctx context.Context, workspace *v1alpha1.Works
 func (c *workspaces) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		Name(name).
 		Body(&opts).
@@ -171,6 +185,7 @@ func (c *workspaces) DeleteCollection(ctx context.Context, opts v1.DeleteOptions
 	}
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -184,6 +199,7 @@ func (c *workspaces) Patch(ctx context.Context, name string, pt types.PatchType,
 	result = &v1alpha1.Workspace{}
 	err = c.client.Patch(pt).
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaces").
 		Name(name).
 		SubResource(subresources...).

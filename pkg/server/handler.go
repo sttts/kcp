@@ -27,7 +27,10 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
+
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 )
 
 var reClusterName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,78}[a-z0-9]$`)
@@ -68,7 +71,7 @@ func ServeHTTP(apiHandler http.Handler) func(w http.ResponseWriter, req *http.Re
 			cluster.Wildcard = true
 			fallthrough
 		case "":
-			cluster.Name = genericcontrolplane.RootClusterName
+			clusterName = genericcontrolplane.RootClusterName
 		default:
 			if !reClusterName.MatchString(clusterName) {
 				responsewriters.ErrorNegotiated(
@@ -77,9 +80,12 @@ func ServeHTTP(apiHandler http.Handler) func(w http.ResponseWriter, req *http.Re
 					w, req)
 				return
 			}
-			cluster.Name = clusterName
 		}
-		ctx := genericapirequest.WithCluster(req.Context(), cluster)
+		cluster.Name = clusterName
+		ctx := req.Context()
+		//ctx = genericapirequest.WithCluster(req.Context(), cluster)
+		scope := controllerz.NewScope(clusterName, controllerz.WildcardScope(cluster.Wildcard))
+		ctx = rest.WithScope(ctx, scope)
 		apiHandler.ServeHTTP(w, req.WithContext(ctx))
 	}
 }

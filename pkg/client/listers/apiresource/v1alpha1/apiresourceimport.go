@@ -19,35 +19,31 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
-
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 )
 
 // APIResourceImportLister helps list APIResourceImports.
 // All objects returned here must be treated as read-only.
 type APIResourceImportLister interface {
+	Scoped(scope rest.Scope) APIResourceImportLister
 	// List lists all APIResourceImports in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.APIResourceImport, err error)
-	// ListWithContext lists all APIResourceImports in the indexer.
-	// Objects returned here must be treated as read-only.
-	ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.APIResourceImport, err error)
 	// Get retrieves the APIResourceImport from the index for a given name.
 	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.APIResourceImport, error)
-	// GetWithContext retrieves the APIResourceImport from the index for a given name.
-	// Objects returned here must be treated as read-only.
-	GetWithContext(ctx context.Context, name string) (*v1alpha1.APIResourceImport, error)
 	APIResourceImportListerExpansion
 }
 
 // aPIResourceImportLister implements the APIResourceImportLister interface.
 type aPIResourceImportLister struct {
 	indexer cache.Indexer
+	scope   rest.Scope
 }
 
 // NewAPIResourceImportLister returns a new APIResourceImportLister.
@@ -55,14 +51,20 @@ func NewAPIResourceImportLister(indexer cache.Indexer) APIResourceImportLister {
 	return &aPIResourceImportLister{indexer: indexer}
 }
 
-// List lists all APIResourceImports in the indexer.
-func (s *aPIResourceImportLister) List(selector labels.Selector) (ret []*v1alpha1.APIResourceImport, err error) {
-	return s.ListWithContext(context.Background(), selector)
+func (s *aPIResourceImportLister) Scoped(scope rest.Scope) APIResourceImportLister {
+	return &aPIResourceImportLister{
+		indexer: s.indexer,
+		scope:   scope,
+	}
 }
 
-// ListWithContext lists all APIResourceImports in the indexer.
-func (s *aPIResourceImportLister) ListWithContext(ctx context.Context, selector labels.Selector) (ret []*v1alpha1.APIResourceImport, err error) {
-	err = cache.IndexedListAll(ctx, s.indexer, selector, func(m interface{}) {
+// List lists all APIResourceImports in the indexer.
+func (s *aPIResourceImportLister) List(selector labels.Selector) (ret []*v1alpha1.APIResourceImport, err error) {
+	var indexValue string
+	if s.scope != nil {
+		indexValue = s.scope.Name()
+	}
+	err = cache.ListAllByIndexAndValue(s.indexer, cache.ListAllIndex, indexValue, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.APIResourceImport))
 	})
 	return ret, err
@@ -70,14 +72,9 @@ func (s *aPIResourceImportLister) ListWithContext(ctx context.Context, selector 
 
 // Get retrieves the APIResourceImport from the index for a given name.
 func (s *aPIResourceImportLister) Get(name string) (*v1alpha1.APIResourceImport, error) {
-	return s.GetWithContext(context.Background(), name)
-}
-
-// GetWithContext retrieves the APIResourceImport from the index for a given name.
-func (s *aPIResourceImportLister) GetWithContext(ctx context.Context, name string) (*v1alpha1.APIResourceImport, error) {
-	key, err := cache.NameKeyFunc(ctx, name)
-	if err != nil {
-		return nil, err
+	key := name
+	if s.scope != nil {
+		key = s.scope.CacheKey(key)
 	}
 	obj, exists, err := s.indexer.GetByKey(key)
 	if err != nil {

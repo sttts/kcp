@@ -22,18 +22,23 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
-	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	scheme "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/scheme"
 )
 
 // WorkspaceShardsGetter has a method to return a WorkspaceShardInterface.
 // A group's client should implement this interface.
 type WorkspaceShardsGetter interface {
 	WorkspaceShards() WorkspaceShardInterface
+}
+
+type ScopedWorkspaceShardsGetter interface {
+	ScopedWorkspaceShards(scope rest.Scope) WorkspaceShardInterface
 }
 
 // WorkspaceShardInterface has methods to work with WorkspaceShard resources.
@@ -54,13 +59,15 @@ type WorkspaceShardInterface interface {
 type workspaceShards struct {
 	client  rest.Interface
 	cluster string
+	scope   rest.Scope
 }
 
 // newWorkspaceShards returns a WorkspaceShards
-func newWorkspaceShards(c *TenancyV1alpha1Client) *workspaceShards {
+func newWorkspaceShards(c *TenancyV1alpha1Client, scope rest.Scope) *workspaceShards {
 	return &workspaceShards{
 		client:  c.RESTClient(),
 		cluster: c.cluster,
+		scope:   scope,
 	}
 }
 
@@ -69,6 +76,7 @@ func (c *workspaceShards) Get(ctx context.Context, name string, options v1.GetOp
 	result = &v1alpha1.WorkspaceShard{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -86,6 +94,7 @@ func (c *workspaceShards) List(ctx context.Context, opts v1.ListOptions) (result
 	result = &v1alpha1.WorkspaceShardList{}
 	err = c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -103,6 +112,7 @@ func (c *workspaceShards) Watch(ctx context.Context, opts v1.ListOptions) (watch
 	opts.Watch = true
 	return c.client.Get().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -114,6 +124,7 @@ func (c *workspaceShards) Create(ctx context.Context, workspaceShard *v1alpha1.W
 	result = &v1alpha1.WorkspaceShard{}
 	err = c.client.Post().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(workspaceShard).
@@ -127,6 +138,7 @@ func (c *workspaceShards) Update(ctx context.Context, workspaceShard *v1alpha1.W
 	result = &v1alpha1.WorkspaceShard{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		Name(workspaceShard.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -142,6 +154,7 @@ func (c *workspaceShards) UpdateStatus(ctx context.Context, workspaceShard *v1al
 	result = &v1alpha1.WorkspaceShard{}
 	err = c.client.Put().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		Name(workspaceShard.Name).
 		SubResource("status").
@@ -156,6 +169,7 @@ func (c *workspaceShards) UpdateStatus(ctx context.Context, workspaceShard *v1al
 func (c *workspaceShards) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		Name(name).
 		Body(&opts).
@@ -171,6 +185,7 @@ func (c *workspaceShards) DeleteCollection(ctx context.Context, opts v1.DeleteOp
 	}
 	return c.client.Delete().
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -184,6 +199,7 @@ func (c *workspaceShards) Patch(ctx context.Context, name string, pt types.Patch
 	result = &v1alpha1.WorkspaceShard{}
 	err = c.client.Patch(pt).
 		Cluster(c.cluster).
+		Scope(c.scope).
 		Resource("workspaceshards").
 		Name(name).
 		SubResource(subresources...).
