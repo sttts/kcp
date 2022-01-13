@@ -57,17 +57,15 @@ type APIResourceImportInterface interface {
 
 // aPIResourceImports implements APIResourceImportInterface
 type aPIResourceImports struct {
-	client  rest.Interface
-	cluster string
-	scope   rest.Scope
+	client rest.Interface
+	scope  rest.Scope
 }
 
 // newAPIResourceImports returns a APIResourceImports
 func newAPIResourceImports(c *ApiresourceV1alpha1Client, scope rest.Scope) *aPIResourceImports {
 	return &aPIResourceImports{
-		client:  c.RESTClient(),
-		cluster: c.cluster,
-		scope:   scope,
+		client: c.RESTClient(),
+		scope:  scope,
 	}
 }
 
@@ -75,7 +73,6 @@ func newAPIResourceImports(c *ApiresourceV1alpha1Client, scope rest.Scope) *aPIR
 func (c *aPIResourceImports) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.APIResourceImport, err error) {
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Get().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(name).
@@ -93,7 +90,6 @@ func (c *aPIResourceImports) List(ctx context.Context, opts v1.ListOptions) (res
 	}
 	result = &v1alpha1.APIResourceImportList{}
 	err = c.client.Get().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -111,7 +107,6 @@ func (c *aPIResourceImports) Watch(ctx context.Context, opts v1.ListOptions) (wa
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -123,7 +118,6 @@ func (c *aPIResourceImports) Watch(ctx context.Context, opts v1.ListOptions) (wa
 func (c *aPIResourceImports) Create(ctx context.Context, aPIResourceImport *v1alpha1.APIResourceImport, opts v1.CreateOptions) (result *v1alpha1.APIResourceImport, err error) {
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Post().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -137,7 +131,6 @@ func (c *aPIResourceImports) Create(ctx context.Context, aPIResourceImport *v1al
 func (c *aPIResourceImports) Update(ctx context.Context, aPIResourceImport *v1alpha1.APIResourceImport, opts v1.UpdateOptions) (result *v1alpha1.APIResourceImport, err error) {
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Put().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(aPIResourceImport.Name).
@@ -153,7 +146,6 @@ func (c *aPIResourceImports) Update(ctx context.Context, aPIResourceImport *v1al
 func (c *aPIResourceImports) UpdateStatus(ctx context.Context, aPIResourceImport *v1alpha1.APIResourceImport, opts v1.UpdateOptions) (result *v1alpha1.APIResourceImport, err error) {
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Put().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(aPIResourceImport.Name).
@@ -168,7 +160,6 @@ func (c *aPIResourceImports) UpdateStatus(ctx context.Context, aPIResourceImport
 // Delete takes name of the aPIResourceImport and deletes it. Returns an error if one occurs.
 func (c *aPIResourceImports) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(name).
@@ -184,7 +175,6 @@ func (c *aPIResourceImports) DeleteCollection(ctx context.Context, opts v1.Delet
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
@@ -198,7 +188,6 @@ func (c *aPIResourceImports) DeleteCollection(ctx context.Context, opts v1.Delet
 func (c *aPIResourceImports) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.APIResourceImport, err error) {
 	result = &v1alpha1.APIResourceImport{}
 	err = c.client.Patch(pt).
-		Cluster(c.cluster).
 		Scope(c.scope).
 		Resource("apiresourceimports").
 		Name(name).

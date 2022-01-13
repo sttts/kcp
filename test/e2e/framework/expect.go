@@ -210,7 +210,7 @@ func ExpectWorkspaces(ctx context.Context, t TestingTInterface, client kcpclient
 		return nil, errors.New("failed to wait for caches to sync")
 	}
 	return func(seed *tenancyv1alpha1.Workspace, expectation WorkspaceExpectation) error {
-		key, err := cache.MetaNamespaceKeyFunc(seed)
+		key, err := cache.ObjectKeyFunc(seed)
 		if err != nil {
 			return err
 		}
@@ -241,7 +241,7 @@ func ExpectWorkspaceShards(ctx context.Context, t TestingTInterface, client kcpc
 		return nil, errors.New("failed to wait for caches to sync")
 	}
 	return func(seed *tenancyv1alpha1.WorkspaceShard, expectation WorkspaceShardExpectation) error {
-		key, err := cache.MetaNamespaceKeyFunc(seed)
+		key, err := cache.ObjectKeyFunc(seed)
 		if err != nil {
 			return err
 		}

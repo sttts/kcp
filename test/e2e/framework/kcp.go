@@ -148,6 +148,7 @@ func (c *kcpServer) Run(parentCtx context.Context) error {
 	go func() {
 		defer func() { cleanupCancel() }()
 		err := cmd.Wait()
+		logFile.Close()
 		data := c.filterKcpLogs(&log)
 		if err != nil && ctx.Err() == nil {
 			// we care about errors in the process that did not result from the

@@ -33,11 +33,13 @@ import (
 	dynfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
 	clusterfake "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/fake"
 	"github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 )
 
 const lcluster = "my-logical-cluster"
@@ -121,7 +123,8 @@ func TestReconcileResource(t *testing.T) {
 
 			// Reconcile the Deployment and see that its labels
 			// were patched as expected.
-			if err := c.reconcileResource(ctx, lcluster, unstr, gvr); err != nil {
+			ctx = rest.WithScope(ctx, controllerz.NewScope(lcluster))
+			if err := c.reconcileResource(ctx, unstr, gvr); err != nil {
 				// TODO: This should be a t.Fatal, but this fails because the
 				// dynamic client fails to find the Deployment by GVR.  For
 				// now, just t.Logf the failure and check that we got the patch
@@ -195,7 +198,8 @@ func TestReconcileNamespace(t *testing.T) {
 
 			// Reconcile the Namespace and see that its labels were
 			// patched as expected.
-			if err := c.reconcileNamespace(ctx, lcluster, ns); err != nil {
+			ctx = rest.WithScope(ctx, controllerz.NewScope(lcluster))
+			if err := c.reconcileNamespace(ctx, ns); err != nil {
 				// TODO: This should be a t.Fatal, but this fails because the
 				// dynamic client fails to find the Deployment by GVR.  For
 				// now, just t.Logf the failure and check that we got the patch

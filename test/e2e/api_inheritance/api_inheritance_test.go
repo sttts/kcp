@@ -33,6 +33,7 @@ import (
 	"github.com/kcp-dev/kcp/pkg/apis/tenancy"
 	tenancyapi "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	clientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
 )
 
@@ -57,12 +58,14 @@ func TestAPIInheritance(t *testing.T) {
 			return
 		}
 
-		apiExtensionsClients, err := apiextensionsclient.NewClusterForConfig(cfg)
+		adminScope := controllerz.NewScope("admin")
+
+		apiExtensionsClients, err := apiextensionsclient.NewScoperForConfig(cfg)
 		if err != nil {
 			t.Errorf("failed to construct apiextensions client for server: %v", err)
 			return
 		}
-		crdAdminClient := apiExtensionsClients.Cluster("admin").ApiextensionsV1().CustomResourceDefinitions()
+		crdAdminClient := apiExtensionsClients.Scope(adminScope).ApiextensionsV1().CustomResourceDefinitions()
 
 		// Register CRDs in the admin logical cluster
 		adminClusterCRDs := []metav1.GroupKind{
@@ -74,7 +77,7 @@ func TestAPIInheritance(t *testing.T) {
 			return
 		}
 
-		kcpClients, err := clientset.NewClusterForConfig(cfg)
+		kcpClients, err := clientset.NewScoperForConfig(cfg)
 		if err != nil {
 			t.Errorf("failed to construct kcp client for server: %v", err)
 			return
@@ -82,7 +85,7 @@ func TestAPIInheritance(t *testing.T) {
 
 		// For now, API inheritance only supports workspaces in the admin logical cluster, so let's create
 		// a couple there.
-		kcpAdminClient := kcpClients.Cluster("admin")
+		kcpAdminClient := kcpClients.Scope(adminScope)
 
 		sourceWorkspace := &tenancyapi.Workspace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -113,10 +116,11 @@ func TestAPIInheritance(t *testing.T) {
 		})
 
 		// Install a CRD into source workspace
+		sourceScope := controllerz.NewScope("source")
 		crdsForWorkspaces := []metav1.GroupKind{
 			{Group: cluster.GroupName, Kind: "clusters"},
 		}
-		sourceCrdClient := apiExtensionsClients.Cluster("source").ApiextensionsV1().CustomResourceDefinitions()
+		sourceCrdClient := apiExtensionsClients.Scope(sourceScope).ApiextensionsV1().CustomResourceDefinitions()
 		if err := config.BootstrapCustomResourceDefinitions(ctx, sourceCrdClient, crdsForWorkspaces); err != nil {
 			t.Errorf("failed to bootstrap CRDs: %v", err)
 			return
@@ -124,7 +128,7 @@ func TestAPIInheritance(t *testing.T) {
 
 		// Make sure API group from CRD shows up in source workspace group discovery
 		if err := wait.PollImmediateUntilWithContext(ctx, 100*time.Millisecond, func(c context.Context) (done bool, err error) {
-			groups, err := kcpClients.Cluster("source").Discovery().ServerGroups()
+			groups, err := kcpClients.Scope(sourceScope).Discovery().ServerGroups()
 			if err != nil {
 				return false, fmt.Errorf("error retrieving source workspace group discovery: %w", err)
 			}
@@ -138,7 +142,7 @@ func TestAPIInheritance(t *testing.T) {
 		}
 
 		// Make sure API resource from CRD shows up in source workspace group version discovery
-		resources, err := kcpClients.Cluster("source").Discovery().ServerResourcesForGroupVersion(clusterapi.SchemeGroupVersion.String())
+		resources, err := kcpClients.Scope(sourceScope).Discovery().ServerResourcesForGroupVersion(clusterapi.SchemeGroupVersion.String())
 		if err != nil {
 			t.Errorf("error retrieving source workspace cluster API discovery: %v", err)
 			return
@@ -157,7 +161,7 @@ func TestAPIInheritance(t *testing.T) {
 			},
 		}
 
-		sourceClusterClient := kcpClients.Cluster("source").ClusterV1alpha1().Clusters()
+		sourceClusterClient := kcpClients.Scope(sourceScope).ClusterV1alpha1().Clusters()
 
 		_, err = sourceClusterClient.Create(ctx, sourceWorkspaceCluster, metav1.CreateOptions{})
 		if err != nil {
@@ -168,8 +172,9 @@ func TestAPIInheritance(t *testing.T) {
 			return sourceClusterClient.Get(ctx, "source-cluster", metav1.GetOptions{})
 		})
 
+		targetScope := controllerz.NewScope("target")
 		// Make sure API group from CRD does NOT show up in target workspace group discovery
-		groups, err := kcpClients.Cluster("target").Discovery().ServerGroups()
+		groups, err := kcpClients.Scope(targetScope).Discovery().ServerGroups()
 		if err != nil {
 			t.Errorf("error retrieving target workspace group discovery: %w", err)
 			return
@@ -195,7 +200,7 @@ func TestAPIInheritance(t *testing.T) {
 
 		// Make sure API group from inheritance shows up in target workspace group discovery
 		if err := wait.PollImmediateUntilWithContext(ctx, 100*time.Millisecond, func(c context.Context) (done bool, err error) {
-			groups, err := kcpClients.Cluster("target").Discovery().ServerGroups()
+			groups, err := kcpClients.Scope(targetScope).Discovery().ServerGroups()
 			if err != nil {
 				return false, fmt.Errorf("error retrieving target workspace group discovery: %w", err)
 			}
@@ -209,7 +214,7 @@ func TestAPIInheritance(t *testing.T) {
 		}
 
 		// Make sure API resource from inheritance shows up in target workspace group version discovery
-		resources, err = kcpClients.Cluster("target").Discovery().ServerResourcesForGroupVersion(clusterapi.SchemeGroupVersion.String())
+		resources, err = kcpClients.Scope(targetScope).Discovery().ServerResourcesForGroupVersion(clusterapi.SchemeGroupVersion.String())
 		if err != nil {
 			t.Errorf("error retrieving target workspace cluster API discovery: %v", err)
 			return
@@ -223,7 +228,7 @@ func TestAPIInheritance(t *testing.T) {
 
 		// Make sure list shows nothing to start
 
-		targetClusterClient := kcpClients.Cluster("target").ClusterV1alpha1().Clusters()
+		targetClusterClient := kcpClients.Scope(targetScope).ClusterV1alpha1().Clusters()
 		clusters, err := targetClusterClient.List(ctx, metav1.ListOptions{})
 		if err != nil {
 			t.Errorf("error listing clusters inside target: %v", err)

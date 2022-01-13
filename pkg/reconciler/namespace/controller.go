@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,8 +34,8 @@ import (
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clusters"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
@@ -121,19 +122,19 @@ type Controller struct {
 }
 
 func filterResource(obj interface{}) bool {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return false
 	}
-	_, clusterAwareName, err := cache.SplitMetaNamespaceKey(key)
+	scope, err := cache.ScopeFromKey(key)
 	if err != nil {
 		runtime.HandleError(err)
 		return false
 	}
-	clusterName, _ := clusters.SplitClusterAwareKey(clusterAwareName)
-	if clusterName != "admin" {
-		klog.V(2).Infof("Skipping update for non-admin cluster %q", clusterName)
+
+	if scope.Name() != "admin" {
+		klog.V(2).Infof("Skipping update for non-admin cluster %q", scope.Name())
 		return false
 	}
 
@@ -151,30 +152,21 @@ func filterResource(obj interface{}) bool {
 }
 
 func filterNamespace(obj interface{}) bool {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
-	if err != nil {
-		runtime.HandleError(err)
+	ns := obj.(*corev1.Namespace)
+
+	if ns.ClusterName != "admin" {
+		klog.V(2).Infof("Skipping update for non-admin cluster %q", ns.ClusterName)
 		return false
 	}
-	_, clusterAwareName, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		runtime.HandleError(err)
-		return false
-	}
-	clusterName, name := clusters.SplitClusterAwareKey(clusterAwareName)
-	if clusterName != "admin" {
-		klog.Infof("Skipping update for non-admin cluster %q", clusterName)
-		return false
-	}
-	if namespaceBlocklist.Has(name) {
-		klog.V(2).Infof("Skipping syncing namespace %q", name)
+	if namespaceBlocklist.Has(ns.Name) {
+		klog.V(2).Infof("Skipping syncing namespace %q", ns.Name)
 		return false
 	}
 	return true
 }
 
 func (c *Controller) enqueueResource(gvr schema.GroupVersionResource, obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -189,7 +181,7 @@ func (c *Controller) enqueueGVR(gvr schema.GroupVersionResource) {
 }
 
 func (c *Controller) enqueueNamespace(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -198,7 +190,7 @@ func (c *Controller) enqueueNamespace(obj interface{}) {
 }
 
 func (c *Controller) enqueueCluster(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -364,13 +356,13 @@ func (c *Controller) processResource(ctx context.Context, key string) error {
 	unstr = unstr.DeepCopy()
 
 	// Get logical cluster name.
-	_, clusterAwareName, err := cache.SplitMetaNamespaceKey(key)
+	scope, err := cache.ScopeFromKey(key)
 	if err != nil {
-		klog.Errorf("failed to split key %q, dropping: %v", key, err)
+		klog.Errorf("Error getting scope from key %q: %v", key, err)
 		return nil
 	}
-	lclusterName, _ := clusters.SplitClusterAwareKey(clusterAwareName)
-	return c.reconcileResource(ctx, lclusterName, unstr, gvr)
+	ctx = rest.WithScope(ctx, scope)
+	return c.reconcileResource(ctx, unstr, gvr)
 }
 
 func (c *Controller) processGVR(ctx context.Context, gvrstr string) error {
@@ -386,6 +378,7 @@ func (c *Controller) processGVR(ctx context.Context, gvrstr string) error {
 var namespaceBlocklist = sets.NewString("kube-system", "kube-public", "kube-node-lease")
 
 func (c *Controller) processNamespace(ctx context.Context, key string) error {
+	// TODO scope lister
 	ns, err := c.namespaceLister.Get(key)
 	if k8serrors.IsNotFound(err) {
 		return nil
@@ -394,14 +387,13 @@ func (c *Controller) processNamespace(ctx context.Context, key string) error {
 	}
 
 	// Get logical cluster name.
-	_, clusterAwareName, err := cache.SplitMetaNamespaceKey(key)
+	scope, err := cache.ScopeFromKey(key)
 	if err != nil {
-		klog.Errorf("failed to split key %q, dropping: %v", key, err)
+		klog.Errorf("Error getting scope from key %q: %v", key, err)
 		return nil
 	}
-	lclusterName, _ := clusters.SplitClusterAwareKey(clusterAwareName)
-
-	return c.reconcileNamespace(ctx, lclusterName, ns.DeepCopy())
+	ctx = rest.WithScope(ctx, scope)
+	return c.reconcileNamespace(ctx, ns.DeepCopy())
 }
 
 func (c *Controller) processCluster(ctx context.Context, key string) error {

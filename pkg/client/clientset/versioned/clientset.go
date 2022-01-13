@@ -30,35 +30,36 @@ import (
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/typed/tenancy/v1alpha1"
 )
 
-type ClusterInterface interface {
-	Cluster(name string) Interface
+type Scoper interface {
+	Scope(scope rest.Scope) Interface
 }
 
-type Cluster struct {
+type scoper struct {
 	*scopedClientset
 }
 
-// Cluster sets the cluster for a Clientset.
-func (c *Cluster) Cluster(name string) Interface {
+// Scope scopes a clientset.
+func (s *scoper) Scope(scope rest.Scope) Interface {
 	return &Clientset{
-		scopedClientset: c.scopedClientset,
-		cluster:         name,
+		scopedClientset: s.scopedClientset,
+		scope:           scope,
 	}
 }
 
-// NewClusterForConfig creates a new Cluster for the given config.
+// NewScoperForConfig creates a new Scoper for the given config.
 // If config's RateLimiter is not set and QPS and Burst are acceptable,
-// NewClusterForConfig will generate a rate-limiter in configShallowCopy.
-func NewClusterForConfig(c *rest.Config) (*Cluster, error) {
+// NewScoperForConfig will generate a rate-limiter in configShallowCopy.
+func NewScoperForConfig(c *rest.Config) (*scoper, error) {
 	cs, err := NewForConfig(c)
 	if err != nil {
 		return nil, err
 	}
-	return &Cluster{scopedClientset: cs.scopedClientset}, nil
+	return &scoper{scopedClientset: cs.scopedClientset}, nil
 }
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
+	ScopedDiscovery(scope rest.Scope) discovery.DiscoveryInterface
 	ApiresourceV1alpha1() apiresourcev1alpha1.ApiresourceV1alpha1Interface
 	ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface
 	TenancyV1alpha1() tenancyv1alpha1.TenancyV1alpha1Interface
@@ -68,7 +69,7 @@ type Interface interface {
 // version included in a Clientset.
 type Clientset struct {
 	*scopedClientset
-	cluster string
+	scope rest.Scope
 }
 
 // scopedClientset contains the clients for groups. Each group has exactly one
@@ -82,17 +83,17 @@ type scopedClientset struct {
 
 // ApiresourceV1alpha1 retrieves the ApiresourceV1alpha1Client
 func (c *Clientset) ApiresourceV1alpha1() apiresourcev1alpha1.ApiresourceV1alpha1Interface {
-	return apiresourcev1alpha1.NewWithCluster(c.apiresourceV1alpha1.RESTClient(), c.cluster)
+	return apiresourcev1alpha1.NewWithScope(c.apiresourceV1alpha1.RESTClient(), c.scope)
 }
 
 // ClusterV1alpha1 retrieves the ClusterV1alpha1Client
 func (c *Clientset) ClusterV1alpha1() clusterv1alpha1.ClusterV1alpha1Interface {
-	return clusterv1alpha1.NewWithCluster(c.clusterV1alpha1.RESTClient(), c.cluster)
+	return clusterv1alpha1.NewWithScope(c.clusterV1alpha1.RESTClient(), c.scope)
 }
 
 // TenancyV1alpha1 retrieves the TenancyV1alpha1Client
 func (c *Clientset) TenancyV1alpha1() tenancyv1alpha1.TenancyV1alpha1Interface {
-	return tenancyv1alpha1.NewWithCluster(c.tenancyV1alpha1.RESTClient(), c.cluster)
+	return tenancyv1alpha1.NewWithScope(c.tenancyV1alpha1.RESTClient(), c.scope)
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -100,7 +101,15 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	if c == nil {
 		return nil
 	}
-	return c.DiscoveryClient.WithCluster(c.cluster)
+	return c.DiscoveryClient.Scope(c.scope)
+}
+
+// ScopedDiscovery retrieves a scoped DiscoveryInterface.
+func (c *Clientset) ScopedDiscovery(scope rest.Scope) discovery.DiscoveryInterface {
+	if c == nil {
+		return nil
+	}
+	return c.DiscoveryClient.Scope(scope)
 }
 
 // NewForConfig creates a new Clientset for the given config.

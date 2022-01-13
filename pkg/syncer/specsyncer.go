@@ -30,6 +30,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 )
 
 func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
@@ -70,12 +72,13 @@ func NewSpecSyncer(from, to *rest.Config, syncedResourceTypes []string, clusterI
 	if err != nil {
 		return nil, err
 	}
-	fromDiscovery := discoveryClient.WithCluster(logicalClusterID)
-	fromClients, err := dynamic.NewClusterForConfig(from)
+	fromScope := controllerz.NewScope(logicalClusterID)
+	fromDiscovery := discoveryClient.Scope(fromScope)
+	fromClients, err := dynamic.NewScopingForConfig(from)
 	if err != nil {
 		return nil, err
 	}
-	fromClient := fromClients.Cluster(logicalClusterID)
+	fromClient := fromClients.Scope(fromScope)
 	toClient := dynamic.NewForConfigOrDie(to)
 	return New(fromDiscovery, fromClient, toClient, upsertIntoDownstream, deleteFromDownstream, func(c *Controller, gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs {
 		return cache.ResourceEventHandlerFuncs{

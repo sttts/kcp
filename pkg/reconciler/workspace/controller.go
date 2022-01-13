@@ -34,8 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clusters"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
@@ -54,7 +54,7 @@ const (
 )
 
 func NewController(
-	kcpClient kcpclient.ClusterInterface,
+	kcpClient kcpclient.Scoper,
 	workspaceInformer tenancyinformer.WorkspaceInformer,
 	workspaceShardInformer tenancyinformer.WorkspaceShardInformer,
 ) (*Controller, error) {
@@ -109,7 +109,7 @@ func NewController(
 type Controller struct {
 	queue workqueue.RateLimitingInterface
 
-	kcpClient        kcpclient.ClusterInterface
+	kcpClient        kcpclient.Scoper
 	workspaceIndexer cache.Indexer
 	workspaceLister  tenancylister.WorkspaceLister
 
@@ -120,7 +120,7 @@ type Controller struct {
 }
 
 func (c *Controller) enqueue(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -142,7 +142,7 @@ func (c *Controller) enqueueAddedShard(obj interface{}) {
 		return
 	}
 	for _, workspace := range workspaces {
-		key, err := cache.MetaNamespaceKeyFunc(workspace)
+		key, err := cache.ObjectKeyFunc(workspace)
 		if err != nil {
 			runtime.HandleError(err)
 			return
@@ -173,7 +173,7 @@ func (c *Controller) enqueueDeletedShard(obj interface{}) {
 		return
 	}
 	for _, workspace := range workspaces {
-		key, err := cache.MetaNamespaceKeyFunc(workspace)
+		key, err := cache.ObjectKeyFunc(workspace)
 		if err != nil {
 			runtime.HandleError(err)
 			return
@@ -231,20 +231,17 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 }
 
 func (c *Controller) process(ctx context.Context, key string) error {
-	namespace, clusterAwareName, err := cache.SplitMetaNamespaceKey(key)
+	scope, err := cache.ScopeFromKey(key)
 	if err != nil {
-		klog.Errorf("invalid key: %q: %v", key, err)
+		runtime.HandleError(fmt.Errorf("error getting scope from key %q: %w", key, err))
 		return nil
 	}
-	if namespace != "" {
-		klog.Errorf("namespace %q found in key for cluster-wide Workspace object", namespace)
-		return nil
-	}
-	clusterName, name := clusters.SplitClusterAwareKey(clusterAwareName)
 
-	obj, err := c.workspaceLister.Get(key) // TODO: clients need a way to scope down the lister per-cluster
+	klog.Infof("ANDY scope %q listing workspace %q", scope.Name(), key)
+	obj, err := c.workspaceLister.Scoped(scope).Get(key)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			klog.Infof("ANDY NOT FOUND")
 			return nil // object deleted before we handled it
 		}
 		return err
@@ -252,7 +249,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	previous := obj
 	obj = obj.DeepCopy()
 
-	if err := c.reconcile(ctx, obj); err != nil {
+	if err := c.reconcile(ctx, scope, obj); err != nil {
 		return err
 	}
 
@@ -262,7 +259,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 			Status: previous.Status,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to Marshal old data for workspace %q|%q/%q: %w", clusterName, namespace, name, err)
+			return fmt.Errorf("failed to Marshal old data for workspace %q: %w", key, err)
 		}
 
 		newData, err := json.Marshal(tenancyv1alpha1.Workspace{
@@ -273,25 +270,29 @@ func (c *Controller) process(ctx context.Context, key string) error {
 			Status: obj.Status,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to Marshal new data for workspace %q|%q/%q: %w", clusterName, namespace, name, err)
+			return fmt.Errorf("failed to Marshal new data for workspace %q: %w", key, err)
 		}
 
 		patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
 		if err != nil {
-			return fmt.Errorf("failed to create patch for workspace %q|%q/%q: %w", clusterName, namespace, name, err)
+			return fmt.Errorf("failed to create patch for workspace %q: %w", key, err)
 		}
-		_, uerr := c.kcpClient.Cluster(clusterName).TenancyV1alpha1().Workspaces().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+		klog.Infof("ANDY patching %q", string(patchBytes))
+		_, uerr := c.kcpClient.Scope(scope).TenancyV1alpha1().Workspaces().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+		klog.Infof("ANDY uerr=%v", uerr)
 		return uerr
+	} else {
+		klog.Infof("ANDY NO CHANGES")
 	}
 
 	return nil
 }
 
-func (c *Controller) reconcile(ctx context.Context, workspace *tenancyv1alpha1.Workspace) error {
+func (c *Controller) reconcile(ctx context.Context, scope rest.Scope, workspace *tenancyv1alpha1.Workspace) error {
 	var shard *tenancyv1alpha1.WorkspaceShard
 	if currentShardName := workspace.Status.Location.Current; currentShardName != "" {
 		// make sure current shard still exists
-		currentShard, err := c.workspaceShardLister.Get(clusters.ToClusterAwareKey(workspace.ClusterName, currentShardName))
+		currentShard, err := c.workspaceShardLister.Scoped(scope).Get(currentShardName)
 		if errors.IsNotFound(err) {
 			klog.Infof("de-scheduling workspace %q from nonexistent shard %q", workspace.Name, currentShardName)
 			workspace.Status.Location.Current = ""
@@ -302,7 +303,7 @@ func (c *Controller) reconcile(ctx context.Context, workspace *tenancyv1alpha1.W
 	}
 	if workspace.Status.Location.Current == "" {
 		// find a shard for this workspace
-		shards, err := c.workspaceShardLister.List(labels.Everything())
+		shards, err := c.workspaceShardLister.Scoped(scope).List(labels.Everything())
 		if err != nil {
 			return err
 		}

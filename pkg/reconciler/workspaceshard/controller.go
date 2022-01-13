@@ -35,9 +35,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	coreinformer "k8s.io/client-go/informers/core/v1"
 	corelister "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/clusters"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
@@ -54,7 +54,7 @@ const (
 )
 
 func NewController(
-	kcpClient kcpclient.ClusterInterface,
+	kcpClient kcpclient.Scoper,
 	secretInformer coreinformer.SecretInformer,
 	workspaceShardInformer tenancyinformer.WorkspaceShardInformer,
 ) (*Controller, error) {
@@ -86,7 +86,7 @@ func NewController(
 	if err := c.workspaceShardIndexer.AddIndexers(map[string]cache.IndexFunc{
 		secretIndex: func(obj interface{}) ([]string, error) {
 			if shard, ok := obj.(*tenancyv1alpha1.WorkspaceShard); ok {
-				key, err := cache.MetaNamespaceKeyFunc(&metav1.ObjectMeta{
+				key, err := cache.ObjectKeyFunc(&metav1.ObjectMeta{
 					ClusterName: shard.ObjectMeta.ClusterName,
 					Namespace:   shard.Spec.Credentials.Namespace,
 					Name:        shard.Spec.Credentials.Name,
@@ -110,7 +110,7 @@ func NewController(
 type Controller struct {
 	queue workqueue.RateLimitingInterface
 
-	kcpClient     kcpclient.ClusterInterface
+	kcpClient     kcpclient.Scoper
 	secretIndexer cache.Indexer
 	secretLister  corelister.SecretLister
 
@@ -121,7 +121,7 @@ type Controller struct {
 }
 
 func (c *Controller) enqueue(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -145,7 +145,7 @@ func (c *Controller) enqueueForSecret(obj interface{}) {
 		}
 	}
 	klog.Infof("handling secret %q", secret.Name)
-	key, err := cache.MetaNamespaceKeyFunc(secret)
+	key, err := cache.ObjectKeyFunc(secret)
 	if err != nil {
 		runtime.HandleError(err)
 		return
@@ -156,7 +156,7 @@ func (c *Controller) enqueueForSecret(obj interface{}) {
 		return
 	}
 	for _, shard := range workspaceShards {
-		key, err := cache.MetaNamespaceKeyFunc(shard)
+		key, err := cache.ObjectKeyFunc(shard)
 		if err != nil {
 			runtime.HandleError(err)
 			return
@@ -214,18 +214,13 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 }
 
 func (c *Controller) process(ctx context.Context, key string) error {
-	namespace, clusterAwareName, err := cache.SplitMetaNamespaceKey(key)
+	scope, err := cache.ScopeFromKey(key)
 	if err != nil {
-		klog.Errorf("invalid key: %q: %v", key, err)
+		runtime.HandleError(fmt.Errorf("error getting scope from key %q: %w", key, err))
 		return nil
 	}
-	if namespace != "" {
-		klog.Errorf("namespace %q found in key for cluster-wide WorkspaceShard object", namespace)
-		return nil
-	}
-	clusterName, name := clusters.SplitClusterAwareKey(clusterAwareName)
 
-	obj, err := c.workspaceShardLister.Get(key) // TODO: clients need a way to scope down the lister per-cluster
+	obj, err := c.workspaceShardLister.Scoped(scope).Get(key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil // object deleted before we handled it
@@ -235,7 +230,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 	previous := obj
 	obj = obj.DeepCopy()
 
-	if err := c.reconcile(ctx, obj); err != nil {
+	if err := c.reconcile(ctx, scope, obj); err != nil {
 		return err
 	}
 
@@ -245,7 +240,7 @@ func (c *Controller) process(ctx context.Context, key string) error {
 			Status: previous.Status,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to Marshal old data for workspace shard %q|%q/%q: %w", clusterName, namespace, name, err)
+			return fmt.Errorf("failed to Marshal old data for workspace shard %q: %w", key, err)
 		}
 
 		newData, err := json.Marshal(tenancyv1alpha1.WorkspaceShard{
@@ -256,22 +251,22 @@ func (c *Controller) process(ctx context.Context, key string) error {
 			Status: obj.Status,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to Marshal new data for workspace shard %q|%q/%q: %w", clusterName, namespace, name, err)
+			return fmt.Errorf("failed to Marshal new data for workspace shard %q: %w", key, err)
 		}
 
 		patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
 		if err != nil {
-			return fmt.Errorf("failed to create patch for workspace shard %q|%q/%q: %w", clusterName, namespace, name, err)
+			return fmt.Errorf("failed to create patch for workspace shard %q: %w", key, err)
 		}
-		_, uerr := c.kcpClient.Cluster(clusterName).TenancyV1alpha1().WorkspaceShards().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+		_, uerr := c.kcpClient.Scope(scope).TenancyV1alpha1().WorkspaceShards().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
 		return uerr
 	}
 
 	return nil
 }
 
-func (c *Controller) reconcile(ctx context.Context, workspaceShard *tenancyv1alpha1.WorkspaceShard) error {
-	secret, err := c.secretLister.Secrets(workspaceShard.Spec.Credentials.Namespace).Get(clusters.ToClusterAwareKey(workspaceShard.ClusterName, workspaceShard.Spec.Credentials.Name))
+func (c *Controller) reconcile(ctx context.Context, scope rest.Scope, workspaceShard *tenancyv1alpha1.WorkspaceShard) error {
+	secret, err := c.secretLister.Scoped(scope).Secrets(workspaceShard.Spec.Credentials.Namespace).Get(workspaceShard.Spec.Credentials.Name)
 	if errors.IsNotFound(err) {
 		conditions.MarkFalse(workspaceShard, tenancyv1alpha1.WorkspaceShardCredentialsValid, tenancyv1alpha1.WorkspaceShardCredentialsReasonMissing, "Referenced secret %s/%s could not be found.", workspaceShard.Spec.Credentials.Namespace, workspaceShard.Spec.Credentials.Name)
 		return nil

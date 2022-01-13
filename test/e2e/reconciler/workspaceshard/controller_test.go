@@ -34,6 +34,7 @@ import (
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	kcpclientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	tenancyv1alpha1client "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/typed/tenancy/v1alpha1"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
 	utilconditions "github.com/kcp-dev/kcp/third_party/conditions/util/conditions"
 )
@@ -377,23 +378,24 @@ func TestWorkspaceShardController(t *testing.T) {
 				t.Errorf("failed to detect cluster name: %v", err)
 				return
 			}
-			kcpClients, err := kcpclientset.NewClusterForConfig(cfg)
+			kcpClients, err := kcpclientset.NewScoperForConfig(cfg)
 			if err != nil {
 				t.Errorf("failed to construct kcp client for server: %v", err)
 				return
 			}
-			kcpClient := kcpClients.Cluster(clusterName)
+			scope := controllerz.NewScope(clusterName)
+			kcpClient := kcpClients.Scope(scope)
 			expect, err := framework.ExpectWorkspaceShards(ctx, t, kcpClient)
 			if err != nil {
 				t.Errorf("failed to start expecter: %v", err)
 				return
 			}
-			kubeClients, err := kubernetesclientset.NewClusterForConfig(cfg)
+			kubeClients, err := kubernetesclientset.NewScoperForConfig(cfg)
 			if err != nil {
 				t.Errorf("failed to construct kube client for server: %v", err)
 				return
 			}
-			kubeClient := kubeClients.Cluster(clusterName)
+			kubeClient := kubeClients.Scope(scope)
 			testCase.work(ctx, t, runningServer{
 				RunningServer: server,
 				client:        kcpClient.TenancyV1alpha1().WorkspaceShards(),

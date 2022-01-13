@@ -25,9 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	clientrest "k8s.io/client-go/rest"
+
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 )
 
 type storageBase struct {
@@ -68,7 +69,11 @@ type storageMux struct {
 }
 
 func (s *storageMux) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if scope.Wildcard() {
 		return nil, fmt.Errorf("method not supported in a cross-cluster context")
 	} else {
 		return s.delegating.Get(ctx, name, options)
@@ -76,7 +81,11 @@ func (s *storageMux) Get(ctx context.Context, name string, options *metav1.GetOp
 }
 
 func (s *storageMux) Create(ctx context.Context, obj runtime.Object, createValidation rest.ValidateObjectFunc, options *metav1.CreateOptions) (runtime.Object, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if scope.Wildcard() {
 		return nil, fmt.Errorf("method not supported in a cross-cluster context")
 	} else {
 		return s.delegating.Create(ctx, obj, createValidation, options)
@@ -84,7 +93,11 @@ func (s *storageMux) Create(ctx context.Context, obj runtime.Object, createValid
 }
 
 func (s *storageMux) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	if scope.Wildcard() {
 		return nil, false, fmt.Errorf("method not supported in a cross-cluster context")
 	} else {
 		return s.delegating.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
@@ -92,7 +105,11 @@ func (s *storageMux) Update(ctx context.Context, name string, objInfo rest.Updat
 }
 
 func (s *storageMux) Delete(ctx context.Context, name string, deleteValidation rest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	if scope.Wildcard() {
 		return nil, false, fmt.Errorf("method not supported in a cross-cluster context")
 	} else {
 		return s.delegating.Delete(ctx, name, deleteValidation, options)
@@ -100,7 +117,11 @@ func (s *storageMux) Delete(ctx context.Context, name string, deleteValidation r
 }
 
 func (s *storageMux) DeleteCollection(ctx context.Context, deleteValidation rest.ValidateObjectFunc, options *metav1.DeleteOptions, listOptions *internalversion.ListOptions) (runtime.Object, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if scope.Wildcard() {
 		return nil, fmt.Errorf("method not supported in a cross-cluster context")
 	} else {
 		return s.delegating.DeleteCollection(ctx, deleteValidation, options, listOptions)
@@ -108,7 +129,11 @@ func (s *storageMux) DeleteCollection(ctx context.Context, deleteValidation rest
 }
 
 func (s *storageMux) List(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if scope.Wildcard() {
 		return s.sharded.List(ctx, options)
 	} else {
 		return s.delegating.List(ctx, options)
@@ -116,7 +141,11 @@ func (s *storageMux) List(ctx context.Context, options *internalversion.ListOpti
 }
 
 func (s *storageMux) Watch(ctx context.Context, options *internalversion.ListOptions) (watch.Interface, error) {
-	if c := request.ClusterFrom(ctx); c.Wildcard {
+	scope, err := controllerz.ScopeFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if scope.Wildcard() {
 		return s.sharded.Watch(ctx, options)
 	} else {
 		return s.delegating.Watch(ctx, options)

@@ -8,8 +8,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 )
 
 type KCPQueueKey struct {
@@ -178,6 +182,53 @@ func (s *scope) Wildcard() bool {
 	return s.wildcard
 }
 
+func (s *scope) NoNamespaceKeyRootFunc(prefix string) string {
+	if s.wildcard {
+		return prefix
+	}
+	return prefix + "/" + s.name
+}
+
+func (s *scope) FromPrefixAndKey(prefix, key string) storage.Scope {
+	if !s.wildcard {
+		return s
+	}
+
+	var scopeName string
+	sub := strings.TrimPrefix(key, prefix)
+	i := strings.Index(sub, "/")
+	if i == -1 {
+		klog.Warningf("ANDY FromPrefixAndKey didn't have /: prefix=%q, key=%q", prefix, key)
+		scopeName = sub
+	} else {
+		scopeName = sub[:i]
+	}
+
+	return &scope{
+		name: scopeName,
+	}
+}
+
+func (s *scope) PostDecode(obj runtime.Object) error {
+	clusterName := s.name
+	if clusterName == "" {
+		klog.Errorf("Cluster should not be unknown")
+		return nil
+	}
+
+	if s, ok := obj.(metav1.ObjectMetaAccessor); ok {
+		s.GetObjectMeta().SetClusterName(clusterName)
+	} else if s, ok := obj.(metav1.Object); ok {
+		s.SetClusterName(clusterName)
+	} else if s, ok := obj.(*unstructured.Unstructured); ok {
+		s.SetClusterName(clusterName)
+	} else {
+		klog.Warningf("Could not set ClusterName %q on object: %T", clusterName, obj)
+	}
+
+	return nil
+}
+
 func (s *scope) CacheKey(in string) string {
 	if strings.Contains(in, "$") {
 		// already scoped
@@ -207,7 +258,10 @@ func (s *scope) ScopeRequest(req *http.Request) error {
 		}
 
 		// finally append the original path
-		req.URL.Path += originalPath
+		newPath := req.URL.Path + originalPath
+		req.URL.Path = newPath
+		//klog.Infof("ScopeRequest: originalPath=%s, newPath=%s", originalPath, newPath)
+
 	}
 	return nil
 }
@@ -228,6 +282,10 @@ type scoper struct{}
 // func (s *scoper) ScopeFromContext(ctx context.Context) (rest.Scope, error) {
 // 	return nil, nil
 // }
+
+func (s *scoper) NewScope(name string) rest.Scope {
+	return NewScope(name)
+}
 
 func (s *scoper) ScopeFromObject(obj metav1.Object) (rest.Scope, error) {
 	return NewScope(obj.GetClusterName()), nil

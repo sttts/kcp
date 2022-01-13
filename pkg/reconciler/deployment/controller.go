@@ -129,7 +129,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	sp := &scopedProcessor{
 		scope:            scope,
 		clusterLister:    c.clusterLister.Scoped(scope),
-		deploymentClient: c.deploymentClient,
+		deploymentClient: c.deploymentClient.ScopedDeployments(scope),
 		deploymentLister: c.deploymentLister.Scoped(scope),
 	}
 
@@ -145,7 +145,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 type scopedProcessor struct {
 	scope            rest.Scope
 	clusterLister    clusterlisters.ClusterLister
-	deploymentClient appsv1client.ScopedDeploymentsGetter
+	deploymentClient appsv1client.DeploymentsGetter
 	deploymentLister appsv1lister.DeploymentLister
 }
 
@@ -172,7 +172,7 @@ func (c *scopedProcessor) process(ctx context.Context, key string) error {
 
 	// If the object being reconciled changed as a result, update it.
 	if !equality.Semantic.DeepEqual(previous, current) {
-		_, uerr := c.deploymentClient.ScopedDeployments(c.scope, current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
+		_, uerr := c.deploymentClient.Deployments(current.Namespace).Update(ctx, current, metav1.UpdateOptions{})
 		return uerr
 	}
 

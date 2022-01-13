@@ -183,7 +183,7 @@ type Controller struct {
 }
 
 func (c *Controller) enqueue(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return

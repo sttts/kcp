@@ -59,13 +59,17 @@ func (s *cowboyLister) Scoped(scope rest.Scope) CowboyLister {
 
 // List lists all Cowboys in the indexer.
 func (s *cowboyLister) List(selector labels.Selector) (ret []*v1alpha1.Cowboy, err error) {
-	var indexValue string
-	if s.scope != nil {
-		indexValue = s.scope.Name()
-	}
-	err = cache.ListAllByIndexAndValue(s.indexer, cache.ListAllIndex, indexValue, selector, func(m interface{}) {
+	appendFunc := func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Cowboy))
-	})
+	}
+
+	if s.scope == nil {
+		err = cache.ListAll(s.indexer, selector, appendFunc)
+		return ret, err
+	}
+
+	indexValue := s.scope.Name()
+	err = cache.ListAllByIndexAndValue(s.indexer, cache.ListAllIndex, indexValue, selector, appendFunc)
 	return ret, err
 }
 

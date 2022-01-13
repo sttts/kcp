@@ -22,13 +22,13 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	apiresourcev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 	clusterv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/pkg/crdpuller"
 )
 
@@ -47,7 +47,7 @@ func (c *Controller) StartAPIImporter(config *rest.Config, location string, logi
 		c:                  c,
 		location:           location,
 		logicalClusterName: logicalClusterName,
-		context:            request.WithCluster(context.Background(), request.Cluster{Name: logicalClusterName}),
+		context:            rest.WithScope(context.Background(), controllerz.NewScope(logicalClusterName)),
 	}
 
 	ticker := time.NewTicker(pollInterval)
@@ -83,7 +83,8 @@ func (i *APIImporter) Stop() {
 	}
 	for _, obj := range objs {
 		apiResourceImportToDelete := obj.(*apiresourcev1alpha1.APIResourceImport)
-		err := i.c.kcpClient.ApiresourceV1alpha1().APIResourceImports().Delete(request.WithCluster(context.Background(), request.Cluster{Name: i.logicalClusterName}), apiResourceImportToDelete.Name, metav1.DeleteOptions{})
+		scope := controllerz.NewScope(i.logicalClusterName)
+		err := i.c.kcpClient.ApiresourceV1alpha1().ScopedAPIResourceImports(scope).Delete(context.TODO(), apiResourceImportToDelete.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Errorf("error deleting APIResourceImport %s: %v", apiResourceImportToDelete.Name, err)
 		}
@@ -133,7 +134,7 @@ func (i *APIImporter) ImportAPIs() {
 				apiResourceImportName = apiResourceImportName + gvr.Group
 			}
 
-			clusterKey, err := cache.MetaNamespaceKeyFunc(&metav1.PartialObjectMetadata{
+			clusterKey, err := cache.ObjectKeyFunc(&metav1.PartialObjectMetadata{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        i.location,
 					ClusterName: i.logicalClusterName,

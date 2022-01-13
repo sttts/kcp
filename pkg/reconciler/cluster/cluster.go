@@ -211,7 +211,7 @@ func (c *Controller) reconcile(ctx context.Context, cluster *clusterv1alpha1.Clu
 	}
 
 	// Enqueue another check later
-	key, err := cache.MetaNamespaceKeyFunc(cluster)
+	key, err := cache.ObjectKeyFunc(cluster)
 	if err != nil {
 		klog.Error(err)
 	} else {

@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
 	"github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest"
 	wildwestv1alpha1 "github.com/kcp-dev/kcp/test/e2e/reconciler/cluster/apis/wildwest/v1alpha1"
@@ -187,17 +188,12 @@ func TestClusterController(t *testing.T) {
 					t.Error(err)
 					return
 				}
-				clusterName, err := framework.DetectClusterName(cfg, ctx, crdName)
-				if err != nil {
-					t.Errorf("failed to detect cluster name: %v", err)
-					return
-				}
-				wildwestClients, err := wildwestclientset.NewClusterForConfig(cfg)
+				wildwestClients, err := wildwestclientset.NewScoperForConfig(cfg)
 				if err != nil {
 					t.Errorf("failed to construct client for server: %v", err)
 					return
 				}
-				wildwestClient := wildwestClients.Cluster(clusterName)
+				wildwestClient := wildwestClients.Scope(controllerz.NewScope("admin"))
 				expect, err := ExpectCowboys(ctx, t, wildwestClient)
 				if err != nil {
 					t.Errorf("failed to start expecter: %v", err)
@@ -242,6 +238,7 @@ type CowboyExpectation func(*wildwestv1alpha1.Cowboy) error
 func ExpectCowboys(ctx context.Context, t framework.TestingTInterface, client wildwestclientset.Interface) (RegisterCowboyExpectation, error) {
 	sharedInformerFactory := wildwestexternalversions.NewSharedInformerFactoryWithOptions(client, 0)
 	informer := sharedInformerFactory.Wildwest().V1alpha1().Cowboys()
+	lister := informer.Lister()
 	expecter := framework.NewExpecter(informer.Informer())
 	sharedInformerFactory.Start(ctx.Done())
 	if !cache.WaitForNamedCacheSync(t.Name(), ctx.Done(), informer.Informer().HasSynced) {
@@ -252,7 +249,7 @@ func ExpectCowboys(ctx context.Context, t framework.TestingTInterface, client wi
 			// we are using a seed from one kcp to expect something about an object in
 			// another kcp, so the cluster names will not match - this is fine, just do
 			// client-side filtering for what we know
-			all, err := informer.Lister().Cowboys(seed.Namespace).List(labels.Everything())
+			all, err := lister.List(labels.Everything())
 			if err != nil {
 				return !apierrors.IsNotFound(err), err
 			}

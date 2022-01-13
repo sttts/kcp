@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/clusters"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	"github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
@@ -37,7 +37,7 @@ const clusterLabel = "kcp.dev/cluster"
 
 // reconcileResource is responsible for setting the cluster for a resource of
 // any type, to match the cluster where its namespace is assigned.
-func (c *Controller) reconcileResource(ctx context.Context, lclusterName string, unstr *unstructured.Unstructured, gvr *schema.GroupVersionResource) error {
+func (c *Controller) reconcileResource(ctx context.Context, unstr *unstructured.Unstructured, gvr *schema.GroupVersionResource) error {
 	klog.Infof("Reconciling %s %s/%s", gvr.String(), unstr.GetNamespace(), unstr.GetName())
 
 	// If the resource is not namespaced (incl if the resource is itself a
@@ -50,7 +50,7 @@ func (c *Controller) reconcileResource(ctx context.Context, lclusterName string,
 	// Align the resource's assigned cluster with the namespace's assigned
 	// cluster.
 	// First, get the namespace object (from the cached lister).
-	ns, err := c.namespaceLister.Get(clusters.ToClusterAwareKey(lclusterName, unstr.GetNamespace()))
+	ns, err := c.namespaceLister.Scoped(rest.ScopeFrom(ctx)).Get(unstr.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -99,18 +99,20 @@ func (c *Controller) reconcileGVR(ctx context.Context, gvr schema.GroupVersionRe
 //
 // After assigning (or if it's already assigned), this also updates all
 // resources in the namespace to be assigned to the namespace's cluster.
-func (c *Controller) reconcileNamespace(ctx context.Context, lclusterName string, ns *corev1.Namespace) error {
+func (c *Controller) reconcileNamespace(ctx context.Context, ns *corev1.Namespace) error {
 	klog.Infof("Reconciling Namespace %s", ns.Name)
 
 	if ns.Labels == nil {
 		ns.Labels = map[string]string{}
 	}
 
+	scope := rest.ScopeFrom(ctx)
+
 	clusterName := ns.Labels[clusterLabel]
 	if clusterName == "" {
 		// Namespace is not assigned to a cluster; assign one.
 		// First, list all clusters.
-		cls, err := c.clusterLister.List(labels.Everything())
+		cls, err := c.clusterLister.Scoped(scope).List(labels.Everything())
 		if err != nil {
 			return err
 		}
@@ -135,7 +137,7 @@ func (c *Controller) reconcileNamespace(ctx context.Context, lclusterName string
 	}
 
 	// Check if the cluster reports as Ready.
-	cl, err := c.clusterLister.Get(clusters.ToClusterAwareKey(lclusterName, clusterName))
+	cl, err := c.clusterLister.Scoped(scope).Get(clusterName)
 	if err != nil {
 		return err
 	}

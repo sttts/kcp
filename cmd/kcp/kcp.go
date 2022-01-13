@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/client-go/rest"
 	"k8s.io/component-base/cli"
+	_ "k8s.io/component-base/logs/json/register"
 
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/kcp-dev/kcp/pkg/controllerz"
@@ -76,6 +77,11 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 			defer cancel()
+
+			// Activate logging as soon as possible.
+			if err := cfg.Logs.ValidateAndApply(); err != nil {
+				return err
+			}
 
 			controllerz.EnableLogicalClusters()
 

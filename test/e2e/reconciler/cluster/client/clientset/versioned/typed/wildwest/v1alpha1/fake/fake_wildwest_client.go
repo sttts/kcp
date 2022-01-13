@@ -33,6 +33,10 @@ func (c *FakeWildwestV1alpha1) Cowboys(namespace string) v1alpha1.CowboyInterfac
 	return &FakeCowboys{c, namespace}
 }
 
+func (c *FakeWildwestV1alpha1) ScopedCowboys(scope rest.Scope) v1alpha1.CowboysGetter {
+	panic("not implemented yet!")
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeWildwestV1alpha1) RESTClient() rest.Interface {

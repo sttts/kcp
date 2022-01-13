@@ -33,8 +33,16 @@ func (c *FakeTenancyV1alpha1) Workspaces() v1alpha1.WorkspaceInterface {
 	return &FakeWorkspaces{c}
 }
 
+func (c *FakeTenancyV1alpha1) ScopedWorkspaces(scope rest.Scope) v1alpha1.WorkspaceInterface {
+	panic("not implemented yet!")
+}
+
 func (c *FakeTenancyV1alpha1) WorkspaceShards() v1alpha1.WorkspaceShardInterface {
 	return &FakeWorkspaceShards{c}
+}
+
+func (c *FakeTenancyV1alpha1) ScopedWorkspaceShards(scope rest.Scope) v1alpha1.WorkspaceShardInterface {
+	panic("not implemented yet!")
 }
 
 // RESTClient returns a RESTClient that is used to communicate

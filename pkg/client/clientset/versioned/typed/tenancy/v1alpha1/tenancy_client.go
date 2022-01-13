@@ -36,11 +36,11 @@ type TenancyV1alpha1Interface interface {
 // TenancyV1alpha1Client is used to interact with features provided by the tenancy.kcp.dev group.
 type TenancyV1alpha1Client struct {
 	restClient rest.Interface
-	cluster    string
+	scope      rest.Scope
 }
 
 func (c *TenancyV1alpha1Client) Workspaces() WorkspaceInterface {
-	return newWorkspaces(c, nil)
+	return newWorkspaces(c, c.scope)
 }
 
 func (c *TenancyV1alpha1Client) ScopedWorkspaces(scope rest.Scope) WorkspaceInterface {
@@ -48,7 +48,7 @@ func (c *TenancyV1alpha1Client) ScopedWorkspaces(scope rest.Scope) WorkspaceInte
 }
 
 func (c *TenancyV1alpha1Client) WorkspaceShards() WorkspaceShardInterface {
-	return newWorkspaceShards(c, nil)
+	return newWorkspaceShards(c, c.scope)
 }
 
 func (c *TenancyV1alpha1Client) ScopedWorkspaceShards(scope rest.Scope) WorkspaceShardInterface {
@@ -99,9 +99,9 @@ func New(c rest.Interface) *TenancyV1alpha1Client {
 	return &TenancyV1alpha1Client{restClient: c}
 }
 
-// NewWithCluster creates a new TenancyV1alpha1Client for the given RESTClient and cluster.
-func NewWithCluster(c rest.Interface, cluster string) *TenancyV1alpha1Client {
-	return &TenancyV1alpha1Client{restClient: c, cluster: cluster}
+// NewWithScope creates a new TenancyV1alpha1Client for the given RESTClient and scope.
+func NewWithScope(c rest.Interface, scope rest.Scope) *TenancyV1alpha1Client {
+	return &TenancyV1alpha1Client{restClient: c, scope: scope}
 }
 
 func setConfigDefaults(config *rest.Config) error {

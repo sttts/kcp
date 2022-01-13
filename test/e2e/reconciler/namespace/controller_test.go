@@ -33,6 +33,7 @@ import (
 
 	clusterv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
 	clientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
 )
 
@@ -215,24 +216,25 @@ func TestNamespaceScheduler(t *testing.T) {
 				t.Errorf("failed to detect cluster name: %v", err)
 				return
 			}
-			kubeClient, err := kubernetes.NewClusterForConfig(cfg)
+			kubeClient, err := kubernetes.NewScoperForConfig(cfg)
 			if err != nil {
 				t.Errorf("failed to construct client for server: %v", err)
 				return
 			}
-			client := kubeClient.Cluster(clusterName)
+			scope := controllerz.NewScope(clusterName)
+			client := kubeClient.Scope(scope)
 			watcher, err := client.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
 			if err != nil {
 				t.Errorf("failed to watch namespaces: %v", err)
 				return
 			}
 
-			clients, err := clientset.NewClusterForConfig(cfg)
+			clients, err := clientset.NewScoperForConfig(cfg)
 			if err != nil {
 				t.Errorf("failed to construct client for server: %v", err)
 				return
 			}
-			clusterClient := clients.Cluster(clusterName)
+			clusterClient := clients.Scope(scope)
 
 			testCase.work(ctx, t, client, clusterClient, watcher)
 		}, framework.KcpConfig{

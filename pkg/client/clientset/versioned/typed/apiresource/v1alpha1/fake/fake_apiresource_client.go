@@ -33,8 +33,16 @@ func (c *FakeApiresourceV1alpha1) APIResourceImports() v1alpha1.APIResourceImpor
 	return &FakeAPIResourceImports{c}
 }
 
+func (c *FakeApiresourceV1alpha1) ScopedAPIResourceImports(scope rest.Scope) v1alpha1.APIResourceImportInterface {
+	panic("not implemented yet!")
+}
+
 func (c *FakeApiresourceV1alpha1) NegotiatedAPIResources() v1alpha1.NegotiatedAPIResourceInterface {
 	return &FakeNegotiatedAPIResources{c}
+}
+
+func (c *FakeApiresourceV1alpha1) ScopedNegotiatedAPIResources(scope rest.Scope) v1alpha1.NegotiatedAPIResourceInterface {
+	panic("not implemented yet!")
 }
 
 // RESTClient returns a RESTClient that is used to communicate

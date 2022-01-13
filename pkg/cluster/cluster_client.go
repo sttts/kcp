@@ -1,52 +1,44 @@
 package cluster
 
-import (
-	"net/http"
-	"strings"
-	"time"
+// type httpClient struct {
+// 	delegate rest.HTTPClient
+// }
 
-	"k8s.io/client-go/rest"
-)
+// func NewHTTPClient(delegate rest.HTTPClient) *httpClient {
+// 	return &httpClient{
+// 		delegate: delegate,
+// 	}
+// }
 
-type httpClient struct {
-	delegate rest.HTTPClient
-}
+// func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+// 	clusterName, err := FromContext(req.Context())
+// 	if err != nil {
+// 		// Couldn't find cluster name in context
+// 		return c.delegate.Do(req)
+// 	}
 
-func NewHTTPClient(delegate rest.HTTPClient) *httpClient {
-	return &httpClient{
-		delegate: delegate,
-	}
-}
+// 	if !strings.HasPrefix(req.URL.Path, "/clusters/") {
+// 		originalPath := req.URL.Path
 
-func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
-	clusterName, err := FromContext(req.Context())
-	if err != nil {
-		// Couldn't find cluster name in context
-		return c.delegate.Do(req)
-	}
+// 		// start with /clusters/$name
+// 		req.URL.Path = "/clusters/" + clusterName
 
-	if !strings.HasPrefix(req.URL.Path, "/clusters/") {
-		originalPath := req.URL.Path
+// 		// if the original path is relative, add a / separator
+// 		if len(originalPath) > 0 && originalPath[0] != '/' {
+// 			req.URL.Path += "/"
+// 		}
 
-		// start with /clusters/$name
-		req.URL.Path = "/clusters/" + clusterName
+// 		// finally append the original path
+// 		req.URL.Path += originalPath
+// 	}
 
-		// if the original path is relative, add a / separator
-		if len(originalPath) > 0 && originalPath[0] != '/' {
-			req.URL.Path += "/"
-		}
+// 	return c.delegate.Do(req)
+// }
 
-		// finally append the original path
-		req.URL.Path += originalPath
-	}
+// func (c *httpClient) Timeout() time.Duration {
+// 	return c.delegate.Timeout()
+// }
 
-	return c.delegate.Do(req)
-}
-
-func (c *httpClient) Timeout() time.Duration {
-	return c.delegate.Timeout()
-}
-
-func (c *httpClient) Transport() http.RoundTripper {
-	return c.delegate.Transport()
-}
+// func (c *httpClient) Transport() http.RoundTripper {
+// 	return c.delegate.Transport()
+// }

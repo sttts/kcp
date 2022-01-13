@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
@@ -38,6 +39,7 @@ var reClusterName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,78}[a-z0-9]$`)
 func ServeHTTP(apiHandler http.Handler) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var clusterName string
+		// klog.Infof("ANDY incoming request: %s", req.URL.String())
 		if path := req.URL.Path; strings.HasPrefix(path, "/clusters/") {
 			path = strings.TrimPrefix(path, "/clusters/")
 			i := strings.Index(path, "/")
@@ -69,7 +71,6 @@ func ServeHTTP(apiHandler http.Handler) func(w http.ResponseWriter, req *http.Re
 		case "*":
 			// HACK: just a workaround for testing
 			cluster.Wildcard = true
-			fallthrough
 		case "":
 			clusterName = genericcontrolplane.RootClusterName
 		default:
@@ -85,7 +86,10 @@ func ServeHTTP(apiHandler http.Handler) func(w http.ResponseWriter, req *http.Re
 		ctx := req.Context()
 		//ctx = genericapirequest.WithCluster(req.Context(), cluster)
 		scope := controllerz.NewScope(clusterName, controllerz.WildcardScope(cluster.Wildcard))
+		// Set the scope for caches/listers
 		ctx = rest.WithScope(ctx, scope)
+		// Set the scope for storage handlers
+		ctx = storage.WithScope(ctx, scope)
 		apiHandler.ServeHTTP(w, req.WithContext(ctx))
 	}
 }

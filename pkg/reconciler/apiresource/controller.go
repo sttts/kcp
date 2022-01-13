@@ -236,7 +236,7 @@ func toQueueElementType(oldObj, obj interface{}) (theType queueElementType, gvr 
 }
 
 func (c *Controller) enqueue(action resourceHandlerAction, oldObj, obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
+	key, err := cache.ObjectKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return

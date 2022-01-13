@@ -36,11 +36,11 @@ type ApiresourceV1alpha1Interface interface {
 // ApiresourceV1alpha1Client is used to interact with features provided by the apiresource.kcp.dev group.
 type ApiresourceV1alpha1Client struct {
 	restClient rest.Interface
-	cluster    string
+	scope      rest.Scope
 }
 
 func (c *ApiresourceV1alpha1Client) APIResourceImports() APIResourceImportInterface {
-	return newAPIResourceImports(c, nil)
+	return newAPIResourceImports(c, c.scope)
 }
 
 func (c *ApiresourceV1alpha1Client) ScopedAPIResourceImports(scope rest.Scope) APIResourceImportInterface {
@@ -48,7 +48,7 @@ func (c *ApiresourceV1alpha1Client) ScopedAPIResourceImports(scope rest.Scope) A
 }
 
 func (c *ApiresourceV1alpha1Client) NegotiatedAPIResources() NegotiatedAPIResourceInterface {
-	return newNegotiatedAPIResources(c, nil)
+	return newNegotiatedAPIResources(c, c.scope)
 }
 
 func (c *ApiresourceV1alpha1Client) ScopedNegotiatedAPIResources(scope rest.Scope) NegotiatedAPIResourceInterface {
@@ -99,9 +99,9 @@ func New(c rest.Interface) *ApiresourceV1alpha1Client {
 	return &ApiresourceV1alpha1Client{restClient: c}
 }
 
-// NewWithCluster creates a new ApiresourceV1alpha1Client for the given RESTClient and cluster.
-func NewWithCluster(c rest.Interface, cluster string) *ApiresourceV1alpha1Client {
-	return &ApiresourceV1alpha1Client{restClient: c, cluster: cluster}
+// NewWithScope creates a new ApiresourceV1alpha1Client for the given RESTClient and scope.
+func NewWithScope(c rest.Interface, scope rest.Scope) *ApiresourceV1alpha1Client {
+	return &ApiresourceV1alpha1Client{restClient: c, scope: scope}
 }
 
 func setConfigDefaults(config *rest.Config) error {

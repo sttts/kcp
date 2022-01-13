@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 )
 
 // we want to ensure that everything runs in parallel and that users of this framework
@@ -73,6 +75,7 @@ type KcpConfig struct {
 // have the central routine watch for incoming errors from delegate routines.
 func Run(top *testing.T, name string, f TestFunc, cfgs ...KcpConfig) {
 	if _, previouslyCalled := seen.LoadOrStore(fmt.Sprintf("%p", top), nil); !previouslyCalled {
+		controllerz.EnableLogicalClusters()
 		top.Parallel()
 	}
 	top.Run(name, func(mid *testing.T) {

@@ -263,18 +263,15 @@ func (s *Server) Run(ctx context.Context) error {
 		TrustedCAFile: s.cfg.EtcdClientInfo.TrustedCAFile,
 	}
 
-	// TODO(ncdc): I thought I was going to need this, but it turns out this breaks the CRD controllers because they
-	// try to issue Update() calls using the * client, which ends up with the cluster name being set to the default
-	// admin cluster in handler.go. This means the update calls are likely going against the wrong logical cluster.
-	// serverOptions.APIExtensionsNewClientFunc = func(config *rest.Config) (apiextensionsclient.Interface, error) {
-	// 	const crossCluster = "*"
-	// 	clusterClient, err := apiextensionsclient.NewClusterForConfig(config)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	client := clusterClient.Cluster(crossCluster)
-	// 	return client, nil
-	// }
+	serverOptions.APIExtensionsNewClientFunc = func(config *rest.Config) (apiextensionsclient.Interface, error) {
+		crossClusterScope := controllerz.NewScope("*", controllerz.WildcardScope(true))
+
+		client, err := apiextensionsclient.NewScoperForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		return client.Scope(crossClusterScope), nil
+	}
 
 	loopbackClientCert, loopbackClientCertKey, err := serverOptions.SecureServing.NewLoopbackClientCert()
 	if err != nil {
@@ -292,12 +289,12 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	// FIXME: switch to a single set of shared informers
-	const crossCluster = "*"
-	kcpClusterClient, err := kcpclient.NewClusterForConfig(loopbackClientConfig)
+	crossCluster := controllerz.NewScope("*", controllerz.WildcardScope(true))
+	kcpClusterClient, err := kcpclient.NewScoperForConfig(loopbackClientConfig)
 	if err != nil {
 		return err
 	}
-	kcpClient := kcpClusterClient.Cluster(crossCluster)
+	kcpClient := kcpClusterClient.Scope(crossCluster)
 
 	kcpSharedInformerFactory := kcpexternalversions.NewSharedInformerFactoryWithOptions(kcpClient, resyncPeriod)
 	s.AddPostStartHook("FIXME-start-informers-for-crd-getter", func(context genericapiserver.PostStartHookContext) error {
@@ -545,8 +542,20 @@ func (s *Server) Run(ctx context.Context) error {
 			return err
 		}
 
-		kcpSharedInformerFactory := kcpexternalversions.NewSharedInformerFactoryWithOptions(kcpclient.NewForConfigOrDie(adminConfig), resyncPeriod)
-		crdSharedInformerFactory := apiextensionsexternalversions.NewSharedInformerFactoryWithOptions(apiextensionsclient.NewForConfigOrDie(adminConfig), resyncPeriod)
+		kcpClient, err := kcpclient.NewScoperForConfig(adminConfig)
+		if err != nil {
+			return err
+		}
+
+		crdClient, err := apiextensionsclient.NewScoperForConfig(adminConfig)
+		if err != nil {
+			return err
+		}
+
+		crossClusterScope := controllerz.NewScope("*", controllerz.WildcardScope(true))
+
+		kcpSharedInformerFactory := kcpexternalversions.NewSharedInformerFactoryWithOptions(kcpClient.Scope(crossClusterScope), resyncPeriod)
+		crdSharedInformerFactory := apiextensionsexternalversions.NewSharedInformerFactoryWithOptions(crdClient.Scope(crossClusterScope), resyncPeriod)
 
 		kubeconfig := clientConfig.DeepCopy()
 		for _, cluster := range kubeconfig.Clusters {
@@ -577,21 +586,20 @@ func (s *Server) Run(ctx context.Context) error {
 			return err
 		}
 
-		kubeClient, err := kubernetes.NewClusterForConfig(adminConfig)
+		kubeClient, err := kubernetes.NewScoperForConfig(adminConfig)
 		if err != nil {
 			return err
 		}
 
-		const clusterAll = "*" // TODO: find the correct place for this constant?
-		crossClusterKubeClient := kubeClient.Cluster(clusterAll)
+		crossClusterKubeClient := kubeClient.Scope(crossCluster)
 		kubeSharedInformerFactory := coreexternalversions.NewSharedInformerFactoryWithOptions(crossClusterKubeClient, resyncPeriod)
 
-		kcpClient, err := kcpclient.NewClusterForConfig(adminConfig)
+		kcpClient, err := kcpclient.NewScoperForConfig(adminConfig)
 		if err != nil {
 			return err
 		}
 
-		crossClusterKcpClient := kcpClient.Cluster(clusterAll)
+		crossClusterKcpClient := kcpClient.Scope(crossCluster)
 
 		kcpSharedInformerFactory := kcpexternalversions.NewSharedInformerFactoryWithOptions(crossClusterKcpClient, resyncPeriod)
 
@@ -650,11 +658,11 @@ func (s *Server) Run(ctx context.Context) error {
 			return err
 		}
 
-		kcpClient, err := kcpclient.NewClusterForConfig(adminConfig)
+		kcpClient, err := kcpclient.NewScoperForConfig(adminConfig)
 		if err != nil {
 			return err
 		}
-		crossClusterClient := kcpClient.Cluster(clusterAll)
+		crossClusterClient := kcpClient.Scope(crossCluster)
 
 		kubeClient := kubernetes.NewForConfigOrDie(adminConfig)
 		disco := discovery.NewDiscoveryClientForConfigOrDie(adminConfig)
@@ -774,30 +782,20 @@ func NewServer(cfg *Config) *Server {
 }
 
 func (s *Server) startNamespaceController(hookContext genericapiserver.PostStartHookContext) error {
-	kubeClient, err := kubernetes.NewForConfig(hookContext.LoopbackClientConfig)
+	kubeScoperClient, err := kubernetes.NewScoperForConfig(hookContext.LoopbackClientConfig)
 	if err != nil {
 		return err
 	}
-	metadata, err := metadata.NewForConfig(hookContext.LoopbackClientConfig)
+	metadata, err := metadata.NewScopingForConfig(hookContext.LoopbackClientConfig)
 	if err != nil {
 		return err
 	}
-	versionedInformer := coreexternalversions.NewSharedInformerFactory(kubeClient, resyncPeriod)
-
-	discoverResourcesFn := func(clusterName string) ([]*metav1.APIResourceList, error) {
-		logicalClusterConfig := rest.CopyConfig(hookContext.LoopbackClientConfig)
-		logicalClusterConfig.Host += "/clusters/" + clusterName
-		discoveryClient, err := discovery.NewDiscoveryClientForConfig(logicalClusterConfig)
-		if err != nil {
-			return nil, err
-		}
-		return discoveryClient.ServerPreferredNamespacedResources()
-	}
+	crossClusterScope := controllerz.NewScope("*", controllerz.WildcardScope(true))
+	versionedInformer := coreexternalversions.NewSharedInformerFactory(kubeScoperClient.Scope(crossClusterScope), resyncPeriod)
 
 	go namespace.NewNamespaceController(
-		kubeClient,
+		kubernetes.NewForConfigOrDie(hookContext.LoopbackClientConfig),
 		metadata,
-		discoverResourcesFn,
 		versionedInformer.Core().V1().Namespaces(),
 		time.Duration(30)*time.Second,
 		v1.FinalizerKubernetes,

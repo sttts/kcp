@@ -60,17 +60,17 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	crossKubeClient, err := kubernetes.NewClusterForConfig(cfg)
+	crossClusterScope := controllerz.NewScope("*", controllerz.WildcardScope(true))
+	crossKubeClient, err := kubernetes.NewScoperForConfig(cfg)
 	if err != nil {
 		panic(err)
 	}
 
-	crossKCPClient, err := kcpclient.NewClusterForConfig(cfg)
+	crossKCPClient, err := kcpclient.NewScoperForConfig(cfg)
 	if err != nil {
 		panic(err)
 	}
-	// TODO: make a custom rest.HTTPClient that always does "*"
-	kcpSharedInformerFactory := externalversions.NewSharedInformerFactoryWithOptions(crossKCPClient.Cluster("*"), 0)
+	kcpSharedInformerFactory := externalversions.NewSharedInformerFactoryWithOptions(crossKCPClient.Scope(crossClusterScope), 0)
 
 	// restClient, err := rest.HTTPClientFor(cfg)
 	// if err != nil {
@@ -81,7 +81,7 @@ func main() {
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 
 	// TODO: make a custom rest.HTTPClient that always does "*"
-	kubeSharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(crossKubeClient.Cluster("*"), 0)
+	kubeSharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(crossKubeClient.Scope(crossClusterScope), 0)
 
 	deploymentController := deployment.NewController(
 		kcpSharedInformerFactory.Cluster().V1alpha1().Clusters(),

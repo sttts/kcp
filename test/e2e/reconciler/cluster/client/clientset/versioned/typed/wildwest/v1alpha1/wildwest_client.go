@@ -34,15 +34,15 @@ type WildwestV1alpha1Interface interface {
 // WildwestV1alpha1Client is used to interact with features provided by the wildwest.dev group.
 type WildwestV1alpha1Client struct {
 	restClient rest.Interface
-	cluster    string
+	scope      rest.Scope
 }
 
 func (c *WildwestV1alpha1Client) Cowboys(namespace string) CowboyInterface {
-	return newCowboys(c, nil, namespace)
+	return newCowboys(c, c.scope, namespace)
 }
 
-func (c *WildwestV1alpha1Client) ScopedCowboys(scope rest.Scope, namespace string) CowboyInterface {
-	return newCowboys(c, scope, namespace)
+func (c *WildwestV1alpha1Client) ScopedCowboys(scope rest.Scope) CowboysGetter {
+	return newCowboysScoper(c, scope)
 }
 
 // NewForConfig creates a new WildwestV1alpha1Client for the given config.
@@ -89,9 +89,9 @@ func New(c rest.Interface) *WildwestV1alpha1Client {
 	return &WildwestV1alpha1Client{restClient: c}
 }
 
-// NewWithCluster creates a new WildwestV1alpha1Client for the given RESTClient and cluster.
-func NewWithCluster(c rest.Interface, cluster string) *WildwestV1alpha1Client {
-	return &WildwestV1alpha1Client{restClient: c, cluster: cluster}
+// NewWithScope creates a new WildwestV1alpha1Client for the given RESTClient and scope.
+func NewWithScope(c rest.Interface, scope rest.Scope) *WildwestV1alpha1Client {
+	return &WildwestV1alpha1Client{restClient: c, scope: scope}
 }
 
 func setConfigDefaults(config *rest.Config) error {

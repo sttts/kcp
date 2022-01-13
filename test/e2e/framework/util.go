@@ -56,6 +56,7 @@ import (
 	clusterv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/cluster/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	kcpclientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 )
 
 // ScratchDirs determines where artifacts and data should live for a test case.
@@ -145,7 +146,8 @@ func (c *kcpServer) Artifact(tinterface TestingTInterface, producer func() (runt
 		t.Logf("could not get discovery client for server: %v", err)
 		return
 	}
-	scopedDiscoveryClient := discoveryClient.WithCluster(accessor.GetClusterName())
+	scope := controllerz.NewScope(accessor.GetClusterName())
+	scopedDiscoveryClient := discoveryClient.Scope(scope)
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(cacheddiscovery.NewMemCacheClient(scopedDiscoveryClient))
 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {

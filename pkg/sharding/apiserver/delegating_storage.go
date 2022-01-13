@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	clientrest "k8s.io/client-go/rest"
 )
@@ -115,10 +114,11 @@ func (s *delegatingStorage) routedResponse(ctx context.Context, resourceVersion 
 
 // routedRequest determines which shard to route a request to by reading the cluster field on the object.
 func (s *delegatingStorage) routedRequest(ctx context.Context, resourceVersion *string, mutateBody bool) (*clientrest.Request, func(runtime.Object) error, error) {
-	clusterName, err := genericapirequest.ClusterNameFrom(ctx)
-	if err != nil {
-		return nil, nil, err
+	scope := clientrest.ScopeFrom(ctx)
+	if scope == nil {
+		return nil, nil, fmt.Errorf("scope missing from request")
 	}
+	clusterName := scope.Name()
 	identifier := "fake"
 
 	cfg, exists := s.shards[identifier]

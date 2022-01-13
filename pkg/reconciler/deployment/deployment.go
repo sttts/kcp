@@ -95,7 +95,7 @@ func (c *scopedProcessor) reconcile(ctx context.Context, deployment *appsv1.Depl
 			rootDeployment.Status.Conditions = others[0].Status.Conditions
 		}
 
-		if _, err := c.deploymentClient.ScopedDeployments(c.scope, rootDeployment.Namespace).UpdateStatus(ctx, rootDeployment, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.deploymentClient.Deployments(rootDeployment.Namespace).UpdateStatus(ctx, rootDeployment, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
 	}
@@ -151,7 +151,7 @@ func (c *scopedProcessor) createLeafs(ctx context.Context, root *appsv1.Deployme
 
 		// TODO: munge namespace
 		vd.SetResourceVersion("")
-		if _, err := c.deploymentClient.ScopedDeployments(c.scope, root.Namespace).Create(ctx, vd, metav1.CreateOptions{}); err != nil {
+		if _, err := c.deploymentClient.Deployments(root.Namespace).Create(ctx, vd, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		klog.Infof("created child deployment %q", vd.Name)

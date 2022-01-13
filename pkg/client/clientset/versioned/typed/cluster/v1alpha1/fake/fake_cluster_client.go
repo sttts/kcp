@@ -33,6 +33,10 @@ func (c *FakeClusterV1alpha1) Clusters() v1alpha1.ClusterInterface {
 	return &FakeClusters{c}
 }
 
+func (c *FakeClusterV1alpha1) ScopedClusters(scope rest.Scope) v1alpha1.ClusterInterface {
+	panic("not implemented yet!")
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeClusterV1alpha1) RESTClient() rest.Interface {
