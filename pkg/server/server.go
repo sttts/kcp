@@ -786,7 +786,7 @@ func (s *Server) startNamespaceController(hookContext genericapiserver.PostStart
 	if err != nil {
 		return err
 	}
-	metadata, err := metadata.NewScopingForConfig(hookContext.LoopbackClientConfig)
+	metadata, err := metadata.NewScoperForConfig(hookContext.LoopbackClientConfig)
 	if err != nil {
 		return err
 	}
