@@ -29,8 +29,10 @@ import (
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericapiserveroptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/pkg/virtual/framework"
 	virtualcontext "github.com/kcp-dev/kcp/pkg/virtual/framework/context"
 )
@@ -163,12 +165,12 @@ func (c completedConfig) getRootHandlerChain(delegateAPIServer genericapiserver.
 				req.URL.RawPath = strings.TrimPrefix(req.URL.RawPath, prefixToStrip)
 				// In the current KCP Kubernetes feature branch, some components (e.g.Discovery index)
 				// don't support calls without a cluster set in the request context.
-				// That's why we add a dummy cluster name here.
+				// That's why we add a placeholder cluster name here.
 				// However we don't add it for the OpenAPI v2 endpoint since, on the contrary,
 				// in our case the OpenAPI Spec will be published by the default OpenAPI Service Provider,
 				// which is served when the cluster name is empty.
 				if req.URL.Path != "/openapi/v2" {
-					context = genericapirequest.WithCluster(context, genericapirequest.Cluster{Name: "virtual"})
+					context = rest.WithScope(context, controllerz.NewScope("virtual"))
 				}
 				req = req.WithContext(context)
 				delegatedHandler := delegateAPIServer.UnprotectedHandler()

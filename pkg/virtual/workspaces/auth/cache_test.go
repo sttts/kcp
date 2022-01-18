@@ -145,7 +145,7 @@ func TestSyncWorkspace(t *testing.T) {
 
 	kubeInformers := informers.NewSharedInformerFactory(mockKubeClient, controller.NoResyncPeriodFunc())
 	kcpInformers := tenancyInformers.NewSharedInformerFactory(mockKCPClient, controller.NoResyncPeriodFunc())
-	wsIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	wsIndexer := cache.NewIndexer(cache.ObjectKeyFunc, cache.Indexers{})
 	wsLister := workspacelisters.NewWorkspaceLister(wsIndexer)
 
 	authorizationCache := NewAuthorizationCache(

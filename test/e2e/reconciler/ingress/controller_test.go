@@ -45,13 +45,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
 )
 
 //go:embed *.yaml
 var embeddedResources embed.FS
 
-const crdName = "ingresses.networking.k8s.io"
 const testNamespace = "ingress-controller-test"
 const clusterName = "us-east1"
 const existingServiceName = "existing-service"
@@ -186,7 +186,7 @@ func TestIngressController(t *testing.T) {
 				{Group: "networking.k8s.io", Kind: "ingresses"},
 			}
 			for _, requiredCrd := range requiredCrds {
-				if err := framework.InstallCrd(ctx, requiredCrd, servers, embeddedResources); err != nil {
+				if err := framework.InstallCrd(ctx, requiredCrd, servers, "admin", embeddedResources); err != nil {
 					t.Error(err)
 					return
 				}
@@ -195,23 +195,23 @@ func TestIngressController(t *testing.T) {
 			start = time.Now()
 			source, sink := servers[sourceClusterName], servers[sinkClusterName]
 			t.Log("Installing sink cluster...")
-			if err := framework.InstallCluster(t, ctx, source, sink, "clusters.cluster.example.dev", clusterName); err != nil {
+			if err := framework.InstallCluster(t, ctx, source, sink, clusterName); err != nil {
 				t.Error(err)
 				return
 			}
 			t.Logf("Installed sink cluster after %s", time.Since(start))
 			start = time.Now()
 			t.Log("Setting up clients for test...")
-			if err := framework.InstallNamespace(ctx, source, crdName, testNamespace); err != nil {
+			if err := framework.InstallNamespace(ctx, source, "admin", testNamespace); err != nil {
 				t.Error(err)
 				return
 			}
-			if err := framework.InstallNamespace(ctx, sink, crdName, testNamespace); err != nil {
+			if err := framework.InstallNamespace(ctx, sink, "admin", testNamespace); err != nil {
 				t.Error(err)
 				return
 			}
 
-			if err := installService(ctx, source); err != nil {
+			if err := installService(ctx, source, clusterName); err != nil {
 				t.Error(err)
 				return
 			}
@@ -223,18 +223,12 @@ func TestIngressController(t *testing.T) {
 					t.Error(err)
 					return
 				}
-				clusterName, err := framework.DetectClusterName(cfg, ctx, crdName)
-				if err != nil {
-					t.Errorf("failed to detect cluster name: %v", err)
-					return
-				}
-
-				kubeClients, err := kubernetesclientset.NewClusterForConfig(cfg)
+				kubeClients, err := kubernetesclientset.NewScoperForConfig(cfg)
 				if err != nil {
 					t.Errorf("failed to construct client for server: %v", err)
 					return
 				}
-				kubeClient := kubeClients.Cluster(clusterName)
+				kubeClient := kubeClients.Scope(controllerz.NewScope("admin"))
 				expect, err := ExpectIngresses(ctx, t, kubeClient)
 				if err != nil {
 					t.Errorf("failed to start expecter: %v", err)
@@ -286,6 +280,7 @@ func TestIngressController(t *testing.T) {
 				Args: []string{
 					"--push-mode",
 					"--install-cluster-controller",
+					"--install-workspace-controller",
 					"--auto-publish-apis=true",
 					"--resources-to-sync=ingresses.networking.k8s.io,deployments.apps,services"},
 			},
@@ -354,8 +349,8 @@ func (c *ingressControllerConfig) Run(parentCtx context.Context) error {
 	return nil
 }
 
-func installService(ctx context.Context, server framework.RunningServer) error {
-	client, err := framework.GetClientForServer(ctx, server, crdName)
+func installService(ctx context.Context, server framework.RunningServer, clusterName string) error {
+	client, err := framework.GetClientForServer(ctx, server, "admin")
 	if err != nil {
 		return err
 	}
@@ -404,7 +399,7 @@ func ExpectIngresses(ctx context.Context, t framework.TestingTInterface, client 
 			// we are using a seed from one kcp to expect something about an object in
 			// another kcp, so the cluster names will not match - this is fine, just do
 			// client-side filtering for what we know
-			all, err := informer.Lister().Ingresses(seed.Namespace).List(labels.Everything())
+			all, err := informer.Lister().List(labels.Everything())
 			if err != nil {
 				return !apierrors.IsNotFound(err), err
 			}

@@ -18,20 +18,17 @@ package workspaces
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	clientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	virtualcmd "github.com/kcp-dev/kcp/pkg/virtual/framework/cmd"
 	workspacescmd "github.com/kcp-dev/kcp/pkg/virtual/workspaces/cmd"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
@@ -214,17 +211,14 @@ func TestWorkspacesVirtualWorkspaces(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			clusterName, err := detectClusterName(kcpCfg, ctx)
-			if err != nil {
-				t.Errorf("failed to detect cluster name: %v", err)
-				return
-			}
-			kcpClients, err := clientset.NewClusterForConfig(kcpCfg)
+			clusterName := "admin"
+			scope := controllerz.NewScope(clusterName)
+			kcpClients, err := clientset.NewScoperForConfig(kcpCfg)
 			if err != nil {
 				t.Errorf("failed to construct client for server: %v", err)
 				return
 			}
-			kcpClient := kcpClients.Cluster(clusterName)
+			kcpClient := kcpClients.Scope(scope)
 			kcpExpect, err := framework.ExpectWorkspaces(ctx, t, kcpClient)
 			if err != nil {
 				t.Errorf("failed to start expecter: %v", err)
@@ -243,25 +237,4 @@ func TestWorkspacesVirtualWorkspaces(t *testing.T) {
 			Args: append([]string{"--install-workspace-controller"}, usersKCPArgs...),
 		})
 	}
-}
-
-// TODO: we need to undo the prefixing and get normal sharding behavior in soon ... ?
-func detectClusterName(cfg *rest.Config, ctx context.Context) (string, error) {
-	crdClient, err := apiextensionsclientset.NewClusterForConfig(cfg)
-	if err != nil {
-		return "", fmt.Errorf("failed to construct client for server: %w", err)
-	}
-	crds, err := crdClient.Cluster("*").ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to list crds: %w", err)
-	}
-	if len(crds.Items) == 0 {
-		return "", errors.New("found no crds, cannot detect cluster name")
-	}
-	for _, crd := range crds.Items {
-		if crd.ObjectMeta.Name == "workspaces.tenancy.kcp.dev" {
-			return crd.ObjectMeta.ClusterName, nil
-		}
-	}
-	return "", errors.New("detected no admin cluster")
 }

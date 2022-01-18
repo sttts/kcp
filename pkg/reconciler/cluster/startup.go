@@ -29,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/kubernetes/pkg/genericcontrolplane/clientutils"
 
 	"github.com/kcp-dev/kcp/config"
 	apiresourceapi "github.com/kcp-dev/kcp/pkg/apis/apiresource"
@@ -125,7 +124,6 @@ func (c *Config) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	clientutils.EnableMultiCluster(adminConfig, nil, true, "clusters", "customresourcedefinitions", "apiresourceimports", "negotiatedapiresources")
 
 	apiExtensionsClient := apiextensionsclient.NewForConfigOrDie(adminConfig)
 	kcpClient := kcpclient.NewForConfigOrDie(adminConfig)

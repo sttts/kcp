@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,7 +33,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apiextensionsv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -47,7 +45,6 @@ import (
 	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	kubernetesclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -225,7 +222,7 @@ func GetFreePort(t TestingTInterface) (string, error) {
 }
 
 // InstallCrd installs a CRD on one or multiple servers.
-func InstallCrd(ctx context.Context, gvk metav1.GroupKind, servers map[string]RunningServer, embeddedResources embed.FS) error {
+func InstallCrd(ctx context.Context, gvk metav1.GroupKind, servers map[string]RunningServer, clusterName string, embeddedResources embed.FS) error {
 	wg := sync.WaitGroup{}
 	bootstrapErrChan := make(chan error, len(servers))
 	for _, server := range servers {
@@ -242,7 +239,7 @@ func InstallCrd(ctx context.Context, gvk metav1.GroupKind, servers map[string]Ru
 				bootstrapErrChan <- fmt.Errorf("failed to construct client for server: %w", err)
 				return
 			}
-			bootstrapErrChan <- config.BootstrapCustomResourceDefinitionFromFS(ctx, crdClient.CustomResourceDefinitions(), gvk, embeddedResources)
+			bootstrapErrChan <- config.BootstrapCustomResourceDefinitionFromFS(ctx, crdClient.ScopedCustomResourceDefinitions(controllerz.NewScope(clusterName)), gvk, embeddedResources)
 		}(server)
 	}
 	wg.Wait()
@@ -258,7 +255,7 @@ func InstallCrd(ctx context.Context, gvk metav1.GroupKind, servers map[string]Ru
 }
 
 // InstallCluster creates a new Cluster resource with the desired name on a given server and waits for it to be ready.
-func InstallCluster(t TestingTInterface, ctx context.Context, source, server RunningServer, crdName, clusterName string) error {
+func InstallCluster(t TestingTInterface, ctx context.Context, source, server RunningServer, clusterName string) error {
 	sourceCfg, err := source.Config()
 	if err != nil {
 		return fmt.Errorf("failed to get source config: %w", err)
@@ -267,11 +264,7 @@ func InstallCluster(t TestingTInterface, ctx context.Context, source, server Run
 	if err != nil {
 		return fmt.Errorf("failed to get server config: %w", err)
 	}
-	sourceClusterName, err := DetectClusterName(sourceCfg, ctx, crdName)
-	if err != nil {
-		return fmt.Errorf("failed to detect cluster name: %w", err)
-	}
-	sourceKcpClients, err := kcpclientset.NewClusterForConfig(sourceCfg)
+	sourceKcpClients, err := kcpclientset.NewScoperForConfig(sourceCfg)
 	if err != nil {
 		return fmt.Errorf("failed to construct client for server: %w", err)
 	}
@@ -279,7 +272,7 @@ func InstallCluster(t TestingTInterface, ctx context.Context, source, server Run
 	if err != nil {
 		return fmt.Errorf("failed to serialize server config: %w", err)
 	}
-	sourceKcpClient := sourceKcpClients.Cluster(sourceClusterName)
+	sourceKcpClient := sourceKcpClients.Scope(controllerz.NewScope("admin"))
 	cluster, err := sourceKcpClient.ClusterV1alpha1().Clusters().Create(ctx, &clusterv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: clusterName},
 		Spec:       clusterv1alpha1.ClusterSpec{KubeConfig: string(rawSinkCfgBytes)},
@@ -333,53 +326,27 @@ func InstallCluster(t TestingTInterface, ctx context.Context, source, server Run
 }
 
 // InstallNamespace creates a new namespace into the desired server.
-func InstallNamespace(ctx context.Context, server RunningServer, crdName, testNamespace string) error {
-	client, err := GetClientForServer(ctx, server, crdName)
+func InstallNamespace(ctx context.Context, server RunningServer, clusterName, namespace string) error {
+	client, err := GetClientForServer(ctx, server, clusterName)
 	if err != nil {
 		return err
 	}
 	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: testNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: namespace},
 	}, metav1.CreateOptions{})
 	return err
 }
 
-// DetectClusterName returns the name of the cluster that contains the desired CRD.
-// TODO: we need to undo the prefixing and get normal sharding behavior in soon ... ?
-func DetectClusterName(cfg *rest.Config, ctx context.Context, crdName string) (string, error) {
-	crdClient, err := apiextensionsclientset.NewClusterForConfig(cfg)
-	if err != nil {
-		return "", fmt.Errorf("failed to construct client for server: %w", err)
-	}
-	crds, err := crdClient.Cluster("*").ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to list crds: %w", err)
-	}
-	if len(crds.Items) == 0 {
-		return "", errors.New("found no crds, cannot detect cluster name")
-	}
-	for _, crd := range crds.Items {
-		if crd.ObjectMeta.Name == crdName {
-			return crd.ObjectMeta.ClusterName, nil
-		}
-	}
-	return "", errors.New("detected no admin cluster")
-}
-
 // GetClientForServer returns a kubernetes clientset for a given server.
-func GetClientForServer(ctx context.Context, server RunningServer, crdName string) (kubernetesclientset.Interface, error) {
+func GetClientForServer(ctx context.Context, server RunningServer, clusterName string) (kubernetesclientset.Interface, error) {
 	cfg, err := server.Config()
 	if err != nil {
 		return nil, err
 	}
-	sourceClusterName, err := DetectClusterName(cfg, ctx, crdName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect cluster name: %w", err)
-	}
-	clients, err := kubernetesclientset.NewClusterForConfig(cfg)
+	clients, err := kubernetesclientset.NewScoperForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct client for server: %w", err)
 	}
-	client := clients.Cluster(sourceClusterName)
+	client := clients.Scope(controllerz.NewScope(clusterName))
 	return client, nil
 }

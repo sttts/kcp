@@ -298,11 +298,7 @@ func TestWorkspaceController(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			clusterName, err := framework.DetectClusterName(cfg, ctx, "workspaces.tenancy.kcp.dev")
-			if err != nil {
-				t.Errorf("failed to detect cluster name: %v", err)
-				return
-			}
+			clusterName := "admin"
 			clients, err := kcpclientset.NewScoperForConfig(cfg)
 			if err != nil {
 				t.Errorf("failed to construct client for server: %v", err)

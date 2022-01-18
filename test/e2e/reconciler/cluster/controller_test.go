@@ -52,7 +52,6 @@ func init() {
 //go:embed *.yaml
 var rawCustomResourceDefinitions embed.FS
 
-const crdName = "cowboys.wildwest.dev"
 const testNamespace = "cluster-controller-test"
 const clusterName = "us-east1"
 const sourceClusterName, sinkClusterName = "source", "sink"
@@ -162,7 +161,7 @@ func TestClusterController(t *testing.T) {
 				return
 			}
 			t.Log("Installing test CRDs...")
-			if err := framework.InstallCrd(ctx, metav1.GroupKind{Group: wildwest.GroupName, Kind: "cowboys"}, servers, rawCustomResourceDefinitions); err != nil {
+			if err := framework.InstallCrd(ctx, metav1.GroupKind{Group: wildwest.GroupName, Kind: "cowboys"}, servers, "admin", rawCustomResourceDefinitions); err != nil {
 				t.Error(err)
 				return
 			}
@@ -170,14 +169,14 @@ func TestClusterController(t *testing.T) {
 			start = time.Now()
 			source, sink := servers[sourceClusterName], servers[sinkClusterName]
 			t.Log("Installing sink cluster...")
-			if err := framework.InstallCluster(t, ctx, source, sink, "clusters.cluster.example.dev", clusterName); err != nil {
+			if err := framework.InstallCluster(t, ctx, source, sink, clusterName); err != nil {
 				t.Error(err)
 				return
 			}
 			t.Logf("Installed sink cluster after %s", time.Since(start))
 			start = time.Now()
 			t.Log("Setting up clients for test...")
-			if err := framework.InstallNamespace(ctx, source, crdName, testNamespace); err != nil {
+			if err := framework.InstallNamespace(ctx, source, "admin", testNamespace); err != nil {
 				t.Error(err)
 				return
 			}

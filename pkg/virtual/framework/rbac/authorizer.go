@@ -18,25 +18,26 @@ package rbac
 
 import (
 	rbacinformers "k8s.io/client-go/informers/rbac/v1"
+	"k8s.io/client-go/rest"
 	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	rbacauthorizer "k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 )
 
-func NewRuleResolver(informers rbacinformers.Interface) rbacregistryvalidation.AuthorizationRuleResolver {
+func NewRuleResolver(informers rbacinformers.Interface, scope rest.Scope) rbacregistryvalidation.AuthorizationRuleResolver {
 	return rbacregistryvalidation.NewDefaultRuleResolver(
-		&rbacauthorizer.RoleGetter{Lister: informers.Roles().Lister()},
-		&rbacauthorizer.RoleBindingLister{Lister: informers.RoleBindings().Lister()},
-		&rbacauthorizer.ClusterRoleGetter{Lister: informers.ClusterRoles().Lister()},
-		&rbacauthorizer.ClusterRoleBindingLister{Lister: informers.ClusterRoleBindings().Lister()},
+		&rbacauthorizer.RoleGetter{Lister: informers.Roles().Lister().Scoped(scope)},
+		&rbacauthorizer.RoleBindingLister{Lister: informers.RoleBindings().Lister().Scoped(scope)},
+		&rbacauthorizer.ClusterRoleGetter{Lister: informers.ClusterRoles().Lister().Scoped(scope)},
+		&rbacauthorizer.ClusterRoleBindingLister{Lister: informers.ClusterRoleBindings().Lister().Scoped(scope)},
 	)
 }
 
-func NewSubjectLocator(informers rbacinformers.Interface) rbacauthorizer.SubjectLocator {
+func NewSubjectLocator(informers rbacinformers.Interface, scope rest.Scope) rbacauthorizer.SubjectLocator {
 	return rbacauthorizer.NewSubjectAccessEvaluator(
-		&rbacauthorizer.RoleGetter{Lister: informers.Roles().Lister()},
-		&rbacauthorizer.RoleBindingLister{Lister: informers.RoleBindings().Lister()},
-		&rbacauthorizer.ClusterRoleGetter{Lister: informers.ClusterRoles().Lister()},
-		&rbacauthorizer.ClusterRoleBindingLister{Lister: informers.ClusterRoleBindings().Lister()},
+		&rbacauthorizer.RoleGetter{Lister: informers.Roles().Lister().Scoped(scope)},
+		&rbacauthorizer.RoleBindingLister{Lister: informers.RoleBindings().Lister().Scoped(scope)},
+		&rbacauthorizer.ClusterRoleGetter{Lister: informers.ClusterRoles().Lister().Scoped(scope)},
+		&rbacauthorizer.ClusterRoleBindingLister{Lister: informers.ClusterRoleBindings().Lister().Scoped(scope)},
 		"",
 	)
 }

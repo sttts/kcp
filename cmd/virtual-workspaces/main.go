@@ -28,6 +28,7 @@ import (
 
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	virtualgenericcmd "github.com/kcp-dev/kcp/pkg/virtual/framework/cmd"
 	virtualworkspacescmd "github.com/kcp-dev/kcp/pkg/virtual/workspaces/cmd"
 )
@@ -38,6 +39,8 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
+
+	controllerz.EnableLogicalClusters()
 
 	command := NewVirtualWorkspaceApiServerCommand(stopCh)
 	if err := command.Execute(); err != nil {

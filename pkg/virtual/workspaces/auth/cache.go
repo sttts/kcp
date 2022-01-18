@@ -32,7 +32,6 @@ import (
 	rbacv1informers "k8s.io/client-go/informers/rbac/v1"
 	rbacv1listers "k8s.io/client-go/listers/rbac/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clusters"
 	"k8s.io/klog/v2"
 
 	workspaceapi "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
@@ -243,7 +242,7 @@ func (ac *AuthorizationCache) synchronizeWorkspaces(userSubjectRecordStore cache
 	}
 	for i := range workspaces {
 		workspace := workspaces[i]
-		workspaceKey, err := cache.MetaNamespaceKeyFunc(workspace)
+		workspaceKey, err := cache.ObjectKeyFunc(workspace)
 		if err != nil {
 			klog.Warning(err)
 		}
@@ -362,8 +361,11 @@ func (ac *AuthorizationCache) syncRequest(request *reviewRequest, userSubjectRec
 
 	workspace := request.workspace
 
-	_, workspaceName := clusters.SplitClusterAwareKey(workspace)
-	review, err := ac.reviewer.Review(workspaceName)
+	queueKey, err := cache.DecodeKeyFunc(workspace)
+	if err != nil {
+		return err
+	}
+	review, err := ac.reviewer.Review(queueKey.Name())
 	if err != nil {
 		return fmt.Errorf("review for workspace %s failed: %w", workspace, err)
 	}

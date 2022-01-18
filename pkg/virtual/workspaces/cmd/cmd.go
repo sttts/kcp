@@ -35,6 +35,7 @@ import (
 	tenancyAPI "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
+	"github.com/kcp-dev/kcp/pkg/controllerz"
 	"github.com/kcp-dev/kcp/pkg/virtual/framework"
 	virtualframeworkcmd "github.com/kcp-dev/kcp/pkg/virtual/framework/cmd"
 	frameworkrbac "github.com/kcp-dev/kcp/pkg/virtual/framework/rbac"
@@ -100,6 +101,7 @@ func (o *WorkspacesSubCommandOptions) PrepareVirtualWorkspaces() ([]rootapiserve
 		return nil, nil, err
 	}
 
+	// TODO(ncdc): this assumes the admin lcluster
 	apiExtensionsClient, err := apiextensionsclient.NewForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, nil, err
@@ -114,36 +116,32 @@ func (o *WorkspacesSubCommandOptions) PrepareVirtualWorkspaces() ([]rootapiserve
 	}
 
 	adminLogicalClusterName := workspacesCRD.ClusterName
+	adminScope := controllerz.NewScope(adminLogicalClusterName)
+	wildcardScope := controllerz.NewScope("*", controllerz.WildcardScope(true))
 
-	kubeClientClusterChooser, err := kubernetes.NewClusterForConfig(kubeClientConfig)
+	kubeClientClusterChooser, err := kubernetes.NewScoperForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-	kubeClient := kubeClientClusterChooser.Cluster(adminLogicalClusterName)
+	adminKubeInformers := informers.NewSharedInformerFactory(kubeClientClusterChooser.Scope(adminScope), 24*time.Hour)
 
-	kubeInformers := informers.NewSharedInformerFactory(kubeClient, 10*time.Minute)
-
-	kcpClientClusterChooser, err := kcpclient.NewClusterForConfig(kubeClientConfig)
+	kcpClientClusterChooser, err := kcpclient.NewScoperForConfig(kubeClientConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-	kcpClient := kcpClientClusterChooser.Cluster(adminLogicalClusterName)
+	kcpInformer := kcpinformer.NewSharedInformerFactory(kcpClientClusterChooser.Scope(wildcardScope), 24*time.Hour)
 
-	kcpInformer := kcpinformer.NewSharedInformerFactory(kcpClient, 10*time.Minute)
+	adminRbacInformers := adminKubeInformers.Rbac().V1()
+	subjectLocator := frameworkrbac.NewSubjectLocator(adminRbacInformers, adminScope)
+	ruleResolver := frameworkrbac.NewRuleResolver(adminRbacInformers, adminScope)
 
-	//	discoveryClient := cacheddiscovery.NewMemCacheClient(kubeClient.Discovery())
-	//	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
-
-	singleClusterRBACV1 := frameworkrbac.FilterPerCluster(adminLogicalClusterName, kubeInformers.Rbac().V1())
-
-	subjectLocator := frameworkrbac.NewSubjectLocator(singleClusterRBACV1)
-	ruleResolver := frameworkrbac.NewRuleResolver(singleClusterRBACV1)
-
+	kubeClient := kubeClientClusterChooser.Scope(adminScope)
+	kcpClient := kcpClientClusterChooser.Scope(adminScope)
 	virtualWorkspaces := []framework.VirtualWorkspace{
-		builder.BuildVirtualWorkspace(o.RootPathPrefix, kcpInformer.Tenancy().V1alpha1().Workspaces(), kcpClient.TenancyV1alpha1().Workspaces(), kubeClient, singleClusterRBACV1, subjectLocator, ruleResolver),
+		builder.BuildVirtualWorkspace(o.RootPathPrefix, kcpInformer.Tenancy().V1alpha1().Workspaces(), kcpClient.TenancyV1alpha1().Workspaces(), kubeClient, adminRbacInformers, subjectLocator, ruleResolver),
 	}
 	informerStarts := []rootapiserver.InformerStart{
-		kubeInformers.Start,
+		adminKubeInformers.Start,
 		kcpInformer.Start,
 	}
 	return informerStarts, virtualWorkspaces, nil
