@@ -370,12 +370,17 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 
 		// Special handling of the core ("") group
+		lister := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister()
+		if scope := rest.ScopeFrom(ctx); scope != nil {
+			lister = lister.Scoped(scope)
+		}
 
 		if requestInfo.IsResourceRequest {
 			// This is a CRUD request for somethig like pods. Try to see if there is a CRD for the resource. If so, let the CRD
 			// server handle it.
 			crdName := requestInfo.Resource + ".core"
-			_, err := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister().Get(crdName)
+
+			_, err := lister.Get(crdName)
 			if err == nil {
 				serverChain.CustomResourceDefinitions.GenericAPIServer.Handler.NonGoRestfulMux.ServeHTTP(res.ResponseWriter, req.Request)
 				return
@@ -404,7 +409,7 @@ func (s *Server) Run(ctx context.Context) error {
 			// If we're here, it means it's an initial /api/v1 request from a client.
 
 			// Get all the CRDs (in the context's logical cluster) to see if any of them are in v1
-			crds, err := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Lister().List(labels.Everything())
+			crds, err := lister.List(labels.Everything())
 			if err != nil {
 				// Listing from a lister can really only ever fail if invoking meta.Accesor() on an item in the list fails.
 				// Which means it essentially will never fail. But just in case...
