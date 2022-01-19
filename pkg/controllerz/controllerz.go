@@ -114,21 +114,21 @@ func clusterNameAndNamespaceIndex(obj interface{}) ([]string, error) {
 	return []string{ClusterScopedKey(acc.GetClusterName(), ns)}, nil
 }
 
-func clusterAwareNSNameKeyFunc(ctx context.Context, ns, name string) (string, error) {
-	scope := rest.ScopeFrom(ctx)
-	if scope == nil {
-		return ns + "/" + name, nil
-	}
-	return NamespaceScopedKey(scope.Name(), ns, name), nil
-}
+// func clusterAwareNSNameKeyFunc(ctx context.Context, ns, name string) (string, error) {
+// 	scope := rest.ScopeFrom(ctx)
+// 	if scope == nil {
+// 		return ns + "/" + name, nil
+// 	}
+// 	return NamespaceScopedKey(scope.Name(), ns, name), nil
+// }
 
-func clusterAwareNameKeyFunc(ctx context.Context, name string) (string, error) {
-	scope := rest.ScopeFrom(ctx)
-	if scope == nil {
-		return name, nil
-	}
-	return ClusterScopedKey(scope.Name(), name), nil
-}
+// func clusterAwareNameKeyFunc(ctx context.Context, name string) (string, error) {
+// 	scope := rest.ScopeFrom(ctx)
+// 	if scope == nil {
+// 		return name, nil
+// 	}
+// 	return ClusterScopedKey(scope.Name(), name), nil
+// }
 
 func ClusterScopedKey(cluster, name string) string {
 	// If name is already qualified with a cluster, strip off the cluster portion.
@@ -287,9 +287,9 @@ func (s *scoper) NewScope(name string) rest.Scope {
 	return NewScope(name)
 }
 
-func (s *scoper) ScopeFromObject(obj metav1.Object) (rest.Scope, error) {
-	return NewScope(obj.GetClusterName()), nil
-}
+// func (s *scoper) ScopeFromObject(obj metav1.Object) (rest.Scope, error) {
+// 	return NewScope(obj.GetClusterName()), nil
+// }
 
 func (s *scoper) ScopeFromKey(key string) (rest.Scope, error) {
 	cluster, _, _, err := decodeKey(key)
@@ -306,10 +306,10 @@ func EnableLogicalClusters() {
 		DecodeKeyFunc:    clusterAwareDecodeKeyFunc,
 		ListAllIndexFunc: clusterNameIndex,
 		// ListAllIndexValueFunc: cluster.FromContext,
-		NamespaceIndexFunc:   clusterNameAndNamespaceIndex,
-		NamespaceKeyFunc:     clusterAwareNameKeyFunc,
-		NamespaceNameKeyFunc: clusterAwareNSNameKeyFunc,
-		NameKeyFunc:          clusterAwareNameKeyFunc,
+		NamespaceIndexFunc: clusterNameAndNamespaceIndex,
+		// NamespaceKeyFunc:     clusterAwareNameKeyFunc,
+		// NamespaceNameKeyFunc: clusterAwareNSNameKeyFunc,
+		// NameKeyFunc:          clusterAwareNameKeyFunc,
 		// NewSyncContextFunc:    cluster.NewContext,
 		Scoper: &scoper{},
 	}

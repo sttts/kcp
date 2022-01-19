@@ -63,12 +63,12 @@ func main() {
 	crossClusterScope := controllerz.NewScope("*", controllerz.WildcardScope(true))
 	crossKubeClient, err := kubernetes.NewScoperForConfig(cfg)
 	if err != nil {
-		panic(err)
+		klog.Fatal(err)
 	}
 
 	crossKCPClient, err := kcpclient.NewScoperForConfig(cfg)
 	if err != nil {
-		panic(err)
+		klog.Fatal(err)
 	}
 	kcpSharedInformerFactory := externalversions.NewSharedInformerFactoryWithOptions(crossKCPClient.Scope(crossClusterScope), 0)
 
@@ -79,6 +79,9 @@ func main() {
 	// clusterAwareHTTPClient := cluster.NewHTTPClient(restClient)
 	// kubeClient, err := kubernetes.NewForConfigAndClient(cfg, clusterAwareHTTPClient)
 	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		klog.Fatal(err)
+	}
 
 	// TODO: make a custom rest.HTTPClient that always does "*"
 	kubeSharedInformerFactory := informers.NewSharedInformerFactoryWithOptions(crossKubeClient.Scope(crossClusterScope), 0)

@@ -331,7 +331,8 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	server := serverChain.MiniAggregator.GenericAPIServer
 
-	serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Informer().AddIndexers(cache.Indexers{
+	crdInformer := serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Informer()
+	if err := crdInformer.AddIndexers(cache.Indexers{
 		"byName": func(obj interface{}) ([]string, error) {
 			acc, err := meta.Accessor(obj)
 			if err != nil {
@@ -339,11 +340,13 @@ func (s *Server) Run(ctx context.Context) error {
 			}
 			return []string{acc.GetName()}, nil
 		},
-	})
+	}); err != nil {
+		return err
+	}
 
 	s.AddPostStartHook("wait-for-crd-server", func(ctx genericapiserver.PostStartHookContext) error {
 		return wait.PollImmediateInfiniteWithContext(adaptContext(ctx), 100*time.Millisecond, func(c context.Context) (done bool, err error) {
-			if serverChain.CustomResourceDefinitions.Informers.Apiextensions().V1().CustomResourceDefinitions().Informer().HasSynced() {
+			if crdInformer.HasSynced() {
 				close(s.crdServerReady)
 				return true, nil
 			}
@@ -706,38 +709,6 @@ func (s *Server) Run(ctx context.Context) error {
 	prepared := server.PrepareRun()
 
 	return prepared.Run(ctx.Done())
-}
-
-const clusterNameIndexName = "clusterName"
-
-func clusterNameIndex(obj interface{}) ([]string, error) {
-	acc, err := meta.Accessor(obj)
-	if err != nil {
-		return []string{}, err
-	}
-	return []string{acc.GetClusterName()}, nil
-}
-
-const clusterNameAndNamespaceIndexName = "clusterName/namespace"
-
-func clusterNameAndNamespaceIndex(obj interface{}) ([]string, error) {
-	acc, err := meta.Accessor(obj)
-	if err != nil {
-		return []string{}, err
-	}
-	ns := acc.GetNamespace()
-	if ns == "" {
-		return []string{}, nil
-	}
-	return []string{acc.GetClusterName() + "/" + ns}, nil
-}
-
-func clusterAwareNSKeyFunc(ctx context.Context, ns string) string {
-	return ""
-}
-
-func clusterAwareKeyFunc(ctx context.Context, obj interface{}) (string, error) {
-	return "", nil
 }
 
 // AddPostStartHook allows you to add a PostStartHook that gets passed to the underlying genericapiserver implementation.
