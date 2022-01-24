@@ -73,6 +73,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/controller/clusterroleaggregation"
 	"k8s.io/kubernetes/pkg/controller/namespace"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 	"k8s.io/kubernetes/pkg/genericcontrolplane/aggregator"
@@ -750,10 +751,16 @@ func NewServer(cfg *Config) *Server {
 		crdServerReady: make(chan struct{}),
 	}
 	//During the creation of the server, we know that we want to add the namespace controller.
-	s.postStartHooks = append(s.postStartHooks, postStartHookEntry{
-		name: "start-namespace-controller",
-		hook: s.startNamespaceController,
-	})
+	s.postStartHooks = append(s.postStartHooks,
+		postStartHookEntry{
+			name: "start-namespace-controller",
+			hook: s.startNamespaceController,
+		},
+		postStartHookEntry{
+			name: "start-cluster-role-aggregation-controller",
+			hook: s.startClusterRoleAggregationController,
+		},
+	)
 	return s
 }
 
@@ -778,6 +785,32 @@ func (s *Server) startNamespaceController(hookContext genericapiserver.PostStart
 	).Run(2, hookContext.StopCh)
 
 	versionedInformer.Start(hookContext.StopCh)
+	if notSynced := versionedInformer.WaitForCacheSync(hookContext.StopCh); len(notSynced) > 0 {
+		return fmt.Errorf("failed to wait for caches to sync: %v", notSynced)
+	}
+
+	return nil
+}
+
+func (s *Server) startClusterRoleAggregationController(hookContext genericapiserver.PostStartHookContext) error {
+	kubeClient, err := kubernetes.NewScoperForConfig(hookContext.LoopbackClientConfig)
+	if err != nil {
+		return err
+	}
+	adminScope := controllerz.NewScope("admin")
+	versionedInformer := coreexternalversions.NewSharedInformerFactory(kubeClient.Scope(adminScope), resyncPeriod)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	go clusterroleaggregation.NewClusterRoleAggregation(versionedInformer.Rbac().V1().ClusterRoles(), kubeClient.Scope(adminScope).RbacV1()).Run(ctx, 5)
+	go func() {
+		<-hookContext.StopCh
+		cancelFn()
+	}()
+
+	versionedInformer.Start(hookContext.StopCh)
+	if notSynced := versionedInformer.WaitForCacheSync(hookContext.StopCh); len(notSynced) > 0 {
+		return fmt.Errorf("failed to wait for caches to sync: %v", notSynced)
+	}
 
 	return nil
 }
