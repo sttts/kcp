@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clusters"
 	"k8s.io/klog/v2"
 )
@@ -229,21 +228,12 @@ func (c *Controller) desiredLeaves(ctx context.Context, root *networkingv1.Ingre
 		c.tracker.add(root, service)
 	}
 
-	rootKey, err := cache.MetaNamespaceKeyFunc(root)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO(jmprusi): Calculate the max string length.
-	_, rootIngressName := clusters.SplitClusterAwareKey(rootKey)
-	generateName := rootIngressName + "-"
-
 	desiredLeaves := make([]*networkingv1.Ingress, 0, len(clusterDests))
 	for _, cl := range clusterDests {
 		vd := root.DeepCopy()
 		vd.Name = ""
 
-		vd.GenerateName = generateName
+		vd.GenerateName = root.Name + "-"
 
 		vd.Labels = map[string]string{}
 		vd.Labels[clusterLabel] = cl
