@@ -29,15 +29,16 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clusters"
 	"k8s.io/klog/v2"
 )
 
 const (
-	toEnvoyLabel     = "ingress-controller/envoy"
 	clusterLabel     = "kcp.dev/cluster"
-	ownedByCluster   = "kcp.dev/owned-by-cluster"
-	ownedByIngress   = "kcp.dev/owned-by-ingress"
-	ownedByNamespace = "kcp.dev/owned-by-namespace"
+	toEnvoyLabel     = "ingress.kcp.dev/envoy"
+	ownedByCluster   = "ingress.kcp.dev/owned-by-cluster"
+	ownedByIngress   = "ingress.kcp.dev/owned-by-ingress"
+	ownedByNamespace = "ingress.kcp.dev/owned-by-namespace"
 )
 
 // reconcile is triggered on every change to an ingress resource, or it's associated services (by tracker).
@@ -115,7 +116,7 @@ func (c *Controller) reconcile(ctx context.Context, ingress *networkingv1.Ingres
 		}
 
 		// Create the Root Ingress key and get it.
-		ingressRootKey := ingress.Labels[ownedByNamespace] + "/" + ingress.Labels[ownedByCluster] + "#$#" + ingress.Labels[ownedByIngress]
+		ingressRootKey := ingress.Labels[ownedByNamespace] + "/" + clusters.ToClusterAwareKey(ingress.ClusterName, ingress.Name)
 		rootIf, exists, err := c.ingressIndexer.GetByKey(ingressRootKey)
 		if err != nil {
 			klog.Errorf("failed to get root ingress: %v", err)
@@ -234,7 +235,8 @@ func (c *Controller) desiredLeaves(ctx context.Context, root *networkingv1.Ingre
 	}
 
 	// TODO(jmprusi): Calculate the max string length.
-	generateName := strings.Split(rootKey, "#$#")[1] + "-"
+	_, rootIngressName := clusters.SplitClusterAwareKey(rootKey)
+	generateName := rootIngressName + "-"
 
 	desiredLeaves := make([]*networkingv1.Ingress, 0, len(clusterDests))
 	for _, cl := range clusterDests {

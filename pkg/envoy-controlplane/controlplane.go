@@ -51,11 +51,9 @@ func init() {
 	var err error
 
 	// Create the selector
-	markedForEnvoy := fmt.Sprintf("%s=%s", toEnvoyLabel, "true")
-	envoyReadySelector, err = labels.Parse(markedForEnvoy)
+	envoyReadySelector, err = labels.Parse(toEnvoyLabel + "=" + "true")
 	if err != nil {
-		klog.Errorf("failed to parse selector %q: %v", markedForEnvoy, err)
-		panic(err)
+		klog.Fatalf("failed to parse selector: %v", err)
 	}
 }
 

@@ -175,8 +175,13 @@ func (c *Controller) process(ctx context.Context, key string) error {
 
 	if !exists {
 		klog.Infof("Object with key %q was deleted", key)
+
 		// An Ingress was deleted. But if it was a Leaf, we need to reconcile the root ingress
 		// We remove the last segment of the key to get the root ingress key.
+		//
+		// Ex leaf key: default/admin#$#httpecho-vljrm
+		// By removing the last segment, we get the "possible" key of the root ingress: default/admin#$#httpecho
+		//
 		splittedKey := strings.Split(key, "-")
 		rootIngressKey := strings.Join(splittedKey[:len(splittedKey)-1], "-")
 
