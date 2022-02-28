@@ -19,7 +19,6 @@ package workspaces
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/clientcmd/api"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1/helper"
@@ -210,14 +209,14 @@ func TestWorkspacesVirtualWorkspaces(t *testing.T) {
 
 				expectedKubeconfigCluster := kcpConfigCurrentCluster.DeepCopy()
 				expectedKubeconfigCluster.Server = workspaceURL
-				expectedKubeconfig := &api.Config{
+				expectedKubeconfig := &clientcmdapi.Config{
 					CurrentContext: "personal/" + workspace1.Name,
-					Contexts: map[string]*api.Context{
+					Contexts: map[string]*clientcmdapi.Context{
 						"personal/" + workspace1.Name: {
 							Cluster: "personal/" + workspace1.Name,
 						},
 					},
-					Clusters: map[string]*api.Cluster{
+					Clusters: map[string]*clientcmdapi.Cluster{
 						"personal/" + workspace1.Name: expectedKubeconfigCluster,
 					},
 				}
@@ -272,21 +271,27 @@ func TestWorkspacesVirtualWorkspaces(t *testing.T) {
 			vw := helpers.VirtualWorkspace{
 				BuildSubCommandOptions: func(kcpServer framework.RunningServer) virtualcmd.SubCommandOptions {
 					// deepcopy kubeconfig and modify default context to point to orgClusterName
-					orig, err := kcpServer.RawConfig()
-					require.NoError(t, err)
-					bs, err := clientcmd.Write(orig)
-					require.NoError(t, err)
-					cfg, err := clientcmd.Load(bs)
-					require.NoError(t, err)
-					clusterName := cfg.Contexts[cfg.CurrentContext].Cluster
-					url, err := url.Parse(cfg.Clusters[clusterName].Server)
-					require.NoError(t, err)
-					url.Path = "/clusters/" + orgClusterName
-					cfg.Clusters[clusterName].Server = url.String()
+					kcpAdminConfig, err := kcpServer.RawConfig()
+					var baseCluster = *kcpAdminConfig.Clusters["system:admin"] // shallow copy
+					virtualWorkspaceKubeConfig := clientcmdapi.Config{
+						Clusters: map[string]*clientcmdapi.Cluster{
+							"shard": &baseCluster,
+						},
+						Contexts: map[string]*clientcmdapi.Context{
+							"shard": {
+								Cluster:  "shard",
+								AuthInfo: "virtualworkspace",
+							},
+						},
+						AuthInfos: map[string]*clientcmdapi.AuthInfo{
+							"virtualworkspace": kcpAdminConfig.AuthInfos["admin"],
+						},
+						CurrentContext: "shard",
+					}
 
 					// write kubeconfig to disk, next to kcp kubeconfig
 					cfgPath := filepath.Join(filepath.Base(kcpServer.KubeconfigPath()), "virtualworkspace.kubeconfig")
-					err = clientcmd.WriteToFile(*cfg, cfgPath)
+					err = clientcmd.WriteToFile(virtualWorkspaceKubeConfig, cfgPath)
 					require.NoError(t, err)
 
 					return &workspacescmd.WorkspacesSubCommandOptions{
