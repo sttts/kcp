@@ -467,5 +467,7 @@ func transformName(syncedObject *unstructured.Unstructured, direction Direction)
 func getDefaultMutators(from, to *rest.Config, registeredWorkspace string) map[schema.GroupVersionResource]mutators.Mutator {
 	mutatorsMap := make(map[schema.GroupVersionResource]mutators.Mutator)
 
+	mutators.NewDeploymentMutator(from, to, registeredWorkspace).Register(mutatorsMap)
+
 	return mutatorsMap
 }
