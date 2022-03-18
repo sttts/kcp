@@ -39,10 +39,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	apiserverdiscovery "k8s.io/apiserver/pkg/endpoints/discovery"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	genericapiserver "k8s.io/apiserver/pkg/server"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 	"k8s.io/kubernetes/pkg/genericcontrolplane/aggregator"
 )
@@ -62,7 +65,7 @@ func init() {
 
 const passthroughHeader = "X-Kcp-Api-V1-Discovery-Passthrough"
 
-func WithClusterScope(apiHandler http.Handler) http.HandlerFunc {
+func WithClusterScope(apiHandler http.Handler, authorization genericapiserver.AuthenticationInfo) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var clusterName string
 		if path := req.URL.Path; strings.HasPrefix(path, "/clusters/") {
@@ -91,6 +94,24 @@ func WithClusterScope(apiHandler http.Handler) http.HandlerFunc {
 		} else {
 			clusterName = req.Header.Get("X-Kubernetes-Cluster")
 		}
+		if clusterName == "" {
+			// let's get the information from the request
+			resp, _, err := authorization.Authenticator.AuthenticateRequest(req)
+			if err != nil {
+				responsewriters.ErrorNegotiated(
+					apierrors.NewInternalError(err),
+					errorCodecs, schema.GroupVersion{},
+					w, req)
+				return
+			}
+			if resp != nil {
+				extraInfo := resp.User.GetExtra()
+				if val, ok := extraInfo[serviceaccount.ClusterNameKey]; ok {
+					klog.Infof("Set cluster name from request to: %q", val[0])
+					clusterName = val[0]
+				}
+			}
+		}
 		var cluster genericapirequest.Cluster
 		switch clusterName {
 		case "*":
@@ -109,6 +130,7 @@ func WithClusterScope(apiHandler http.Handler) http.HandlerFunc {
 			}
 			cluster.Name = clusterName
 		}
+		klog.Infof("clusterName: is %s", req.URL.Path)
 		ctx := genericapirequest.WithCluster(req.Context(), cluster)
 		apiHandler.ServeHTTP(w, req.WithContext(ctx))
 	}

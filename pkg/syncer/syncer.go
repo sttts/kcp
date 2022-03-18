@@ -454,6 +454,10 @@ func transformName(syncedObject *unstructured.Unstructured, direction Direction)
 		if syncedObject.GetKind() == "ServiceAccount" && syncedObject.GetName() == "default" {
 			syncedObject.SetName("kcp-default")
 		}
+		if syncedObject.GetKind() == "Secret" && strings.Contains(syncedObject.GetName(), "default-token-") {
+			// randomString := strings.Split(syncedObject.GetName(), "-")
+			syncedObject.SetName("kcp-default-token") //-" + randomString[len(randomString)-1])
+		}
 	case PhysicalClusterToKcp:
 		if syncedObject.GetKind() == "ConfigMap" && syncedObject.GetName() == "kcp-root-ca.crt" {
 			syncedObject.SetName("kube-root-ca.crt")
@@ -461,6 +465,14 @@ func transformName(syncedObject *unstructured.Unstructured, direction Direction)
 		if syncedObject.GetKind() == "ServiceAccount" && syncedObject.GetName() == "kcp-default" {
 			syncedObject.SetName("default")
 		}
+		// if syncedObject.GetKind() == "Secret" && strings.Contains(syncedObject.GetName(), "kcp-default-token-") {
+		// 	randomString := strings.Split(syncedObject.GetName(), "-")
+		// 	syncedObject.SetName("default-token-" + randomString[len(randomString)-1])
+		// }
+		// if syncedObject.GetKind() == "Secret" && syncedObject.GetName() == "kcp-default-token") {
+		// 	randomString := strings.Split(syncedObject.GetName(), "-")
+		// 	syncedObject.SetName("default-token-" + randomString[len(randomString)-1])
+		// }
 	}
 }
 
@@ -468,6 +480,8 @@ func getDefaultMutators(from, to *rest.Config, registeredWorkspace string) map[s
 	mutatorsMap := make(map[schema.GroupVersionResource]mutators.Mutator)
 
 	mutators.NewDeploymentMutator(from, to, registeredWorkspace).Register(mutatorsMap)
+	mutators.NewSecretMutator(from, to, registeredWorkspace).Register(mutatorsMap)
+	mutators.NewServiceAccountMutator(from, to, registeredWorkspace).Register(mutatorsMap)
 
 	return mutatorsMap
 }
