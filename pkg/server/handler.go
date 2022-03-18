@@ -23,6 +23,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -39,13 +40,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apiserver/pkg/authentication/serviceaccount"
+	authserviceaccount "k8s.io/apiserver/pkg/authentication/serviceaccount"
 	apiserverdiscovery "k8s.io/apiserver/pkg/endpoints/discovery"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 	"k8s.io/kubernetes/pkg/genericcontrolplane/aggregator"
 )
@@ -65,7 +65,7 @@ func init() {
 
 const passthroughHeader = "X-Kcp-Api-V1-Discovery-Passthrough"
 
-func WithClusterScope(apiHandler http.Handler, authorization genericapiserver.AuthenticationInfo) http.HandlerFunc {
+func WithClusterScope(apiHandler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var clusterName string
 		if path := req.URL.Path; strings.HasPrefix(path, "/clusters/") {
@@ -94,24 +94,6 @@ func WithClusterScope(apiHandler http.Handler, authorization genericapiserver.Au
 		} else {
 			clusterName = req.Header.Get("X-Kubernetes-Cluster")
 		}
-		if clusterName == "" {
-			// let's get the information from the request
-			resp, _, err := authorization.Authenticator.AuthenticateRequest(req)
-			if err != nil {
-				responsewriters.ErrorNegotiated(
-					apierrors.NewInternalError(err),
-					errorCodecs, schema.GroupVersion{},
-					w, req)
-				return
-			}
-			if resp != nil {
-				extraInfo := resp.User.GetExtra()
-				if val, ok := extraInfo[serviceaccount.ClusterNameKey]; ok {
-					klog.Infof("Set cluster name from request to: %q", val[0])
-					clusterName = val[0]
-				}
-			}
-		}
 		var cluster genericapirequest.Cluster
 		switch clusterName {
 		case "*":
@@ -130,7 +112,6 @@ func WithClusterScope(apiHandler http.Handler, authorization genericapiserver.Au
 			}
 			cluster.Name = clusterName
 		}
-		klog.Infof("clusterName: is %s", req.URL.Path)
 		ctx := genericapirequest.WithCluster(req.Context(), cluster)
 		apiHandler.ServeHTTP(w, req.WithContext(ctx))
 	}
@@ -160,6 +141,33 @@ func WithWildcardListWatchGuard(apiHandler http.Handler) http.HandlerFunc {
 		}
 		apiHandler.ServeHTTP(w, req)
 	}
+}
+
+// WithServiceAccountRequestRewrite adds the /clusters/<clusterName> prefix to the request path if the request comes
+// from an InCluster service account requests (InCluster clients don't support prefixes).
+func WithServiceAccountRequestRewrite(handler http.Handler, authnInfo *genericapiserver.AuthenticationInfo) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if !strings.HasPrefix(req.URL.Path, "/clusters/") {
+			// attempt to authenticate service account JWT
+			resp, isServiceAccount, err := authnInfo.Authenticator.AuthenticateRequest(req)
+			if err != nil {
+				responsewriters.ErrorNegotiated(
+					apierrors.NewInternalError(err),
+					errorCodecs, schema.GroupVersion{},
+					w, req)
+				return
+			}
+			if isServiceAccount && resp != nil {
+				extraInfo := resp.User.GetExtra()
+				if val, ok := extraInfo[authserviceaccount.ClusterNameKey]; ok {
+					clusterName := val[0]
+					req.URL.Path = path.Join("/clusters", clusterName, req.URL.Path)
+				}
+			}
+		}
+
+		handler.ServeHTTP(w, req)
+	})
 }
 
 func mergeCRDsIntoCoreGroup(crdLister v1.CustomResourceDefinitionLister, crdHandler, coreHandler func(res http.ResponseWriter, req *http.Request)) restful.FilterFunction {
