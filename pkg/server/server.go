@@ -37,7 +37,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
-	kubeoptions "k8s.io/kubernetes/pkg/kubeapiserver/options"
 
 	configroot "github.com/kcp-dev/kcp/config/root"
 	kcpadmissioninitializers "github.com/kcp-dev/kcp/pkg/admission/initializers"
@@ -197,7 +196,7 @@ func (s *Server) Run(ctx context.Context) error {
 	// create service-account-only authenticator without any lookup for objects, just to extract the logical cluster name from the JWT.
 	// If the request hits us at a non-/clusters URL, we will re-add the /clusters/<cluster-name> prefix to the request. This is necessary
 	// because a service account used by a InCluster client does not support the /clusters/<cluster-name> prefix.
-	var serviceAccountPreAuthenticator genericapiserver.AuthenticationInfo
+	/*var serviceAccountPreAuthenticator genericapiserver.AuthenticationInfo
 	nonLookupSAOptions := *s.options.GenericControlPlane.Authentication.ServiceAccounts
 	nonLookupSAOptions.Lookup = false
 	serviceAccountPreAuthOptions := kubeoptions.BuiltInAuthenticationOptions{
@@ -205,7 +204,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	if err := serviceAccountPreAuthOptions.ApplyTo(&serviceAccountPreAuthenticator, nil, nil, nil, nil, nil); err != nil {
 		return fmt.Errorf("failed to create non-lookup service-account JWT authentication: %w", err)
-	}
+	}*/
 
 	// preHandlerChainMux is called before the actual handler chain. Note that BuildHandlerChainFunc below
 	// is called multiple times, but only one of the handler chain will actually be used. Hence, we wrap it
@@ -223,8 +222,8 @@ func (s *Server) Run(ctx context.Context) error {
 			apiHandler = sharding.WithSharding(apiHandler, clientLoader)
 		}
 		apiHandler = WithWildcardListWatchGuard(apiHandler)
-		apiHandler = WithServiceAccountRequestRewrite(apiHandler, &serviceAccountPreAuthenticator)
 		apiHandler = WithClusterScope(genericapiserver.DefaultBuildHandlerChain(apiHandler, c))
+		apiHandler = WithServiceAccountRequestRewrite(apiHandler, &c.Authentication) // &serviceAccountPreAuthenticator)
 
 		// add a mux before the chain, for other handlers with their own handler chain to hook in
 		mux := http.NewServeMux()

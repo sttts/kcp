@@ -147,21 +147,29 @@ func WithWildcardListWatchGuard(apiHandler http.Handler) http.HandlerFunc {
 // from an InCluster service account requests (InCluster clients don't support prefixes).
 func WithServiceAccountRequestRewrite(handler http.Handler, authnInfo *genericapiserver.AuthenticationInfo) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if !strings.HasPrefix(req.URL.Path, "/clusters/") {
-			// attempt to authenticate service account JWT
-			resp, isServiceAccount, err := authnInfo.Authenticator.AuthenticateRequest(req)
-			if err != nil {
-				responsewriters.ErrorNegotiated(
-					apierrors.NewInternalError(err),
-					errorCodecs, schema.GroupVersion{},
-					w, req)
-				return
-			}
-			if isServiceAccount && resp != nil {
-				extraInfo := resp.User.GetExtra()
-				if val, ok := extraInfo[authserviceaccount.ClusterNameKey]; ok {
-					clusterName := val[0]
-					req.URL.Path = path.Join("/clusters", clusterName, req.URL.Path)
+		if !strings.HasPrefix(req.RequestURI, "/clusters/") {
+			// some headers we set to set logical clusters, those are not the requests from InCluster clients
+			clusterHeader := req.Header.Get("X-Kubernetes-Cluster")
+			cluster2Header := req.Header.Get("X-Kubernetes-Sharded-Request")
+
+			if clusterHeader == "" && cluster2Header == "" {
+				// attempt to authenticate service account JWT
+				clone := utilnet.CloneRequest(req)
+				resp, ok, err := authnInfo.Authenticator.AuthenticateRequest(clone)
+				if err != nil {
+					responsewriters.ErrorNegotiated(
+						apierrors.NewInternalError(fmt.Errorf("failed to authenticate request")),
+						errorCodecs, schema.GroupVersion{},
+						w, req,
+					)
+					return
+				}
+				if ok && resp != nil {
+					if val, ok := resp.User.GetExtra()[authserviceaccount.ClusterNameKey]; ok && len(val) > 0 {
+						clusterName := val[0]
+						req.URL.Path = path.Join("/clusters", clusterName, req.URL.Path)
+						req.RequestURI = path.Join("/clusters", clusterName, req.RequestURI)
+					}
 				}
 			}
 		}
