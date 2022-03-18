@@ -101,7 +101,17 @@ func (dt *DeploymentMutator) ApplySpec(downstreamObj *unstructured.Unstructured)
 	}
 
 	kcpExternalPort := u.Port()
-	kcpExternalHost := u.Hostname()
+
+	//
+	//	Don't merge
+	//
+	//
+	kcpExternalHost := "192.168.1.149" // DON'T MERGE HARDCODED
+	//
+	//
+	//
+	//
+	//
 
 	// TODO(jmprusi): Is it safe to ALWAYS override those env vars? even when the deployment has some?
 	overrideEnvs := []corev1.EnvVar{
@@ -132,10 +142,21 @@ func (dt *DeploymentMutator) ApplySpec(downstreamObj *unstructured.Unstructured)
 				DefaultMode: int32ptr(420),
 				Sources: []corev1.VolumeProjection{
 					{
-						ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
-							Path:              "token",
-							ExpirationSeconds: int64ptr(3600),
+						Secret: &corev1.SecretProjection{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "kcp-default-token",
+							},
+							Items: []corev1.KeyToPath{
+								{
+									Key:  "token",
+									Path: "token",
+								},
+							},
 						},
+						// ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+						// 	Path:              "token",
+						// 	ExpirationSeconds: int64ptr(3600),
+						// },
 					},
 					{
 						ConfigMap: &corev1.ConfigMapProjection{
