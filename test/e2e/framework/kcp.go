@@ -129,11 +129,6 @@ func WithLogStreaming(o *runOptions) {
 // Run runs the kcp server while the parent context is active. This call is not blocking,
 // callers should ensure that the server is Ready() before using it.
 func (c *kcpServer) Run(opts ...RunOption) error {
-	path, err := exec.LookPath("kcp")
-	if err != nil {
-		return err
-	}
-
 	runOpts := runOptions{}
 	for _, opt := range opts {
 		opt(&runOpts)
@@ -147,7 +142,17 @@ func (c *kcpServer) Run(opts ...RunOption) error {
 	})
 	c.ctx = ctx
 
-	c.t.Logf("running: %v", strings.Join(append([]string{path, "start"}, c.args...), " "))
+	var commandLine []string
+	if os.Getenv("GORUN_FIXTURE") == "0" {
+		path, err := exec.LookPath("kcp")
+		if err != nil {
+			return err
+		}
+		commandLine = append(append([]string{path}, "start"), c.args...)
+	} else {
+		commandLine = append([]string{"go", "run", "./cmd/kcp", "start"}, c.args...)
+	}
+	c.t.Logf("running: %v", strings.Join(commandLine, " "))
 
 	// run kcp start in-process for easier debugging
 	if runOpts.runInProcess {
@@ -186,7 +191,7 @@ func (c *kcpServer) Run(opts ...RunOption) error {
 		return nil
 	}
 
-	cmd := exec.CommandContext(ctx, "kcp", append([]string{"start"}, c.args...)...)
+	cmd := exec.CommandContext(ctx, commandLine[0], commandLine[1:]...)
 	logFile, err := os.Create(filepath.Join(c.artifactDir, "kcp.log"))
 	if err != nil {
 		cleanupCancel()
