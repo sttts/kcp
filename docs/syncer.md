@@ -57,7 +57,7 @@ $ KCP_SYNCER_CACRT=$(kubectl get configmap/kube-root-ca.crt -o jsonpath='{.data.
 ```
 
 
-4. Complete the [syncer manifest](../manifest/syncer.yaml) with the information obtained in previous steps:
+4. Complete the [syncer manifest](../manifest/syncer-in-workload-cluster.yaml) with the information obtained in previous steps:
 
 - KCP_SYNCER_CACRT
 - KCP_SYNCER_TOKEN
@@ -68,7 +68,7 @@ $ KCP_SYNCER_CACRT=$(kubectl get configmap/kube-root-ca.crt -o jsonpath='{.data.
 5.  Apply the manifest to the p-cluster
 
 ```sh
-$ kubect --kubeconfig pcluster.kubeconfig apply -f syncer.yaml
+$ kubect --kubeconfig pcluster.kubeconfig apply -f syncer-in-workload-cluster
 namespace/kcp-system created
 serviceaccount/syncer created
 clusterrole.rbac.authorization.k8s.io/syncer created
