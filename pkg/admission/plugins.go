@@ -45,6 +45,8 @@ import (
 	"github.com/kcp-dev/kcp/pkg/admission/clusterworkspaceshard"
 	"github.com/kcp-dev/kcp/pkg/admission/clusterworkspacetype"
 	"github.com/kcp-dev/kcp/pkg/admission/clusterworkspacetypeexists"
+	kcpmutatingwebhook "github.com/kcp-dev/kcp/pkg/admission/mutatingwebhook"
+	kcpvalidatingwebhook "github.com/kcp-dev/kcp/pkg/admission/validatingwebhook"
 )
 
 // AllOrderedPlugins is the list of all the plugins in order.
@@ -55,6 +57,8 @@ var AllOrderedPlugins = beforeWebhooks(kubeapiserveroptions.AllOrderedPlugins,
 	clusterworkspacetype.PluginName,
 	clusterworkspacetypeexists.PluginName,
 	apibinding.PluginName,
+	kcpvalidatingwebhook.PluginName,
+	kcpmutatingwebhook.PluginName,
 )
 
 func beforeWebhooks(recommended []string, plugins ...string) []string {
@@ -78,13 +82,13 @@ func RegisterAllKcpAdmissionPlugins(plugins *admission.Plugins) {
 	clusterworkspacetypeexists.Register(plugins)
 	apiresourceschema.Register(plugins)
 	apibinding.Register(plugins)
+	kcpvalidatingwebhook.Register(plugins)
+	kcpmutatingwebhook.Register(plugins)
 }
 
 var defaultOnPluginsInKcp = sets.NewString(
 	lifecycle.PluginName,              // NamespaceLifecycle
 	limitranger.PluginName,            // LimitRanger
-	mutatingwebhook.PluginName,        // MutatingAdmissionWebhook
-	validatingwebhook.PluginName,      // ValidatingAdmissionWebhook
 	certapproval.PluginName,           // CertificateApproval
 	certsigning.PluginName,            // CertificateSigning
 	certsubjectrestriction.PluginName, // CertificateSubjectRestriction
@@ -96,6 +100,8 @@ var defaultOnPluginsInKcp = sets.NewString(
 	clusterworkspacetypeexists.PluginName,
 	apiresourceschema.PluginName,
 	apibinding.PluginName,
+	kcpvalidatingwebhook.PluginName,
+	kcpmutatingwebhook.PluginName,
 )
 
 // defaultOnKubePluginsInKube is a copy of kubeapiserveroptions.defaultOnKubePlugins.
