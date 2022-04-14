@@ -48,7 +48,7 @@ rules:
   resources:
   - namespaces
   verbs:
-  - create
+  - "*"
 - apiGroups:
   - "apiextensions.k8s.io"
   resources:

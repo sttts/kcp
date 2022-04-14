@@ -27,7 +27,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,7 +35,6 @@ import (
 	kubernetesclientset "k8s.io/client-go/kubernetes"
 
 	"github.com/kcp-dev/kcp/pkg/syncer"
-	kubefixtures "github.com/kcp-dev/kcp/test/e2e/fixtures/kube"
 	"github.com/kcp-dev/kcp/test/e2e/framework"
 )
 
@@ -55,20 +53,13 @@ func TestSyncerLifecycle(t *testing.T) {
 	wsClusterName := framework.NewWorkspaceFixture(t, upstreamServer, orgClusterName, "Universal")
 
 	resourcesToSync := sets.NewString("deployments.apps")
-	syncerFixture := framework.NewSyncerFixture(t, resourcesToSync, upstreamServer, orgClusterName, wsClusterName)
+	syncerFixture := framework.NewSyncerFixture(t, resourcesToSync, upstreamServer, wsClusterName)
 
 	downstreamServer := syncerFixture.RunningServer
 	downstreamConfig := downstreamServer.DefaultConfig(t)
-	downstreamCrdClient, err := apiextensionsclientset.NewForConfig(downstreamConfig)
-	require.NoError(t, err)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	t.Cleanup(cancelFunc)
-
-	t.Log("Install deployment crd in the downstream server to trigger the api importer")
-	kubefixtures.Create(t, downstreamCrdClient.ApiextensionsV1().CustomResourceDefinitions(),
-		metav1.GroupResource{Group: "apps.k8s.io", Resource: "deployments"},
-	)
 
 	syncerFixture.Start(t, ctx)
 

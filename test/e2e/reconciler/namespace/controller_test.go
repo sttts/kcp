@@ -85,15 +85,16 @@ func TestNamespaceScheduler(t *testing.T) {
 				require.NoError(t, err, "did not see namespace marked unschedulable")
 
 				// Create and Start a syncer against a workload cluster so that theres a ready cluster to schedule to.
-				syncerFixture := framework.NewSyncerFixture(t, sets.NewString(), server, server.orgClusterName, server.clusterName)
+				syncerFixture := framework.NewSyncerFixture(t, sets.NewString(), server, server.clusterName)
 				syncerFixture.Start(t, ctx)
-				err = server.expect(namespace, scheduledMatcher(syncerFixture.WorkloadClusterName))
-				require.NoError(t, err, "did not see namespace marked scheduled for cluster1 %q", syncerFixture.WorkloadClusterName)
+				workloadClusterName := syncerFixture.SyncerConfig.WorkloadClusterName
+				err = server.expect(namespace, scheduledMatcher(workloadClusterName))
+				require.NoError(t, err, "did not see namespace marked scheduled for cluster1 %q", workloadClusterName)
 
 				t.Log("Cordon the cluster and expect the namespace to end up unscheduled")
 
 				err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					cluster, err := server.kcpClient.WorkloadV1alpha1().WorkloadClusters().Get(ctx, syncerFixture.WorkloadClusterName, metav1.GetOptions{})
+					cluster, err := server.kcpClient.WorkloadV1alpha1().WorkloadClusters().Get(ctx, workloadClusterName, metav1.GetOptions{})
 					if err != nil {
 						return err
 					}
