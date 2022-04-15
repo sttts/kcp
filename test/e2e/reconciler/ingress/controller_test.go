@@ -144,8 +144,11 @@ func TestIngressController(t *testing.T) {
 			require.NoError(t, err)
 			sourceKubeClient := sourceKubeClusterClient.Cluster(clusterName)
 
-			resources := sets.NewString("ingresses.networking.k8s.io", "deployments.apps", "services")
-			syncerFixture := framework.NewSyncerFixture(t, resources, source, clusterName)
+			syncerFixture := framework.NewSyncerFixture(t, &framework.SyncerFixtureConfig{
+				ResourcesToSync:      sets.NewString("ingresses.networking.k8s.io", "deployments.apps", "services"),
+				UpstreamServer:       source,
+				WorkspaceClusterName: clusterName,
+			})
 
 			sink := syncerFixture.RunningServer
 			sinkConfig := sink.DefaultConfig(t)
@@ -163,7 +166,7 @@ func TestIngressController(t *testing.T) {
 			t.Log("Starting syncer")
 			syncerFixture.Start(t, ctx)
 
-			// Wait for the ingress crd to be imported and become ready in the source cluster
+			t.Log("Waiting for ingresses crd to be imported and available in the source cluster...")
 			require.Eventually(t, func() bool {
 				_, err := sourceKubeClient.NetworkingV1().Ingresses("").List(ctx, metav1.ListOptions{})
 				if err != nil {
@@ -173,7 +176,7 @@ func TestIngressController(t *testing.T) {
 				return true
 			}, wait.ForeverTestTimeout, time.Millisecond*100)
 
-			// Wait for the service crd to be imported and become ready in the source cluster
+			t.Log("Waiting for services crd to be imported and available in the source cluster...")
 			require.Eventually(t, func() bool {
 				_, err := sourceKubeClient.CoreV1().Services("").List(ctx, metav1.ListOptions{})
 				if err != nil {

@@ -30,7 +30,6 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -85,7 +84,14 @@ func TestNamespaceScheduler(t *testing.T) {
 				require.NoError(t, err, "did not see namespace marked unschedulable")
 
 				// Create and Start a syncer against a workload cluster so that theres a ready cluster to schedule to.
-				syncerFixture := framework.NewSyncerFixture(t, sets.NewString(), server, server.clusterName)
+				//
+				// TODO(marun) Extract the heartbeater out of the syncer for reuse in a test fixture. The namespace
+				// controller just needs ready clusters which can be accomplished without a syncer by having the
+				// heartbeater update the workload cluster so the heartbeat controller can set the cluster ready.
+				syncerFixture := framework.NewSyncerFixture(t, &framework.SyncerFixtureConfig{
+					UpstreamServer:       server,
+					WorkspaceClusterName: server.clusterName,
+				})
 				syncerFixture.Start(t, ctx)
 				workloadClusterName := syncerFixture.SyncerConfig.WorkloadClusterName
 				err = server.expect(namespace, scheduledMatcher(workloadClusterName))

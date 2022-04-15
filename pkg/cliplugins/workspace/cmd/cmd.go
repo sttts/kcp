@@ -219,6 +219,7 @@ func NewCmdWorkspace(streams genericclioptions.IOStreams) (*cobra.Command, error
 	var resourcesToSync []string
 	var syncerImage string
 	disableDeployment := false
+	kcpNamespaceName := "default"
 	enableSyncerCmd := &cobra.Command{
 		Use:          "enable-syncer <workload-cluster-name> [--sync-resources=<resource1>,<resource2>..]",
 		Short:        "Enable a syncer to be deployed for the named workload cluster",
@@ -241,6 +242,10 @@ func NewCmdWorkspace(streams genericclioptions.IOStreams) (*cobra.Command, error
 				return errors.New("A value must be specified for --syncer-image")
 			}
 
+			if len(kcpNamespaceName) == 0 {
+				return errors.New("A value must be specified for --kcp-namespace")
+			}
+
 			workloadClusterName := args[0]
 			if len(workloadClusterName)+len(plugin.SyncerAuthResourcePrefix) > plugin.MaxSyncerAuthResourceName {
 				return fmt.Errorf("The maximum length of the workload-cluster-name is %d", plugin.MaxSyncerAuthResourceName)
@@ -248,12 +253,13 @@ func NewCmdWorkspace(streams genericclioptions.IOStreams) (*cobra.Command, error
 
 			requiredResourcesToSync.Insert(resourcesToSync...)
 
-			return kubeconfig.EnableSyncer(c.Context(), workloadClusterName, syncerImage, resourcesToSync, disableDeployment)
+			return kubeconfig.EnableSyncer(c.Context(), workloadClusterName, kcpNamespaceName, syncerImage, resourcesToSync, disableDeployment)
 		},
 	}
 	enableSyncerCmd.Flags().StringSliceVar(&resourcesToSync, "sync-resources", resourcesToSync, "Resources to synchronize with kcp.")
 	enableSyncerCmd.Flags().StringVar(&syncerImage, "syncer-image", syncerImage, "The syncer image to use in the syncer's deployment YAML.")
 	enableSyncerCmd.Flags().BoolVar(&disableDeployment, "disable-deployment", disableDeployment, "Whether to configure the syncer deployment with zero replicas.")
+	enableSyncerCmd.Flags().StringVar(&kcpNamespaceName, "kcp-namespace", kcpNamespaceName, "The name of the kcp namespace to create a service account in.")
 
 	deleteCmd := &cobra.Command{
 		Use:          "delete",

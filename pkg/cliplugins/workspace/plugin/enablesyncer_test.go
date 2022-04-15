@@ -48,7 +48,9 @@ rules:
   resources:
   - namespaces
   verbs:
-  - "*"
+  - "create"
+  - "list"
+  - "watch"
 - apiGroups:
   - "apiextensions.k8s.io"
   resources:

@@ -22,7 +22,6 @@ import (
 	"crypto/sha256"
 	"embed"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 	"text/template"
@@ -106,7 +105,7 @@ func enableSyncerForWorkspace(ctx context.Context, config *rest.Config, workload
 
 	workloadClusterOwnerReferences := []metav1.OwnerReference{{
 		APIVersion: workloadv1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(workloadv1alpha1.WorkloadCluster{}).Name(),
+		Kind:       "WorkloadCluster",
 		Name:       workloadCluster.Name,
 		UID:        workloadCluster.UID,
 	}}

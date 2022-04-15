@@ -53,7 +53,11 @@ func TestSyncerLifecycle(t *testing.T) {
 	wsClusterName := framework.NewWorkspaceFixture(t, upstreamServer, orgClusterName, "Universal")
 
 	resourcesToSync := sets.NewString("deployments.apps")
-	syncerFixture := framework.NewSyncerFixture(t, resourcesToSync, upstreamServer, wsClusterName)
+	syncerFixture := framework.NewSyncerFixture(t, &framework.SyncerFixtureConfig{
+		ResourcesToSync:      resourcesToSync,
+		UpstreamServer:       upstreamServer,
+		WorkspaceClusterName: wsClusterName,
+	})
 
 	downstreamServer := syncerFixture.RunningServer
 	downstreamConfig := downstreamServer.DefaultConfig(t)

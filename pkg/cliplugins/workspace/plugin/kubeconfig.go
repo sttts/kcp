@@ -471,14 +471,11 @@ func (kc *KubeConfig) CreateContext(ctx context.Context, name string, overwrite 
 
 // enableSyncer prepares a kcp workspace for use with a syncer and outputs the
 // configuration required to deploy a syncer to the pcluster to stdout.
-func (kc *KubeConfig) EnableSyncer(ctx context.Context, workloadClusterName, image string, resourcesToSync []string, disableDeployment bool) error {
+func (kc *KubeConfig) EnableSyncer(ctx context.Context, workloadClusterName, kcpNamespaceName, image string, resourcesToSync []string, disableDeployment bool) error {
 	config, err := clientcmd.NewDefaultClientConfig(*kc.startingConfig, kc.overrides).ClientConfig()
 	if err != nil {
 		return err
 	}
-
-	// TODO(marun) Consider making this configurable
-	kcpNamespaceName := "default"
 
 	token, err := enableSyncerForWorkspace(ctx, config, workloadClusterName, kcpNamespaceName)
 	if err != nil {

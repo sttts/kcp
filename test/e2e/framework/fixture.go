@@ -278,42 +278,58 @@ type SyncerFixture struct {
 	SyncerConfig         *syncer.SyncerConfig
 }
 
+// SyncerFixtureConfig defines the configuration required for instantiating a syncer fixture.
+type SyncerFixtureConfig struct {
+	ResourcesToSync      sets.String
+	UpstreamServer       RunningServer
+	WorkspaceClusterName logicalcluster.LogicalCluster
+	WorkloadClusterName  string
+}
+
+// SetDefaults ensures a valid configuration even if not all values are explicitly provided.
+func (cfg *SyncerFixtureConfig) SetDefaults() {
+	// Default configuration to avoid tests having to be exaustive
+	if len(cfg.WorkloadClusterName) == 0 {
+		// This only needs to vary when more than one syncer need to be tested in a workspace
+		cfg.WorkloadClusterName = "pcluster-01"
+	}
+	if cfg.ResourcesToSync == nil {
+		// resources-to-sync is additive to the core set of resources so not providing any
+		// values means default types will still be synced.
+		cfg.ResourcesToSync = sets.NewString()
+	}
+}
+
 // NewSyncerFixture creates a downstream server (fakeWorkloadServer), and then creates a workloadClusters on the provided upstream server
 // returns a SyncerFixture with the downstream server information, and its kubeclient.
-func NewSyncerFixture(
-	t *testing.T,
-	resources sets.String,
-	upstream RunningServer,
-	wsClusterName logicalcluster.LogicalCluster,
-) *SyncerFixture {
+func NewSyncerFixture(t *testing.T, cfg *SyncerFixtureConfig) *SyncerFixture {
+	cfg.SetDefaults()
+
 	// Write the upstream logical cluster config to disk for the workspace plugin
-	upstreamRawConfig, err := upstream.RawConfig()
+	upstreamRawConfig, err := cfg.UpstreamServer.RawConfig()
 	require.NoError(t, err)
-	_, kubeconfigPath := writeLogicalClusterConfig(t, upstreamRawConfig, wsClusterName)
+	_, kubeconfigPath := writeLogicalClusterConfig(t, upstreamRawConfig, cfg.WorkspaceClusterName)
 
 	// TODO(marun) Configure this with a test arg to support syncer deployment to a pcluster
 	image := "foo"
 
-	// TODO(marun) Maybe support varying the workload cluster name to allow multiple syncers for a given workspace?
-	workloadClusterName := "pcluster-01"
-
 	// Run the plugin command to enable the syncer and collect the resulting yaml
-	t.Logf("Configuring workspace %s for syncing", wsClusterName)
+	t.Logf("Configuring workspace %s for syncing", cfg.WorkspaceClusterName)
 	pluginArgs := []string{
 		"enable-syncer",
-		workloadClusterName,
+		cfg.WorkloadClusterName,
 		"--syncer-image", image,
 	}
-	for _, resource := range resources.List() {
+	for _, resource := range cfg.ResourcesToSync.List() {
 		pluginArgs = append(pluginArgs, "--sync-resources", resource)
 	}
 	syncerYAML := RunWorkspacePlugin(t, kubeconfigPath, pluginArgs)
 
 	// Create a fake server from a workspace that is a peer to the current workspace
 	// TODO(marun) Only use a fake workload server if a pcluster is not configured
-	parentClusterName, ok := wsClusterName.Parent()
-	require.True(t, ok, "%s does not have a parent", wsClusterName)
-	downstreamServer := NewFakeWorkloadServer(t, upstream, parentClusterName)
+	parentClusterName, ok := cfg.WorkspaceClusterName.Parent()
+	require.True(t, ok, "%s does not have a parent", cfg.WorkspaceClusterName)
+	downstreamServer := NewFakeWorkloadServer(t, cfg.UpstreamServer, parentClusterName)
 	downstreamConfig := downstreamServer.DefaultConfig(t)
 
 	// Apply the yaml output from the plugin to the downstream server
@@ -322,7 +338,7 @@ func NewSyncerFixture(
 	// Extract the configuration for an in-process syncer from the resources that were
 	// applied to the downstream server. This maximizes the parity between the
 	// configuration of a deployed and in-process syncer.
-	syncerNamespace := plugin.GetSyncerID(wsClusterName.String(), workloadClusterName)
+	syncerNamespace := plugin.GetSyncerID(cfg.WorkspaceClusterName.String(), cfg.WorkloadClusterName)
 	syncerConfig := syncerConfigFromCluster(t, downstreamConfig, syncerNamespace)
 
 	downstreamKubeClient, err := kubernetesclientset.NewForConfig(downstreamConfig)

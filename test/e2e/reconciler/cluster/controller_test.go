@@ -165,7 +165,11 @@ func TestClusterController(t *testing.T) {
 
 			fixturewildwest.Create(t, sourceCrdClient.ApiextensionsV1().CustomResourceDefinitions(), metav1.GroupResource{Group: wildwest.GroupName, Resource: "cowboys"})
 
-			syncerFixture := framework.NewSyncerFixture(t, sets.NewString("cowboys.wildwest.dev"), source, wsClusterName)
+			syncerFixture := framework.NewSyncerFixture(t, &framework.SyncerFixtureConfig{
+				ResourcesToSync:      sets.NewString("cowboys.wildwest.dev"),
+				UpstreamServer:       source,
+				WorkspaceClusterName: wsClusterName,
+			})
 			sink := syncerFixture.RunningServer
 
 			sinkConfig := sink.DefaultConfig(t)
