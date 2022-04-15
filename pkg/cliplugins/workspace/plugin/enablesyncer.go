@@ -44,9 +44,18 @@ import (
 var embeddedResources embed.FS
 
 const (
-	SyncerResourceName    = "kcp-syncer"
-	SyncerSecretName      = "kcp-syncer-config"
+	// These resource names include a kcp- due to the intended use in pclusters.
+	SyncerResourceName = "kcp-syncer"
+	SyncerSecretName   = "kcp-syncer-config"
+
+	// The name of the key for the upstream config in the pcluster secret.
 	SyncerSecretConfigKey = "kubeconfig"
+
+	// The prefix for syncer-supporting auth resources in kcp.
+	SyncerAuthResourcePrefix = "syncer-"
+
+	// Max length of service account name (cluster role has no limit)
+	MaxSyncerAuthResourceName = 254
 
 	// The syncer id prefix is only 7 characters so that the 224 bits
 	// of an sha hash can be suffixed and still be within kube's 63
@@ -95,7 +104,7 @@ func enableSyncerForWorkspace(ctx context.Context, config *rest.Config, workload
 		return "", fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	saOwnerReferences := []metav1.OwnerReference{{
+	workloadClusterOwnerReferences := []metav1.OwnerReference{{
 		APIVersion: workloadv1alpha1.SchemeGroupVersion.String(),
 		Kind:       reflect.TypeOf(workloadv1alpha1.WorkloadCluster{}).Name(),
 		Name:       workloadCluster.Name,
@@ -104,11 +113,11 @@ func enableSyncerForWorkspace(ctx context.Context, config *rest.Config, workload
 
 	// Create a service account for the syncer with the necessary permissions. It will
 	// be owned by the workload cluster to ensure cleanup.
-	syncerServiceAccountName := fmt.Sprintf("syncer-%s", workloadClusterName)
+	authResourceName := SyncerAuthResourcePrefix + workloadClusterName
 	sa, err := kubeClient.CoreV1().ServiceAccounts(namespace).Create(ctx, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            syncerServiceAccountName,
-			OwnerReferences: saOwnerReferences,
+			Name:            authResourceName,
+			OwnerReferences: workloadClusterOwnerReferences,
 		},
 	}, metav1.CreateOptions{})
 	if err != nil {
@@ -118,12 +127,12 @@ func enableSyncerForWorkspace(ctx context.Context, config *rest.Config, workload
 	// Grant the service account cluster-admin on the workspace
 	if _, err := kubeClient.RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            syncerServiceAccountName,
-			OwnerReferences: saOwnerReferences,
+			Name:            authResourceName,
+			OwnerReferences: workloadClusterOwnerReferences,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      "ServiceAccount",
-			Name:      syncerServiceAccountName,
+			Name:      authResourceName,
 			Namespace: namespace,
 		}},
 		RoleRef: rbacv1.RoleRef{

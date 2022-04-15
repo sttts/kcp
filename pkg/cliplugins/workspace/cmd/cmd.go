@@ -242,6 +242,9 @@ func NewCmdWorkspace(streams genericclioptions.IOStreams) (*cobra.Command, error
 			}
 
 			workloadClusterName := args[0]
+			if len(workloadClusterName)+len(plugin.SyncerAuthResourcePrefix) > plugin.MaxSyncerAuthResourceName {
+				return fmt.Errorf("The maximum length of the workload-cluster-name is %d", plugin.MaxSyncerAuthResourceName)
+			}
 
 			requiredResourcesToSync.Insert(resourcesToSync...)
 
