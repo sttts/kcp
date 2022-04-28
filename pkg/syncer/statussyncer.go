@@ -18,6 +18,7 @@ package syncer
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/kcp-dev/apimachinery/pkg/logicalcluster"
 
@@ -82,11 +83,37 @@ func (c *Controller) removeFinalizersAndUpdate(ctx context.Context, upstreamClie
 		return nil
 	}
 
-	if upstreamObj.GetDeletionTimestamp() == nil {
+	// TODO(jmprusi): This check will need to be against "GetDeletionTimestamp()" when using the syncer virtual  workspace.
+	if upstreamObj.GetAnnotations()[LocationDeletionAnnotationName(c.pcluster)] == "" {
 		// Do nothing: the object should not be deleted anymore for this location on the KCP side
 		return nil
 	}
-	upstreamObj.SetFinalizers(nil)
+
+	// Remove the syncer finalizer.
+	currentFinalizers := upstreamObj.GetFinalizers()
+	desiredFinalizers := []string{}
+	for _, finalizer := range currentFinalizers {
+		if finalizer != SyncerFinalizerName(c.pcluster) {
+			desiredFinalizers = append(desiredFinalizers, finalizer)
+		}
+	}
+	upstreamObj.SetFinalizers(desiredFinalizers)
+
+	//  TODO(jmprusi): This code block will be handled by the syncer virtual workspace, so we can remove it once
+	//                 the virtual workspace syncer is integrated
+	//  - Begin -
+	// Clean up the status annotation and the locationDeletionAnnotation.
+	annotations := upstreamObj.GetAnnotations()
+	delete(annotations, LocationStatusAnnotationName(c.pcluster))
+	delete(annotations, LocationDeletionAnnotationName(c.pcluster))
+	delete(annotations, LocationSpecDiffAnnotationName(c.pcluster))
+	upstreamObj.SetAnnotations(annotations)
+
+	// remove the cluster label.
+	upstreamLabels := upstreamObj.GetLabels()
+	delete(upstreamLabels, WorkloadClusterLabelName(c.pcluster))
+	upstreamObj.SetLabels(upstreamLabels)
+	// - End of block to be removed once the virtual workspace syncer is integrated -
 
 	if _, err := upstreamClient.Resource(gvr).Namespace(upstreamObj.GetNamespace()).Update(ctx, upstreamObj, metav1.UpdateOptions{}); err != nil {
 		klog.Errorf("Failed updating after removing the finalizers of resource %s|%s/%s: %v", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), err)
@@ -106,7 +133,8 @@ func (c *Controller) updateStatusInUpstream(ctx context.Context, eventType watch
 	transformName(upstreamObj, SyncUp)
 
 	name := upstreamObj.GetName()
-	if _, statusExists, err := unstructured.NestedFieldCopy(upstreamObj.UnstructuredContent(), "status"); err != nil {
+	downstreamStatus, statusExists, err := unstructured.NestedFieldCopy(upstreamObj.UnstructuredContent(), "status")
+	if err != nil {
 		return err
 	} else if !statusExists {
 		klog.Infof("Resource doesn't contain a status. Skipping updating status of resource %s|%s/%s from pcluster namespace %s", c.upstreamClusterName, upstreamNamespace, name, downstreamObj.GetNamespace())
@@ -131,10 +159,27 @@ func (c *Controller) updateStatusInUpstream(ctx context.Context, eventType watch
 
 	upstreamObj.SetResourceVersion(existing.GetResourceVersion())
 
-	if _, err := c.toClient.Resource(gvr).Namespace(upstreamNamespace).UpdateStatus(ctx, upstreamObj, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("Failed updating status of resource %s|%s/%s from pcluster namespace %s: %v", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), downstreamObj.GetNamespace(), err)
-		return err
+	if advancedSchedulingFeatureEnabled {
+		newUpstream := existing.DeepCopy()
+		statusAnnotationValue, err := json.Marshal(downstreamStatus)
+		if err != nil {
+			return err
+		}
+		newUpstreamAnnotations := newUpstream.GetAnnotations()
+		newUpstreamAnnotations[LocationStatusAnnotationName(c.pcluster)] = string(statusAnnotationValue)
+		newUpstream.SetAnnotations(newUpstreamAnnotations)
+
+		if _, err := c.toClient.Resource(gvr).Namespace(upstreamNamespace).Update(ctx, newUpstream, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("Failed updating location status annotation of resource %s|%s/%s from pcluster namespace %s: %v", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), downstreamObj.GetNamespace(), err)
+			return err
+		}
+		klog.Infof("Updated status of resource %s|%s/%s from pcluster namespace %s", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), downstreamObj.GetNamespace())
+	} else {
+		if _, err := c.toClient.Resource(gvr).Namespace(upstreamNamespace).UpdateStatus(ctx, upstreamObj, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("Failed updating status of resource %s|%s/%s from pcluster namespace %s: %v", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), downstreamObj.GetNamespace(), err)
+			return err
+		}
+		klog.Infof("Updated status of resource %s|%s/%s from pcluster namespace %s", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), downstreamObj.GetNamespace())
 	}
-	klog.Infof("Updated status of resource %s|%s/%s from pcluster namespace %s", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), downstreamObj.GetNamespace())
 	return nil
 }

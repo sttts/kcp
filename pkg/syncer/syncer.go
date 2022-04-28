@@ -47,8 +47,12 @@ import (
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	workloadcliplugin "github.com/kcp-dev/kcp/pkg/cliplugins/workload/plugin"
 	"github.com/kcp-dev/kcp/pkg/syncer/mutators"
-	"github.com/kcp-dev/kcp/pkg/virtual/syncer"
 )
+
+// TODO: this would disappear when advanced scheduling is complete and the corresponding KCP feature gate is always on.
+var advancedSchedulingFeatureEnabled bool
+
+const advancedSchedulingFeatureAnnotation = "featuregates.experimental.workloads.kcp.dev/advancedscheduling"
 
 const (
 	resyncPeriod       = 10 * time.Hour
@@ -131,6 +135,21 @@ func StartSyncer(ctx context.Context, cfg *SyncerConfig, numSyncerThreads int, i
 		return err
 	}
 
+	// TODO(marun) Report pcluster connectivity to kcp
+	kcpClusterClient, err := kcpclient.NewClusterForConfig(cfg.UpstreamConfig)
+	if err != nil {
+		return err
+	}
+	kcpClient := kcpClusterClient.Cluster(cfg.KCPClusterName)
+	workloadClustersClient := kcpClient.WorkloadV1alpha1().WorkloadClusters()
+
+	// Check whether we're in the Advanced Scheduling feature-gated mode.
+	workloadCluster, err := workloadClustersClient.Get(ctx, cfg.WorkloadClusterName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	advancedSchedulingFeatureEnabled = workloadCluster.GetAnnotations()[advancedSchedulingFeatureAnnotation] == "true"
+
 	klog.Infof("Creating spec syncer for clusterName %s to pcluster %s, resources %v", cfg.KCPClusterName, cfg.WorkloadClusterName, resources)
 	specSyncer, err := NewSpecSyncer(cfg.UpstreamConfig, cfg.DownstreamConfig, gvrs, cfg.KCPClusterName, cfg.WorkloadClusterName)
 	if err != nil {
@@ -145,14 +164,6 @@ func StartSyncer(ctx context.Context, cfg *SyncerConfig, numSyncerThreads int, i
 
 	go specSyncer.Start(ctx, numSyncerThreads)
 	go statusSyncer.Start(ctx, numSyncerThreads)
-
-	// TODO(marun) Report pcluster connectivity to kcp
-	kcpClusterClient, err := kcpclient.NewClusterForConfig(cfg.UpstreamConfig)
-	if err != nil {
-		return err
-	}
-	kcpClient := kcpClusterClient.Cluster(cfg.KCPClusterName)
-	workloadClustersClient := kcpClient.WorkloadV1alpha1().WorkloadClusters()
 
 	// Attempt to heartbeat every interval
 	go wait.UntilWithContext(ctx, func(ctx context.Context) {
@@ -231,7 +242,7 @@ func New(kcpClusterName logicalcluster.LogicalCluster, pcluster string, fromClie
 	}
 
 	fromInformers := dynamicinformer.NewFilteredDynamicSharedInformerFactory(fromClient, resyncPeriod, metav1.NamespaceAll, func(o *metav1.ListOptions) {
-		o.LabelSelector = fmt.Sprintf("%s", syncer.WorkloadClusterLabelName(pclusterID))
+		o.LabelSelector = WorkloadClusterLabelName(pclusterID) + " = Sync"
 	})
 
 	for _, gvrstr := range gvrs {

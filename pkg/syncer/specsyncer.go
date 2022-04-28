@@ -19,7 +19,9 @@ package syncer
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/kcp-dev/apimachinery/pkg/logicalcluster"
 
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -35,8 +37,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
-
-	"github.com/kcp-dev/kcp/pkg/virtual/syncer"
 )
 
 func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
@@ -45,6 +45,25 @@ func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
 	if !isOldObjUnstructured || !isNewObjUnstructured {
 		return false
 	}
+
+	// TODO(jmprusi): Remove this after switching to virtual workspaces.
+	// remove status annotation from oldObj and newObj before comparing
+	oldAnnotations := oldUnstrob.GetAnnotations()
+	for k := range oldAnnotations {
+		if strings.HasPrefix(k, LocationStatusAnnotationName("")) {
+			delete(oldAnnotations, k)
+		}
+	}
+	oldUnstrob.SetAnnotations(oldAnnotations)
+
+	newAnnotations := newUnstrob.GetAnnotations()
+	for k := range newAnnotations {
+		if strings.HasPrefix(k, LocationStatusAnnotationName("")) {
+			delete(newAnnotations, k)
+		}
+	}
+	newUnstrob.SetAnnotations(newAnnotations)
+
 	if !equality.Semantic.DeepEqual(oldUnstrob.GetAnnotations(), newUnstrob.GetAnnotations()) {
 		return false
 	}
@@ -139,7 +158,7 @@ func (c *Controller) ensureDownstreamNamespaceExists(ctx context.Context, downst
 	if upstreamObj.GetLabels() != nil {
 		newNamespace.SetLabels(map[string]string{
 			// TODO: this should be set once at syncer startup and propagated around everywhere.
-			syncer.WorkloadClusterLabelName(c.pcluster): "",
+			WorkloadClusterLabelName(c.pcluster): "Sync",
 		})
 	}
 
@@ -161,6 +180,21 @@ func (c *Controller) ensureDownstreamNamespaceExists(ctx context.Context, downst
 func (c *Controller) notifySyncerOwnership(ctx context.Context, gvr schema.GroupVersionResource, upstreamObj *unstructured.Unstructured) error {
 	name := upstreamObj.GetName()
 	namespace := upstreamObj.GetNamespace()
+
+	// If the advanced scheduling feature is enabled, add the Syncer Finalizer to the upstream object
+	if advancedSchedulingFeatureEnabled {
+		upstreamFinalizers := upstreamObj.GetFinalizers()
+		hasFinalizer := false
+		for _, finalizer := range upstreamFinalizers {
+			if finalizer == SyncerFinalizerName(c.pcluster) {
+				hasFinalizer = true
+			}
+		}
+		if !hasFinalizer {
+			upstreamFinalizers = append(upstreamFinalizers, SyncerFinalizerName(c.pcluster))
+			upstreamObj.SetFinalizers(upstreamFinalizers)
+		}
+	}
 
 	if _, err := c.fromClient.Resource(gvr).Namespace(namespace).Update(ctx, upstreamObj, metav1.UpdateOptions{}); err != nil {
 		klog.Errorf("Failed updating to notify syncer ownership on resource %s|%s/%s: %v", c.upstreamClusterName, namespace, name, err)
@@ -206,10 +240,50 @@ func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.Even
 		}
 	}
 
+	if advancedSchedulingFeatureEnabled {
+		specDiffPatch := upstreamObj.GetAnnotations()[LocationSpecDiffAnnotationName(c.pcluster)]
+		if specDiffPatch != "" {
+			upstreamSpec, specExists, err := unstructured.NestedFieldCopy(upstreamObj.UnstructuredContent(), "spec")
+			if err != nil {
+				return err
+			}
+			if specExists {
+				// TODO(jmprusi): Surface those errors to the user.
+				patch, err := jsonpatch.DecodePatch([]byte(specDiffPatch))
+				if err != nil {
+					klog.Errorf("Failed to decode spec diff patch: %v", err)
+					return err
+				}
+				upstreamSpecJSON, err := json.Marshal(upstreamSpec)
+				if err != nil {
+					return err
+				}
+				patchedUpstreamSpecJSON, err := patch.Apply(upstreamSpecJSON)
+				if err != nil {
+					return err
+				}
+				var newSpec map[string]interface{}
+				if err := json.Unmarshal(patchedUpstreamSpecJSON, &newSpec); err != nil {
+					return err
+				}
+				if err := unstructured.SetNestedMap(downstreamObj.UnstructuredContent(), newSpec, "spec"); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	// TODO: wipe things like finalizers, owner-refs and any other life-cycle fields. The life-cycle
 	//       should exclusively owned by the syncer. Let's not some Kubernetes magic interfere with it.
 
-	if deletionTimestamp := upstreamObj.GetDeletionTimestamp(); deletionTimestamp != nil {
+	// TODO(jmprusi): When using syncer virtual workspace we would check the DeletionTimestamp on the upstream object, instead of the DeletionTimestamp annotation,
+	//                as the virtual workspace will set the the deletionTimestamp() on the location view by a transformation.
+	intendedToBeRemovedFromLocation := upstreamObj.GetAnnotations()[LocationDeletionAnnotationName(c.pcluster)] != ""
+
+	// TODO(jmprusi): When using syncer virtual workspace this condition would not be necessary anymore, since directly tested on the virtual workspace side.
+	stillOwnedByExternalActorForLocation := upstreamObj.GetAnnotations()[LocationFinalizersAnnotationName(c.pcluster)] != ""
+
+	if intendedToBeRemovedFromLocation && !stillOwnedByExternalActorForLocation {
 		if err := c.toClient.Resource(gvr).Namespace(downstreamNamespace).Delete(ctx, downstreamObj.GetName(), metav1.DeleteOptions{}); err != nil {
 			if errors.IsNotFound(err) {
 				// That's not an error.
@@ -219,7 +293,6 @@ func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.Even
 				}
 				return nil
 			}
-
 			klog.Infof("Error deleting %s %s/%s from downstream %s|%s/%s: %v", gvr.Resource, upstreamObj.GetNamespace(), upstreamObj.GetName(), upstreamObj.GetClusterName(), upstreamObj.GetNamespace(), upstreamObj.GetName(), err)
 			return err
 		}
