@@ -52,9 +52,13 @@ import (
 // TODO: this would disappear when advanced scheduling is complete and the corresponding KCP feature gate is always on.
 var advancedSchedulingFeatureEnabled bool
 
-const advancedSchedulingFeatureAnnotation = "featuregates.experimental.workloads.kcp.dev/advancedscheduling"
-
 const (
+	advancedSchedulingFeatureAnnotation = "featuregates.experimental.workloads.kcp.dev/advancedscheduling"
+
+	// syncerFinalizerNamePrefix is the finalizer put onto resources by the syncer to claim ownership,
+	// *before* a downstream object is created. It is only removed when the downstream object is deleted.
+	syncerFinalizerNamePrefix = "workloads.kcp.dev/syncer-"
+
 	resyncPeriod       = 10 * time.Hour
 	syncerApplyManager = "syncer"
 
