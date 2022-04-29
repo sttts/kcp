@@ -45,7 +45,7 @@ const (
 func (c *Controller) reconcile(ctx context.Context, ingress *networkingv1.Ingress) error {
 	klog.InfoS("reconciling Ingress", "ClusterName", ingress.ClusterName, "Namespace", ingress.Namespace, "Name", ingress.Name)
 
-	if syncer.GetAssignedWorkloadCluster(ingress.Labels) == "" {
+	if syncer.DeprecatedGetAssignedWorkloadCluster(ingress.Labels) == "" {
 		// we have a root ingress here
 		if err := c.reconcileLeaves(ctx, ingress); err != nil {
 			return err
@@ -156,7 +156,7 @@ func (c *Controller) updateLeafs(ctx context.Context, currentLeaves []*networkin
 	for _, currentLeaf := range currentLeaves {
 		found := false
 		for _, desiredLeaf := range desiredLeaves {
-			if desiredLeaf.Name != currentLeaf.Name || syncer.GetAssignedWorkloadCluster(desiredLeaf.Labels) != syncer.GetAssignedWorkloadCluster(currentLeaf.Labels) {
+			if desiredLeaf.Name != currentLeaf.Name || syncer.DeprecatedGetAssignedWorkloadCluster(desiredLeaf.Labels) != syncer.DeprecatedGetAssignedWorkloadCluster(currentLeaf.Labels) {
 				continue
 			}
 			found = true
@@ -183,7 +183,7 @@ func (c *Controller) updateLeafs(ctx context.Context, currentLeaves []*networkin
 	for _, desiredLeaf := range desiredLeaves {
 		found := false
 		for _, currentLeaf := range currentLeaves {
-			if desiredLeaf.Name == currentLeaf.Name && syncer.GetAssignedWorkloadCluster(desiredLeaf.Labels) == syncer.GetAssignedWorkloadCluster(currentLeaf.Labels) {
+			if desiredLeaf.Name == currentLeaf.Name && syncer.DeprecatedGetAssignedWorkloadCluster(desiredLeaf.Labels) == syncer.DeprecatedGetAssignedWorkloadCluster(currentLeaf.Labels) {
 				found = true
 				break
 			}
@@ -208,8 +208,8 @@ func (c *Controller) desiredLeaves(ctx context.Context, root *networkingv1.Ingre
 
 	var clusterDests []string
 	for _, service := range services {
-		if syncer.GetAssignedWorkloadCluster(service.Labels) != "" {
-			clusterDests = append(clusterDests, syncer.GetAssignedWorkloadCluster(service.Labels))
+		if syncer.DeprecatedGetAssignedWorkloadCluster(service.Labels) != "" {
+			clusterDests = append(clusterDests, syncer.DeprecatedGetAssignedWorkloadCluster(service.Labels))
 		} else {
 			klog.Infof("Skipping service %q because it is not assigned to any cluster", service.Name)
 		}

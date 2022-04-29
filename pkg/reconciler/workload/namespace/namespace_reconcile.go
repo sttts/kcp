@@ -126,7 +126,7 @@ func (c *Controller) reconcileResource(ctx context.Context, lclusterName logical
 		lbls = map[string]string{}
 	}
 
-	previousCluster, newCluster := syncer.GetAssignedWorkloadCluster(lbls), syncer.GetAssignedWorkloadCluster(ns.Labels)
+	previousCluster, newCluster := syncer.DeprecatedGetAssignedWorkloadCluster(lbls), syncer.DeprecatedGetAssignedWorkloadCluster(ns.Labels)
 	if previousCluster == newCluster {
 		// Already assigned to the right cluster.
 		return nil

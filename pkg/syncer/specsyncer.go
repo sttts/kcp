@@ -37,6 +37,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 )
 
 func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
@@ -50,14 +52,14 @@ func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
 	// remove status annotation from oldObj and newObj before comparing
 	oldAnnotations := oldUnstrob.GetAnnotations()
 	for k := range oldAnnotations {
-		if !strings.HasPrefix(k, LocationStatusAnnotationName("")) {
+		if !strings.HasPrefix(k, workloadv1alpha1.InternalClusterStatusAnnotationPrefix) {
 			delete(oldAnnotations, k)
 		}
 	}
 
 	newAnnotations := newUnstrob.GetAnnotations()
 	for k := range newAnnotations {
-		if strings.HasPrefix(k, LocationStatusAnnotationName("")) {
+		if strings.HasPrefix(k, workloadv1alpha1.InternalClusterStatusAnnotationPrefix) {
 			delete(newAnnotations, k)
 		}
 	}
@@ -184,12 +186,12 @@ func (c *Controller) setSyncerOwnership(ctx context.Context, gvr schema.GroupVer
 		upstreamFinalizers := upstreamObjCopy.GetFinalizers()
 		hasFinalizer := false
 		for _, finalizer := range upstreamFinalizers {
-			if finalizer == SyncerFinalizerName(c.pcluster) {
+			if finalizer == syncerFinalizerNamePrefix+c.pcluster {
 				hasFinalizer = true
 			}
 		}
 		if !hasFinalizer {
-			upstreamFinalizers = append(upstreamFinalizers, SyncerFinalizerName(c.pcluster))
+			upstreamFinalizers = append(upstreamFinalizers, syncerFinalizerNamePrefix+c.pcluster)
 			upstreamObjCopy.SetFinalizers(upstreamFinalizers)
 		}
 	}
@@ -239,7 +241,7 @@ func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.Even
 	}
 
 	if advancedSchedulingFeatureEnabled {
-		specDiffPatch := upstreamObj.GetAnnotations()[LocationSpecDiffAnnotationName(c.pcluster)]
+		specDiffPatch := upstreamObj.GetAnnotations()[workloadv1alpha1.InternalClusterStatusAnnotationPrefix+c.pcluster]
 		if specDiffPatch != "" {
 			upstreamSpec, specExists, err := unstructured.NestedFieldCopy(upstreamObj.UnstructuredContent(), "spec")
 			if err != nil {
@@ -276,10 +278,10 @@ func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.Even
 
 	// TODO(jmprusi): When using syncer virtual workspace we would check the DeletionTimestamp on the upstream object, instead of the DeletionTimestamp annotation,
 	//                as the virtual workspace will set the the deletionTimestamp() on the location view by a transformation.
-	intendedToBeRemovedFromLocation := upstreamObj.GetAnnotations()[LocationDeletionAnnotationName(c.pcluster)] != ""
+	intendedToBeRemovedFromLocation := upstreamObj.GetAnnotations()[workloadv1alpha1.InternalClusterDeletionTimestampAnnotationPrefix+c.pcluster] != ""
 
 	// TODO(jmprusi): When using syncer virtual workspace this condition would not be necessary anymore, since directly tested on the virtual workspace side.
-	stillOwnedByExternalActorForLocation := upstreamObj.GetAnnotations()[LocationFinalizersAnnotationName(c.pcluster)] != ""
+	stillOwnedByExternalActorForLocation := upstreamObj.GetAnnotations()[workloadv1alpha1.ClusterFinalizerAnnotationPrefix+c.pcluster] != ""
 
 	if intendedToBeRemovedFromLocation && !stillOwnedByExternalActorForLocation {
 		if err := c.toClient.Resource(gvr).Namespace(downstreamNamespace).Delete(ctx, downstreamObj.GetName(), metav1.DeleteOptions{}); err != nil {

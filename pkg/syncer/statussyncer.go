@@ -31,6 +31,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 )
 
 func deepEqualFinalizersAndStatus(oldObj, newObj interface{}) bool {
@@ -84,7 +86,7 @@ func (c *Controller) removeUpstreamSyncerOwnership(ctx context.Context, gvr sche
 	}
 
 	// TODO(jmprusi): This check will need to be against "GetDeletionTimestamp()" when using the syncer virtual  workspace.
-	if upstreamObj.GetAnnotations()[LocationDeletionAnnotationName(c.pcluster)] == "" {
+	if upstreamObj.GetAnnotations()[workloadv1alpha1.InternalClusterDeletionTimestampAnnotationPrefix+c.pcluster] == "" {
 		// Do nothing: the object should not be deleted anymore for this location on the KCP side
 		return nil
 	}
@@ -93,7 +95,7 @@ func (c *Controller) removeUpstreamSyncerOwnership(ctx context.Context, gvr sche
 	currentFinalizers := upstreamObj.GetFinalizers()
 	desiredFinalizers := []string{}
 	for _, finalizer := range currentFinalizers {
-		if finalizer != SyncerFinalizerName(c.pcluster) {
+		if finalizer != syncerFinalizerNamePrefix+c.pcluster {
 			desiredFinalizers = append(desiredFinalizers, finalizer)
 		}
 	}
@@ -104,9 +106,9 @@ func (c *Controller) removeUpstreamSyncerOwnership(ctx context.Context, gvr sche
 	//  - Begin -
 	// Clean up the status annotation and the locationDeletionAnnotation.
 	annotations := upstreamObj.GetAnnotations()
-	delete(annotations, LocationStatusAnnotationName(c.pcluster))
-	delete(annotations, LocationDeletionAnnotationName(c.pcluster))
-	delete(annotations, LocationSpecDiffAnnotationName(c.pcluster))
+	delete(annotations, workloadv1alpha1.InternalClusterStatusAnnotationPrefix+c.pcluster)
+	delete(annotations, workloadv1alpha1.InternalClusterDeletionTimestampAnnotationPrefix+c.pcluster)
+	delete(annotations, workloadv1alpha1.InternalClusterStatusAnnotationPrefix+c.pcluster)
 	upstreamObj.SetAnnotations(annotations)
 
 	// remove the cluster label.
@@ -166,7 +168,7 @@ func (c *Controller) updateStatusInUpstream(ctx context.Context, eventType watch
 			return err
 		}
 		newUpstreamAnnotations := newUpstream.GetAnnotations()
-		newUpstreamAnnotations[LocationStatusAnnotationName(c.pcluster)] = string(statusAnnotationValue)
+		newUpstreamAnnotations[workloadv1alpha1.InternalClusterStatusAnnotationPrefix+c.pcluster] = string(statusAnnotationValue)
 		newUpstream.SetAnnotations(newUpstreamAnnotations)
 
 		if _, err := c.toClient.Resource(gvr).Namespace(upstreamNamespace).Update(ctx, newUpstream, metav1.UpdateOptions{}); err != nil {

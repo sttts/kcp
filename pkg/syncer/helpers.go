@@ -22,45 +22,19 @@ import (
 	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 )
 
-func LocationDeletionAnnotationName(workloadClusterName string) string {
-	return workloadv1alpha1.InternalClusterDeletionTimestampAnnotationPrefix + workloadClusterName
-}
-
-func LocationFinalizersAnnotationName(workloadClusterName string) string {
-	return workloadv1alpha1.ClusterFinalizerAnnotationPrefix + workloadClusterName
-}
-
-func LocationStatusAnnotationName(workloadClusterName string) string {
-	return workloadv1alpha1.InternalClusterStatusAnnotationPrefix + workloadClusterName
-}
-
-func LocationSpecDiffAnnotationName(workloadClusterName string) string {
-	return workloadv1alpha1.InternalClusterStatusAnnotationPrefix + workloadClusterName
-}
-
-func SyncerFinalizerName(workloadClusterName string) string {
-	return "workloads.kcp.dev/syncer-" + workloadClusterName
-}
-
 func WorkloadClusterLabelName(workloadClusterName string) string {
 	return workloadv1alpha1.InternalWorkloadClusterStateLabelPrefix + workloadClusterName
 }
 
-func GetAssignedWorkloadCluster(labels map[string]string) string {
+// DeprecatedGetAssignedWorkloadCluster returns one assigned workload cluster in Sync state. It will
+// likely lead to broken behaviour when there is one of those labels on a resource.
+//
+// Deprecated: use GetResourceState per cluster instead.
+func DeprecatedGetAssignedWorkloadCluster(labels map[string]string) string {
 	for k, v := range labels {
 		if strings.HasPrefix(k, WorkloadClusterLabelName("")) && v == "Sync" {
 			return strings.TrimPrefix(k, WorkloadClusterLabelName(""))
 		}
 	}
 	return ""
-}
-
-func GetAssignedWorkloadClusters(labels map[string]string) []string {
-	var clusters []string
-	for k, v := range labels {
-		if strings.HasPrefix(k, WorkloadClusterLabelName("")) && v == "Sync" {
-			clusters = append(clusters, strings.TrimPrefix(k, WorkloadClusterLabelName("")))
-		}
-	}
-	return clusters
 }
