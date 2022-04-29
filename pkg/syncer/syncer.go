@@ -247,7 +247,7 @@ func New(kcpClusterName logicalcluster.LogicalCluster, pcluster string, fromClie
 	}
 
 	fromInformers := dynamicinformer.NewFilteredDynamicSharedInformerFactory(fromClient, resyncPeriod, metav1.NamespaceAll, func(o *metav1.ListOptions) {
-		o.LabelSelector = WorkloadClusterLabelName(pclusterID) + "=" + string(workloadv1alpha1.ResourceStateSync)
+		o.LabelSelector = workloadv1alpha1.InternalClusterResourceStateLabelPrefix + pclusterID + "=" + string(workloadv1alpha1.ResourceStateSync)
 	})
 
 	for _, gvrstr := range gvrs {

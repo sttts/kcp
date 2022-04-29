@@ -320,19 +320,19 @@ func (c *Controller) setNamepaceContentsEnqueuedFor(ns *corev1.Namespace) {
 	c.namespaceContentsEnqueuedForMap[key] = ns.Labels[ScheduledClusterLabel]
 }
 
-// clusterLabelPatchBytes returns JSON patch bytes expressing an operation
+// clusterLabelPatchBytes returns a patch expressing an operation
 // to add, replace to the given value, or delete the cluster assignment label on
 // a resource.
 func clusterLabelPatchBytes(old, new string) (types.PatchType, []byte, error) {
 	patches := make(map[string]interface{})
 
 	if new == "" && old != "" {
-		patches[syncer.WorkloadClusterLabelName(old)] = nil
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+old] = nil
 	} else if new != "" && old == "" {
-		patches[syncer.WorkloadClusterLabelName(new)] = string(workloadv1alpha1.ResourceStateSync)
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+new] = string(workloadv1alpha1.ResourceStateSync)
 	} else {
-		patches[syncer.WorkloadClusterLabelName(old)] = nil
-		patches[syncer.WorkloadClusterLabelName(new)] = string(workloadv1alpha1.ResourceStateSync)
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+old] = nil
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+new] = string(workloadv1alpha1.ResourceStateSync)
 	}
 
 	bs, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"labels": patches}})
@@ -342,7 +342,7 @@ func clusterLabelPatchBytes(old, new string) (types.PatchType, []byte, error) {
 	return types.MergePatchType, bs, nil
 }
 
-// schedulingClusterLabelPatchBytes returns JSON patch bytes expressing an operation
+// schedulingClusterLabelPatchBytes returns a patch expressing an operation
 // to add, replace to the given value, or delete the cluster assignment label on a
 // namespace.
 func schedulingClusterLabelPatchBytes(oldClusterName, newClusterName string) (types.PatchType, []byte, error) {
@@ -350,14 +350,14 @@ func schedulingClusterLabelPatchBytes(oldClusterName, newClusterName string) (ty
 
 	if newClusterName == "" && oldClusterName != "" {
 		patches[ScheduledClusterLabel] = nil
-		patches[syncer.WorkloadClusterLabelName(oldClusterName)] = nil
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+oldClusterName] = nil
 	} else if newClusterName != "" && oldClusterName == "" {
 		patches[ScheduledClusterLabel] = newClusterName
-		patches[syncer.WorkloadClusterLabelName(newClusterName)] = string(workloadv1alpha1.ResourceStateSync)
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+newClusterName] = string(workloadv1alpha1.ResourceStateSync)
 	} else {
 		patches[ScheduledClusterLabel] = newClusterName
-		patches[syncer.WorkloadClusterLabelName(oldClusterName)] = nil
-		patches[syncer.WorkloadClusterLabelName(newClusterName)] = string(workloadv1alpha1.ResourceStateSync)
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+oldClusterName] = nil
+		patches[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+newClusterName] = string(workloadv1alpha1.ResourceStateSync)
 	}
 
 	bs, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"labels": patches}})

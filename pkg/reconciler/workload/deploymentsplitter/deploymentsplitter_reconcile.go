@@ -153,7 +153,7 @@ func (c *Controller) createLeafs(ctx context.Context, root *appsv1.Deployment) e
 		if vd.Labels == nil {
 			vd.Labels = map[string]string{}
 		}
-		vd.Labels[syncer.WorkloadClusterLabelName(cl.Name)] = string(workloadv1alpha1.ResourceStateSync)
+		vd.Labels[workloadv1alpha1.InternalClusterResourceStateLabelPrefix+cl.Name] = string(workloadv1alpha1.ResourceStateSync)
 		vd.Labels[ownedByLabel] = root.Name
 
 		replicasToSet := replicasEach
