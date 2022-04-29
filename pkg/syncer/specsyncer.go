@@ -174,7 +174,7 @@ func (c *Controller) ensureDownstreamNamespaceExists(ctx context.Context, downst
 	return nil
 }
 
-func (c *Controller) setSyncerOwnership(ctx context.Context, gvr schema.GroupVersionResource, upstreamObj *unstructured.Unstructured) error {
+func (c *Controller) ensureSyncerFinalizer(ctx context.Context, gvr schema.GroupVersionResource, upstreamObj *unstructured.Unstructured) error {
 	upstreamObjCopy := upstreamObj.DeepCopy()
 	name := upstreamObjCopy.GetName()
 	namespace := upstreamObjCopy.GetNamespace()
@@ -208,7 +208,7 @@ func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.Even
 	}
 
 	if eventType == watch.Added {
-		if err := c.setSyncerOwnership(ctx, gvr, upstreamObj); err != nil {
+		if err := c.ensureSyncerFinalizer(ctx, gvr, upstreamObj); err != nil {
 			return err
 		}
 	}
