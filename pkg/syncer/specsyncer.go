@@ -116,11 +116,10 @@ func (c *Controller) deleteFromDownstream(ctx context.Context, gvr schema.GroupV
 	// TODO: get UID of just-deleted object and pass it as a precondition on this delete.
 	// This would avoid races where an object is deleted and another object with the same name is created immediately after.
 
-	if err := c.toClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{}); errors.IsNotFound(err) {
-		return nil
-	} else {
+	if err := c.toClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+	return nil
 }
 
 const namespaceLocatorAnnotation = "kcp.dev/namespace-locator"
