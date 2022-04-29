@@ -19,12 +19,13 @@ package options
 import (
 	"errors"
 	"fmt"
-	"github.com/kcp-dev/kcp/pkg/syncer"
 	"time"
 
 	"github.com/spf13/pflag"
 
 	"k8s.io/component-base/logs"
+
+	"github.com/kcp-dev/kcp/pkg/syncer"
 )
 
 type Options struct {
