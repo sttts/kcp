@@ -16,22 +16,26 @@ limitations under the License.
 
 package syncer
 
-import "strings"
+import (
+	"strings"
+
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
+)
 
 func LocationDeletionAnnotationName(workloadClusterName string) string {
-	return "deletion.internal.workloads.kcp.dev/" + workloadClusterName
+	return workloadv1alpha1.InternalClusterDeletionTimestampAnnotationPrefix + workloadClusterName
 }
 
 func LocationFinalizersAnnotationName(workloadClusterName string) string {
-	return "finalizers.workloads.kcp.dev/" + workloadClusterName
+	return workloadv1alpha1.ClusterFinalizerAnnotationPrefix + workloadClusterName
 }
 
 func LocationStatusAnnotationName(workloadClusterName string) string {
-	return "experimental.status.workloads.kcp.dev/" + workloadClusterName
+	return workloadv1alpha1.InternalClusterStatusAnnotationPrefix + workloadClusterName
 }
 
 func LocationSpecDiffAnnotationName(workloadClusterName string) string {
-	return "experimental.specdiff.workloads.kcp.dev/" + workloadClusterName
+	return workloadv1alpha1.InternalClusterStatusAnnotationPrefix + workloadClusterName
 }
 
 func SyncerFinalizerName(workloadClusterName string) string {
@@ -39,7 +43,7 @@ func SyncerFinalizerName(workloadClusterName string) string {
 }
 
 func WorkloadClusterLabelName(workloadClusterName string) string {
-	return "cluster.internal.workloads.kcp.dev/" + workloadClusterName
+	return workloadv1alpha1.InternalClusterStateLabelPrefix + workloadClusterName
 }
 
 func GetAssignedWorkloadCluster(labels map[string]string) string {
