@@ -329,10 +329,10 @@ func clusterLabelPatchBytes(old, new string) (types.PatchType, []byte, error) {
 	if new == "" && old != "" {
 		patches[syncer.WorkloadClusterLabelName(old)] = nil
 	} else if new != "" && old == "" {
-		patches[syncer.WorkloadClusterLabelName(new)] = "Sync"
+		patches[syncer.WorkloadClusterLabelName(new)] = string(workloadv1alpha1.ResourceStateSync)
 	} else {
 		patches[syncer.WorkloadClusterLabelName(old)] = nil
-		patches[syncer.WorkloadClusterLabelName(new)] = "Sync"
+		patches[syncer.WorkloadClusterLabelName(new)] = string(workloadv1alpha1.ResourceStateSync)
 	}
 
 	bs, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"labels": patches}})
@@ -353,11 +353,11 @@ func schedulingClusterLabelPatchBytes(oldClusterName, newClusterName string) (ty
 		patches[syncer.WorkloadClusterLabelName(oldClusterName)] = nil
 	} else if newClusterName != "" && oldClusterName == "" {
 		patches[ScheduledClusterLabel] = newClusterName
-		patches[syncer.WorkloadClusterLabelName(newClusterName)] = "Sync"
+		patches[syncer.WorkloadClusterLabelName(newClusterName)] = string(workloadv1alpha1.ResourceStateSync)
 	} else {
 		patches[ScheduledClusterLabel] = newClusterName
 		patches[syncer.WorkloadClusterLabelName(oldClusterName)] = nil
-		patches[syncer.WorkloadClusterLabelName(newClusterName)] = "Sync"
+		patches[syncer.WorkloadClusterLabelName(newClusterName)] = string(workloadv1alpha1.ResourceStateSync)
 	}
 
 	bs, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"labels": patches}})

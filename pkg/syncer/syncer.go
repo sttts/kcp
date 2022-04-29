@@ -47,6 +47,7 @@ import (
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	workloadcliplugin "github.com/kcp-dev/kcp/pkg/cliplugins/workload/plugin"
 	"github.com/kcp-dev/kcp/pkg/syncer/mutators"
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 )
 
 // TODO: this would disappear when advanced scheduling is complete and the corresponding KCP feature gate is always on.
@@ -246,7 +247,7 @@ func New(kcpClusterName logicalcluster.LogicalCluster, pcluster string, fromClie
 	}
 
 	fromInformers := dynamicinformer.NewFilteredDynamicSharedInformerFactory(fromClient, resyncPeriod, metav1.NamespaceAll, func(o *metav1.ListOptions) {
-		o.LabelSelector = WorkloadClusterLabelName(pclusterID) + "=Sync"
+		o.LabelSelector = WorkloadClusterLabelName(pclusterID) + "=" + string(workloadv1alpha1.ResourceStateSync)
 	})
 
 	for _, gvrstr := range gvrs {
