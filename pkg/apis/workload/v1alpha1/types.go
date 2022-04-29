@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The KCP Authors.
+Copyright 2022 The KCP Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,139 +16,61 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	conditionsv1alpha1 "github.com/kcp-dev/kcp/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kcp-dev/kcp/third_party/conditions/util/conditions"
-)
-
-// WorkloadCluster describes a member cluster capable of running workloads.
-//
-// +crd
-// +genclient
-// +genclient:nonNamespaced
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster,categories=kcp
-// +kubebuilder:printcolumn:name="Location",type="string",JSONPath=`.metadata.name`,priority=1
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=`.status.conditions[?(@.type=="Ready")].status`,priority=2
-// +kubebuilder:printcolumn:name="Synced API resources",type="string",JSONPath=`.status.syncedResources`,priority=3
-
-type WorkloadCluster struct {
-	metav1.TypeMeta `json:",inline"`
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	// Spec holds the desired state.
-	// +optional
-	Spec WorkloadClusterSpec `json:"spec,omitempty"`
-
-	// Status communicates the observed state.
-	// +optional
-	Status WorkloadClusterStatus `json:"status,omitempty"`
-}
-
-var _ conditions.Getter = &WorkloadCluster{}
-var _ conditions.Setter = &WorkloadCluster{}
-
-// WorkloadClusterSpec holds the desired state of the WorkloadCluster (from the client).
-type WorkloadClusterSpec struct {
-	KubeConfig string `json:"kubeconfig"`
-
-	// Unschedulable controls cluster schedulability of new workloads. By
-	// default, cluster is schedulable.
-	// +optional
-	// +kubebuilder:default=false
-	Unschedulable bool `json:"unschedulable"`
-
-	// EvictAfter controls cluster schedulability of new and existing workloads.
-	// After the EvictAfter time, any workload scheduled to the cluster
-	// will be unassigned from the cluster.
-	// By default, workloads scheduled to the cluster are not evicted.
-	EvictAfter *metav1.Time `json:"evictAfter,omitempty"`
-}
-
-// WorkloadClusterStatus communicates the observed state of the WorkloadCluster (from the controller).
-type WorkloadClusterStatus struct {
-
-	// Allocatable represents the resources that are available for scheduling.
-	// +optional
-	Allocatable *corev1.ResourceList `json:"allocatable,omitempty"`
-
-	// Capacity represents the total resources of the cluster.
-	// +optional
-	Capacity *corev1.ResourceList `json:"capacity,omitempty"`
-
-	// Current processing state of the WorkloadCluster.
-	// +optional
-	Conditions conditionsv1alpha1.Conditions `json:"conditions,omitempty"`
-
-	// +optional
-	SyncedResources []string `json:"syncedResources,omitempty"`
-
-	// A timestamp indicating when the syncer last reported status.
-	// +optional
-	LastSyncerHeartbeatTime *metav1.Time `json:"lastSyncerHeartbeatTime,omitempty"`
-}
-
-// WorkloadClusterList is a list of WorkloadCluster resources
-//
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type WorkloadClusterList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-
-	Items []WorkloadCluster `json:"items"`
-}
-
-// Conditions and ConditionReasons for the kcp WorkloadCluster object.
 const (
-	// SyncerReady means the syncer is ready to transfer resources between KCP and the WorkloadCluster.
-	SyncerReady conditionsv1alpha1.ConditionType = "SyncerReady"
+	// InternalClusterDeletionTimestampAnnotationPrefix is the prefix of the annotation
+	//
+	//   deletion.internal.workloads.kcp.dev/<workload-cluster-name>
+	//
+	// on upstream resources storing the timestamp when the workload cluster resource
+	// state was changed to "Delete". The syncer will see this timestamp as the deletion
+	// timestamp of the object.
+	//
+	// The format is RFC3339.
+	//
+	// TODO(sttts): use workload-cluster-uid instead of workload-cluster-name
+	InternalClusterDeletionTimestampAnnotationPrefix = "deletion.internal.workloads.kcp.dev/"
 
-	// APIImporterReady means the APIImport component is ready to import APIs from the WorkloadCluster.
-	APIImporterReady conditionsv1alpha1.ConditionType = "APIImporterReady"
+	// ClusterFinalizerAnnotationPrefix is the prefix of the annotation
+	//
+	//   finalizers.workloads.kcp.dev/<workload-cluster-name>
+	//
+	// on upstream resources storing a comma-separated list of finalizer names that are set on
+	// the workload cluster resource in the view of the syncer. This blocks the deletion of the
+	// resource on that workload cluster. External (custom) controllers can set this annotation
+	// create back-pressure on the resource.
+	//
+	// TODO(sttts): use workload-cluster-uid instead of workload-cluster-name
+	ClusterFinalizerAnnotationPrefix = "finalizers.workloads.kcp.dev/"
 
-	// HeartbeatHealthy means the HeartbeatManager has seen a heartbeat for the WorkloadCluster within the expected interval.
-	HeartbeatHealthy conditionsv1alpha1.ConditionType = "HeartbeatHealthy"
+	// InternalWorkloadClusterStateLabelPrefix is the prefix of the label
+	//
+	//   state.internal.workloads.kcp.dev/<workload-cluster-name>
+	//
+	// on upstream resources storing the state of the workload cluster syncer state machine.
+	// The workload controllers will set this label and the syncer will react and drive the
+	// life-cycle of the synced objects on the workload cluster.
+	//
+	// The format is a string, namely:
+	// - "": the object is assigned, but the syncer will ignore the object. A coordination
+	//       controller will have to set the value to "Sync" after initializion in order to
+	//       start the sync process.
+	// - "Sync": the object is assigned and the syncer will start the sync process.
+	// - "Delete": the object is assigned and the syncer will start the deletion procedure.
+	//             Deletion is blocked if finalizers.workloads.kcp.dev/<workload-cluster-name>
+	//             is non-empty.
+	//
+	// The workload controllers will consider the object deleted from the workload cluster when
+	// the label is removed. They then set the placement state to "Unbound".
+	InternalWorkloadClusterStateLabelPrefix = "state.internal.workloads.kcp.dev/"
 
-	// WorkloadClusterUnknownReason documents a WorkloadCluster which readiness is unknown.
-	WorkloadClusterUnknownReason = "WorkloadClusterStatusUnknown"
-
-	// WorkloadClusterReadyReason documents a WorkloadCluster that is ready.
-	WorkloadClusterReadyReason = "WorkloadClusterReady"
-
-	// WorkloadClusterNotReadyReason documents a WorkloadCluster is not ready, when the "readyz" check returns false.
-	WorkloadClusterNotReadyReason = "WorkloadClusterNotReady"
-
-	// WorkloadClusterUnreachableReason documents the WorkloadCluster state when the Syncer is unable to reach the WorkloadCluster "readyz" API endpoint
-	WorkloadClusterUnreachableReason = "WorkloadClusterUnreachable"
-
-	// ErrorStartingSyncerReason indicates that the Syncer failed to start.
-	ErrorStartingSyncerReason = "ErrorStartingSyncer"
-
-	// ErrorInstallingSyncerReason indicates that the Syncer failed to install.
-	ErrorInstallingSyncerReason = "ErrorInstallingSyncer"
-
-	// InvalidKubeConfigReason indicates that the Syncer failed to start because the KubeConfig is invalid.
-	InvalidKubeConfigReason = "InvalidKubeConfig"
-
-	// ErrorCreatingClientReason indicates that there has been an error trying to create a kubernetes client from given a KubeConfig.
-	ErrorCreatingClientReason = "ErrorCreatingClient"
-
-	// ErrorStartingAPIImporterReason indicates an error starting the API Importer.
-	ErrorStartingAPIImporterReason = "ErrorStartingAPIImporter"
-
-	// ErrorHeartbeatMissedReason indicates that a heartbeat update was not received within the configured threshold.
-	ErrorHeartbeatMissedReason = "ErrorHeartbeat"
+	// InternalClusterStatusAnnotationPrefix is the prefix of the annotation
+	//
+	//   experimental.status.workloads.kcp.dev/<workload-cluster-name>
+	//
+	// on upstream resources storing the status of the downstream resource per workload cluster.
+	// Note that this is experimental and will disappear in the future without prior notice. It
+	// is used temporarily in the case that a resource is scheduled to multiple workload clusters.
+	//
+	// The format is JSON.
+	InternalClusterStatusAnnotationPrefix = "experimental.status.workloads.kcp.dev/"
 )
-
-func (in *WorkloadCluster) SetConditions(conditions conditionsv1alpha1.Conditions) {
-	in.Status.Conditions = conditions
-}
-
-func (in *WorkloadCluster) GetConditions() conditionsv1alpha1.Conditions {
-	return in.Status.Conditions
-}
