@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -125,7 +124,7 @@ func (c *Controller) removeUpstreamSyncerOwnership(ctx context.Context, gvr sche
 	return nil
 }
 
-func (c *Controller) updateStatusInUpstream(ctx context.Context, eventType watch.EventType, gvr schema.GroupVersionResource, upstreamNamespace string, downstreamObj *unstructured.Unstructured) error {
+func (c *Controller) updateStatusInUpstream(ctx context.Context, gvr schema.GroupVersionResource, upstreamNamespace string, downstreamObj *unstructured.Unstructured) error {
 	upstreamObj := downstreamObj.DeepCopy()
 	upstreamObj.SetUID("")
 	upstreamObj.SetResourceVersion("")

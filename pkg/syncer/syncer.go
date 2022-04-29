@@ -44,10 +44,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 	kcpclient "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
 	workloadcliplugin "github.com/kcp-dev/kcp/pkg/cliplugins/workload/plugin"
 	"github.com/kcp-dev/kcp/pkg/syncer/mutators"
-	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 )
 
 // TODO: this would disappear when advanced scheduling is complete and the corresponding KCP feature gate is always on.
@@ -197,7 +197,7 @@ func StartSyncer(ctx context.Context, cfg *SyncerConfig, numSyncerThreads int, i
 }
 
 type mutatorGvrMap map[schema.GroupVersionResource]func(obj *unstructured.Unstructured) error
-type UpsertFunc func(ctx context.Context, eventType watch.EventType, gvr schema.GroupVersionResource, namespace string, unstrob *unstructured.Unstructured) error
+type UpsertFunc func(ctx context.Context, gvr schema.GroupVersionResource, namespace string, unstrob *unstructured.Unstructured) error
 type DeleteFunc func(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error
 type HandlersProvider func(c *Controller, gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs
 
@@ -582,7 +582,7 @@ func (c *Controller) process(ctx context.Context, h holder) error {
 	}
 
 	if c.upsertFn != nil {
-		return c.upsertFn(ctx, h.eventType, h.gvr, toNamespace, unstrob)
+		return c.upsertFn(ctx, h.gvr, toNamespace, unstrob)
 	}
 
 	return err

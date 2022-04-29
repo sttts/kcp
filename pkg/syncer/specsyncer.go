@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -181,35 +180,33 @@ func (c *Controller) ensureSyncerFinalizer(ctx context.Context, gvr schema.Group
 	name := upstreamObjCopy.GetName()
 	namespace := upstreamObjCopy.GetNamespace()
 
-	// If the advanced scheduling feature is enabled, add the Syncer Finalizer to the upstream object
-	if advancedSchedulingFeatureEnabled {
-		upstreamFinalizers := upstreamObjCopy.GetFinalizers()
-		hasFinalizer := false
-		for _, finalizer := range upstreamFinalizers {
-			if finalizer == syncerFinalizerNamePrefix+c.pcluster {
-				hasFinalizer = true
-			}
+	upstreamFinalizers := upstreamObjCopy.GetFinalizers()
+	hasFinalizer := false
+	for _, finalizer := range upstreamFinalizers {
+		if finalizer == syncerFinalizerNamePrefix+c.pcluster {
+			hasFinalizer = true
 		}
-		if !hasFinalizer {
-			upstreamFinalizers = append(upstreamFinalizers, syncerFinalizerNamePrefix+c.pcluster)
-			upstreamObjCopy.SetFinalizers(upstreamFinalizers)
+	}
+	if !hasFinalizer {
+		upstreamFinalizers = append(upstreamFinalizers, syncerFinalizerNamePrefix+c.pcluster)
+		upstreamObjCopy.SetFinalizers(upstreamFinalizers)
+		if _, err := c.fromClient.Resource(gvr).Namespace(namespace).Update(ctx, upstreamObjCopy, metav1.UpdateOptions{}); err != nil {
+			klog.Errorf("Failed updating to notify syncer ownership on resource %s|%s/%s: %v", c.upstreamClusterName, namespace, name, err)
+			return err
 		}
+		klog.Infof("Updated resource %s|%s/%s to notify syncer ownership", c.upstreamClusterName, namespace, name)
 	}
 
-	if _, err := c.fromClient.Resource(gvr).Namespace(namespace).Update(ctx, upstreamObjCopy, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("Failed updating to notify syncer ownership on resource %s|%s/%s: %v", c.upstreamClusterName, namespace, name, err)
-		return err
-	}
-	klog.Infof("Updated resource %s|%s/%s to notify syncer ownership", c.upstreamClusterName, namespace, name)
 	return nil
 }
 
-func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.EventType, gvr schema.GroupVersionResource, downstreamNamespace string, upstreamObj *unstructured.Unstructured) error {
+func (c *Controller) applyToDownstream(ctx context.Context, gvr schema.GroupVersionResource, downstreamNamespace string, upstreamObj *unstructured.Unstructured) error {
 	if err := c.ensureDownstreamNamespaceExists(ctx, downstreamNamespace, upstreamObj); err != nil {
 		return err
 	}
 
-	if eventType == watch.Added {
+	// If the advanced scheduling feature is enabled, add the Syncer Finalizer to the upstream object
+	if advancedSchedulingFeatureEnabled {
 		if err := c.ensureSyncerFinalizer(ctx, gvr, upstreamObj); err != nil {
 			return err
 		}
