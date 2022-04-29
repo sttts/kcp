@@ -91,7 +91,7 @@ func TestDeepEqualStatus(t *testing.T) {
 		want: true,
 	}} {
 		t.Run(c.desc, func(t *testing.T) {
-			got := deepEqualStatus(c.old, c.new)
+			got := deepEqualFinalizersAndStatus(c.old, c.new)
 			if got != c.want {
 				t.Fatalf("got %t, want %t", got, c.want)
 			}

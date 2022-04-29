@@ -33,7 +33,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func deepEqualStatus(oldObj, newObj interface{}) bool {
+func deepEqualFinalizersAndStatus(oldObj, newObj interface{}) bool {
 	oldUnstrob, isOldObjUnstructured := oldObj.(*unstructured.Unstructured)
 	newUnstrob, isNewObjUnstructured := newObj.(*unstructured.Unstructured)
 	if !isOldObjUnstructured || !isNewObjUnstructured || oldObj == nil || newObj == nil {

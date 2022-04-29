@@ -258,7 +258,7 @@ func New(kcpClusterName logicalcluster.LogicalCluster, pcluster string, fromClie
 						c.AddToQueue(watch.Modified, *gvr, newObj)
 					}
 				} else {
-					if !deepEqualStatus(oldObj, newObj) {
+					if !deepEqualFinalizersAndStatus(oldObj, newObj) {
 						c.AddToQueue(watch.Modified, *gvr, newObj)
 					}
 				}
