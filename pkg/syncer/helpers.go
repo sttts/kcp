@@ -16,6 +16,8 @@ limitations under the License.
 
 package syncer
 
+import "strings"
+
 func LocationDeletionAnnotationName(workloadClusterName string) string {
 	return "deletion.internal.workloads.kcp.dev/" + workloadClusterName
 }
@@ -38,4 +40,23 @@ func SyncerFinalizerName(workloadClusterName string) string {
 
 func WorkloadClusterLabelName(workloadClusterName string) string {
 	return "cluster.internal.workloads.kcp.dev/" + workloadClusterName
+}
+
+func GetAssignedWorkloadCluster(labels map[string]string) string {
+	for k, v := range labels {
+		if strings.HasPrefix(k, WorkloadClusterLabelName("")) && v == "Sync" {
+			return strings.TrimPrefix(k, WorkloadClusterLabelName(""))
+		}
+	}
+	return ""
+}
+
+func GetAssignedWorkloadClusters(labels map[string]string) []string {
+	var clusters []string
+	for k, v := range labels {
+		if strings.HasPrefix(k, WorkloadClusterLabelName("")) && v == "Sync" {
+			clusters = append(clusters, strings.TrimPrefix(k, WorkloadClusterLabelName("")))
+		}
+	}
+	return clusters
 }
