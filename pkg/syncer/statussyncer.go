@@ -71,11 +71,11 @@ func NewStatusSyncer(from, to *rest.Config, gvrs []string, kcpClusterName logica
 }
 
 func (c *Controller) deleteFromUpstream(ctx context.Context, gvr schema.GroupVersionResource, upstreamNamespace, name string) error {
-	return c.removeFinalizersAndUpdate(ctx, c.toClient, gvr, upstreamNamespace, name)
+	return c.removeFinalizersAndUpdate(ctx, gvr, upstreamNamespace, name)
 }
 
-func (c *Controller) removeFinalizersAndUpdate(ctx context.Context, upstreamClient dynamic.Interface, gvr schema.GroupVersionResource, upstreamNamespace, name string) error {
-	upstreamObj, err := upstreamClient.Resource(gvr).Namespace(upstreamNamespace).Get(ctx, name, metav1.GetOptions{})
+func (c *Controller) removeFinalizersAndUpdate(ctx context.Context, gvr schema.GroupVersionResource, upstreamNamespace, name string) error {
+	upstreamObj, err := c.toClient.Resource(gvr).Namespace(upstreamNamespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -115,7 +115,7 @@ func (c *Controller) removeFinalizersAndUpdate(ctx context.Context, upstreamClie
 	upstreamObj.SetLabels(upstreamLabels)
 	// - End of block to be removed once the virtual workspace syncer is integrated -
 
-	if _, err := upstreamClient.Resource(gvr).Namespace(upstreamObj.GetNamespace()).Update(ctx, upstreamObj, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.toClient.Resource(gvr).Namespace(upstreamObj.GetNamespace()).Update(ctx, upstreamObj, metav1.UpdateOptions{}); err != nil {
 		klog.Errorf("Failed updating after removing the finalizers of resource %s|%s/%s: %v", c.upstreamClusterName, upstreamNamespace, upstreamObj.GetName(), err)
 		return err
 	}
