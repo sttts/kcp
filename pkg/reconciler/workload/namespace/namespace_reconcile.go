@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -134,7 +133,12 @@ func (c *Controller) reconcileResource(ctx context.Context, lclusterName logical
 	}
 
 	// Update the resource's assignment.
-	patchType, patchBytes := clusterLabelPatchBytes(previousCluster, newCluster)
+	patchType, patchBytes, err := clusterLabelPatchBytes(previousCluster, newCluster)
+	if err != nil {
+		klog.Errorf("error creating patch for %s %s|%s: %v", gvr.String(), unstr.GetClusterName(), unstr.GetName(), err)
+		return err
+	}
+
 	if _, err = c.dynClient.Cluster(lclusterName).Resource(*gvr).Namespace(ns.Name).
 		Patch(ctx, unstr.GetName(), patchType, patchBytes, metav1.PatchOptions{}); err != nil {
 		return err
@@ -186,7 +190,12 @@ func (c *Controller) ensureScheduled(ctx context.Context, ns *corev1.Namespace) 
 
 	klog.Infof("Patching to update cluster assignment for namespace %s|%s: %s -> %s",
 		ns.ClusterName, ns.Name, oldPClusterName, newPClusterName)
-	patchType, patchBytes := schedulingClusterLabelPatchBytes(oldPClusterName, newPClusterName)
+	patchType, patchBytes, err := schedulingClusterLabelPatchBytes(oldPClusterName, newPClusterName)
+	if err != nil {
+		klog.Errorf("Failed to create patch for cluster assignment: %v", err)
+		return err
+	}
+
 	patchedNamespace, err := c.kubeClient.Cluster(logicalcluster.From(ns)).CoreV1().Namespaces().
 		Patch(ctx, ns.Name, patchType, patchBytes, metav1.PatchOptions{})
 	if err == nil {
@@ -314,79 +323,48 @@ func (c *Controller) setNamepaceContentsEnqueuedFor(ns *corev1.Namespace) {
 // clusterLabelPatchBytes returns JSON patch bytes expressing an operation
 // to add, replace to the given value, or delete the cluster assignment label on
 // a resource.
-func clusterLabelPatchBytes(old, new string) (types.PatchType, []byte) {
-	var patchLines []string
+func clusterLabelPatchBytes(old, new string) (types.PatchType, []byte, error) {
+	patches := make(map[string]interface{})
 
-	beginPatch := `
-{
-  "metadata":{
-    "labels":{
-`
-	endPatch := `
-    }
-  }
-}`
-
-	if new == "" {
-		patchLines = []string{
-			fmt.Sprintf("%q: %s", syncer.WorkloadClusterLabelName(old), "null"),
-		}
-		return types.MergePatchType, []byte(fmt.Sprintf("%s%s%s", beginPatch, strings.Join(patchLines, "\n"), endPatch))
+	if new == "" && old != "" {
+		patches[syncer.WorkloadClusterLabelName(old)] = nil
+	} else if new != "" && old == "" {
+		patches[syncer.WorkloadClusterLabelName(new)] = "Sync"
+	} else {
+		patches[syncer.WorkloadClusterLabelName(old)] = nil
+		patches[syncer.WorkloadClusterLabelName(new)] = "Sync"
 	}
 
-	if old == "" {
-		patchLines = []string{
-			fmt.Sprintf("%q: %q", syncer.WorkloadClusterLabelName(new), "Sync"),
-		}
-		return types.MergePatchType, []byte(fmt.Sprintf("%s%s%s", beginPatch, strings.Join(patchLines, "\n"), endPatch))
+	bs, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"labels": patches}})
+	if err != nil {
+		return "", nil, err
 	}
-
-	patchLines = []string{
-		fmt.Sprintf("%q: %s,", syncer.WorkloadClusterLabelName(old), "null"),
-		fmt.Sprintf("%q: %q", syncer.WorkloadClusterLabelName(new), "Sync"),
-	}
-
-	return types.MergePatchType, []byte(fmt.Sprintf("%s%s%s", beginPatch, strings.Join(patchLines, "\n"), endPatch))
+	return types.MergePatchType, bs, nil
 }
 
 // schedulingClusterLabelPatchBytes returns JSON patch bytes expressing an operation
 // to add, replace to the given value, or delete the cluster assignment label on a
 // namespace.
-func schedulingClusterLabelPatchBytes(oldClusterName, newClusterName string) (types.PatchType, []byte) {
-	var patchLines []string
+func schedulingClusterLabelPatchBytes(oldClusterName, newClusterName string) (types.PatchType, []byte, error) {
+	patches := make(map[string]interface{})
 
-	beginPatch := `
-{
-  "metadata":{
-    "labels":{
-`
-	endPatch := `
-    }
-  }
-}`
-	if newClusterName == "" {
-		patchLines = []string{
-			fmt.Sprintf("%q: %s,", ScheduledClusterLabel, "null"),
-			fmt.Sprintf("%q: %s", syncer.WorkloadClusterLabelName(oldClusterName), "null"),
-		}
-		return types.MergePatchType, []byte(fmt.Sprintf("%s%s%s", beginPatch, strings.Join(patchLines, "\n"), endPatch))
+	if newClusterName == "" && oldClusterName != "" {
+		patches[ScheduledClusterLabel] = nil
+		patches[syncer.WorkloadClusterLabelName(oldClusterName)] = nil
+	} else if newClusterName != "" && oldClusterName == "" {
+		patches[ScheduledClusterLabel] = newClusterName
+		patches[syncer.WorkloadClusterLabelName(newClusterName)] = "Sync"
+	} else {
+		patches[ScheduledClusterLabel] = newClusterName
+		patches[syncer.WorkloadClusterLabelName(oldClusterName)] = nil
+		patches[syncer.WorkloadClusterLabelName(newClusterName)] = "Sync"
 	}
 
-	if oldClusterName == "" {
-		patchLines = []string{
-			fmt.Sprintf("%q: %q,", ScheduledClusterLabel, newClusterName),
-			fmt.Sprintf("%q: %q", syncer.WorkloadClusterLabelName(newClusterName), "Sync"),
-		}
-		return types.MergePatchType, []byte(fmt.Sprintf("%s%s%s", beginPatch, strings.Join(patchLines, "\n"), endPatch))
+	bs, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"labels": patches}})
+	if err != nil {
+		return "", nil, err
 	}
-
-	patchLines = []string{
-		fmt.Sprintf("%q: %q,", ScheduledClusterLabel, newClusterName),
-		fmt.Sprintf("%q: %s,", syncer.WorkloadClusterLabelName(oldClusterName), "null"),
-		fmt.Sprintf("%q: %q", syncer.WorkloadClusterLabelName(newClusterName), "Sync"),
-	}
-
-	return types.MergePatchType, []byte(fmt.Sprintf("%s%s%s", beginPatch, strings.Join(patchLines, "\n"), endPatch))
+	return types.MergePatchType, bs, nil
 }
 
 // observeCluster is responsible for watching to see if the Cluster is happy;
