@@ -33,6 +33,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kcp-dev/kcp/pkg/syncer"
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 )
 
 const (
@@ -224,7 +225,7 @@ func (c *Controller) desiredLeaves(ctx context.Context, root *networkingv1.Ingre
 		vd.Name = root.Name + "-" + cl
 
 		vd.Labels = map[string]string{}
-		vd.Labels[syncer.WorkloadClusterLabelName(cl)] = "Sync"
+		vd.Labels[syncer.WorkloadClusterLabelName(cl)] = string(workloadv1alpha1.ResourceStateSync)
 
 		// Label the leaf with the rootIngress information, so we can construct the ingress key
 		// from it.

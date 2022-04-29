@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	workloadv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/workload/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/syncer"
 )
 
@@ -152,7 +153,7 @@ func (c *Controller) createLeafs(ctx context.Context, root *appsv1.Deployment) e
 		if vd.Labels == nil {
 			vd.Labels = map[string]string{}
 		}
-		vd.Labels[syncer.WorkloadClusterLabelName(cl.Name)] = "Sync"
+		vd.Labels[syncer.WorkloadClusterLabelName(cl.Name)] = string(workloadv1alpha1.ResourceStateSync)
 		vd.Labels[ownedByLabel] = root.Name
 
 		replicasToSet := replicasEach

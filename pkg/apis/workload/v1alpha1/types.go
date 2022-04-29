@@ -16,6 +16,19 @@ limitations under the License.
 
 package v1alpha1
 
+type ResourceState string
+
+const (
+	// ResourceStatePending is the initial state of a resource after placement onto
+	// workload cluster. Either some workload controller or some external coordination
+	// controller will set this to "Sync" when the resource is ready to be synced.
+	ResourceStatePending ResourceState = ""
+	// ResourceStateSync is the state of a resource when it is synced to the workload cluster.
+	// This includes the deletion process until the resource is deleted downstream and the
+	// syncer removes the state.internal.workloads.kcp.dev/<workload-cluster-name> label.
+	ResourceStateSync ResourceState = "Sync"
+)
+
 const (
 	// InternalClusterDeletionTimestampAnnotationPrefix is the prefix of the annotation
 	//
@@ -42,7 +55,7 @@ const (
 	// TODO(sttts): use workload-cluster-uid instead of workload-cluster-name
 	ClusterFinalizerAnnotationPrefix = "finalizers.workloads.kcp.dev/"
 
-	// InternalWorkloadClusterStateLabelPrefix is the prefix of the label
+	// InternalClusterResourceStateLabelPrefix is the prefix of the label
 	//
 	//   state.internal.workloads.kcp.dev/<workload-cluster-name>
 	//
@@ -55,13 +68,17 @@ const (
 	//       controller will have to set the value to "Sync" after initializion in order to
 	//       start the sync process.
 	// - "Sync": the object is assigned and the syncer will start the sync process.
-	// - "Delete": the object is assigned and the syncer will start the deletion procedure.
-	//             Deletion is blocked if finalizers.workloads.kcp.dev/<workload-cluster-name>
-	//             is non-empty.
+	//
+	// While being in "Sync" state, a deletion timestamp in deletion.internal.workloads.kcp.dev/<workload-cluster-name>
+	// will signal the start of the deletion process of the object. During the deletion process
+	// the object will stay in "Sync" state. The syncer will block deletion while
+	// finalizers.workloads.kcp.dev/<workload-cluster-name> exists and is non-empty, and it
+	// will eventually remove state.internal.workloads.kcp.dev/<workload-cluster-name> after
+	// the object has been deleted downstream.
 	//
 	// The workload controllers will consider the object deleted from the workload cluster when
 	// the label is removed. They then set the placement state to "Unbound".
-	InternalWorkloadClusterStateLabelPrefix = "state.internal.workloads.kcp.dev/"
+	InternalClusterResourceStateLabelPrefix = "state.internal.workloads.kcp.dev/"
 
 	// InternalClusterStatusAnnotationPrefix is the prefix of the annotation
 	//

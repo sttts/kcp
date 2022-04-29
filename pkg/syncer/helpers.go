@@ -23,7 +23,7 @@ import (
 )
 
 func WorkloadClusterLabelName(workloadClusterName string) string {
-	return workloadv1alpha1.InternalWorkloadClusterStateLabelPrefix + workloadClusterName
+	return workloadv1alpha1.InternalClusterResourceStateLabelPrefix + workloadClusterName
 }
 
 // DeprecatedGetAssignedWorkloadCluster returns one assigned workload cluster in Sync state. It will
@@ -32,7 +32,7 @@ func WorkloadClusterLabelName(workloadClusterName string) string {
 // Deprecated: use GetResourceState per cluster instead.
 func DeprecatedGetAssignedWorkloadCluster(labels map[string]string) string {
 	for k, v := range labels {
-		if strings.HasPrefix(k, WorkloadClusterLabelName("")) && v == "Sync" {
+		if strings.HasPrefix(k, WorkloadClusterLabelName("")) && v == string(workloadv1alpha1.ResourceStateSync) {
 			return strings.TrimPrefix(k, WorkloadClusterLabelName(""))
 		}
 	}
