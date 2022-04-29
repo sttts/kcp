@@ -50,11 +50,10 @@ func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
 	// remove status annotation from oldObj and newObj before comparing
 	oldAnnotations := oldUnstrob.GetAnnotations()
 	for k := range oldAnnotations {
-		if strings.HasPrefix(k, LocationStatusAnnotationName("")) {
+		if !strings.HasPrefix(k, LocationStatusAnnotationName("")) {
 			delete(oldAnnotations, k)
 		}
 	}
-	oldUnstrob.SetAnnotations(oldAnnotations)
 
 	newAnnotations := newUnstrob.GetAnnotations()
 	for k := range newAnnotations {
@@ -62,9 +61,8 @@ func deepEqualApartFromStatus(oldObj, newObj interface{}) bool {
 			delete(newAnnotations, k)
 		}
 	}
-	newUnstrob.SetAnnotations(newAnnotations)
 
-	if !equality.Semantic.DeepEqual(oldUnstrob.GetAnnotations(), newUnstrob.GetAnnotations()) {
+	if !equality.Semantic.DeepEqual(oldAnnotations, newAnnotations) {
 		return false
 	}
 	if !equality.Semantic.DeepEqual(oldUnstrob.GetLabels(), newUnstrob.GetLabels()) {
