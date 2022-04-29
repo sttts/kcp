@@ -286,7 +286,7 @@ func (c *Controller) applyToDownstream(ctx context.Context, eventType watch.Even
 			if errors.IsNotFound(err) {
 				// That's not an error.
 				// Just think about removing the finalizer from the KCP location-specific resource:
-				if err := c.removeFinalizersAndUpdate(ctx, gvr, upstreamObj.GetNamespace(), upstreamObj.GetName()); err != nil {
+				if err := c.removeUpstreamSyncerOwnership(ctx, gvr, upstreamObj.GetNamespace(), upstreamObj.GetName()); err != nil {
 					return err
 				}
 				return nil

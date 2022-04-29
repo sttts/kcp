@@ -71,10 +71,10 @@ func NewStatusSyncer(from, to *rest.Config, gvrs []string, kcpClusterName logica
 }
 
 func (c *Controller) deleteFromUpstream(ctx context.Context, gvr schema.GroupVersionResource, upstreamNamespace, name string) error {
-	return c.removeFinalizersAndUpdate(ctx, gvr, upstreamNamespace, name)
+	return c.removeUpstreamSyncerOwnership(ctx, gvr, upstreamNamespace, name)
 }
 
-func (c *Controller) removeFinalizersAndUpdate(ctx context.Context, gvr schema.GroupVersionResource, upstreamNamespace, name string) error {
+func (c *Controller) removeUpstreamSyncerOwnership(ctx context.Context, gvr schema.GroupVersionResource, upstreamNamespace, name string) error {
 	upstreamObj, err := c.toClient.Resource(gvr).Namespace(upstreamNamespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
