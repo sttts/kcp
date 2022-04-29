@@ -42,9 +42,9 @@ const (
 	// TODO(sttts): use workload-cluster-uid instead of workload-cluster-name
 	ClusterFinalizerAnnotationPrefix = "finalizers.workloads.kcp.dev/"
 
-	// InternalClusterStateLabelPrefix is the prefix of the label
+	// InternalWorkloadClusterStateLabelPrefix is the prefix of the label
 	//
-	//   cluster.internal.workloads.kcp.dev/<workload-cluster-name>
+	//   state.internal.workloads.kcp.dev/<workload-cluster-name>
 	//
 	// on upstream resources storing the state of the workload cluster syncer state machine.
 	// The workload controllers will set this label and the syncer will react and drive the
@@ -61,7 +61,7 @@ const (
 	//
 	// The workload controllers will consider the object deleted from the workload cluster when
 	// the label is removed. They then set the placement state to "Unbound".
-	InternalClusterStateLabelPrefix = "cluster.internal.workloads.kcp.dev/"
+	InternalWorkloadClusterStateLabelPrefix = "state.internal.workloads.kcp.dev/"
 
 	// InternalClusterStatusAnnotationPrefix is the prefix of the annotation
 	//

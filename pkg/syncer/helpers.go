@@ -43,7 +43,7 @@ func SyncerFinalizerName(workloadClusterName string) string {
 }
 
 func WorkloadClusterLabelName(workloadClusterName string) string {
-	return workloadv1alpha1.InternalClusterStateLabelPrefix + workloadClusterName
+	return workloadv1alpha1.InternalWorkloadClusterStateLabelPrefix + workloadClusterName
 }
 
 func GetAssignedWorkloadCluster(labels map[string]string) string {
