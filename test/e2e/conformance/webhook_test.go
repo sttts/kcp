@@ -18,7 +18,7 @@ package conformance
 
 import (
 	"context"
-	"sync"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -65,7 +65,7 @@ func TestMutatingWebhookInWorkspace(t *testing.T) {
 	codecs := serializer.NewCodecFactory(scheme)
 	deserializer := codecs.UniversalDeserializer()
 
-	testWebhook := webhookserver.WebhookServer{
+	testWebhook := webhookserver.AdmissionWebhookServer{
 		Response: v1.AdmissionResponse{
 			Allowed: true,
 		},
@@ -74,14 +74,13 @@ func TestMutatingWebhookInWorkspace(t *testing.T) {
 			Version: "v1alpha1",
 			Kind:    "Cowboy",
 		},
-		T:            t,
-		Lock:         sync.Mutex{},
 		Deserializer: deserializer,
 	}
 
 	port, err := framework.GetFreePort(t)
 	require.NoError(t, err, "failed to get free port for test webhook")
-	testWebhook.StartServer(ctx, server, port)
+	dirPath := filepath.Dir(server.KubeconfigPath())
+	testWebhook.StartTLS(t, filepath.Join(dirPath, "apiserver.crt"), filepath.Join(dirPath, "apiserver.key"), port)
 
 	organization := framework.NewOrganizationFixture(t, server)
 	logicalClusters := []logicalcluster.LogicalCluster{
@@ -105,13 +104,14 @@ func TestMutatingWebhookInWorkspace(t *testing.T) {
 
 	t.Logf("Installing webhook into the first workspace")
 	sideEffect := admissionregistrationv1.SideEffectClassNone
+	url := testWebhook.GetURL()
 	webhook := &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: "test-webhook"},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{{
 			Name: "test-webhook.cowboy.io",
 			ClientConfig: admissionregistrationv1.WebhookClientConfig{
-				URL:      testWebhook.GetURL(),
+				URL:      &url,
 				CABundle: cfg.CAData,
 			},
 			Rules: []admissionregistrationv1.RuleWithOperations{{
@@ -148,7 +148,7 @@ func TestMutatingWebhookInWorkspace(t *testing.T) {
 		return true
 
 	}, wait.ForeverTestTimeout, 100*time.Millisecond)
-	require.Equal(t, 0, testWebhook.Calls, "expected that the webhook is not called for logical cluster where webhook is not installed")
+	require.Equal(t, 0, testWebhook.Calls(), "expected that the webhook is not called for logical cluster where webhook is not installed")
 
 	t.Logf("Creating cowboy resource in first logical cluster")
 	require.Eventually(t, func() bool {
@@ -160,10 +160,10 @@ func TestMutatingWebhookInWorkspace(t *testing.T) {
 
 	}, wait.ForeverTestTimeout, 100*time.Millisecond)
 
-	//Avoid race condition where webhook informer is not updated before the call to create was made.
+	// Avoid race condition where webhook informer is not updated before the call to create was made.
 	t.Log("Verify webhook is eventually called")
 	require.Eventually(t, func() bool {
-		return testWebhook.Calls == 1
+		return testWebhook.Calls() == 1
 	}, wait.ForeverTestTimeout, 100*time.Millisecond)
 }
 
@@ -189,7 +189,7 @@ func TestValidatingWebhookInWorkspace(t *testing.T) {
 	codecs := serializer.NewCodecFactory(scheme)
 	deserializer := codecs.UniversalDeserializer()
 
-	testWebhook := webhookserver.WebhookServer{
+	testWebhook := webhookserver.AdmissionWebhookServer{
 		Response: v1.AdmissionResponse{
 			Allowed: true,
 		},
@@ -198,14 +198,13 @@ func TestValidatingWebhookInWorkspace(t *testing.T) {
 			Version: "v1alpha1",
 			Kind:    "Cowboy",
 		},
-		T:            t,
-		Lock:         sync.Mutex{},
 		Deserializer: deserializer,
 	}
 
 	port, err := framework.GetFreePort(t)
 	require.NoError(t, err, "failed to get free port for test webhook")
-	testWebhook.StartServer(ctx, server, port)
+	dirPath := filepath.Dir(server.KubeconfigPath())
+	testWebhook.StartTLS(t, filepath.Join(dirPath, "apiserver.crt"), filepath.Join(dirPath, "apiserver.key"), port)
 
 	organization := framework.NewOrganizationFixture(t, server)
 	logicalClusters := []logicalcluster.LogicalCluster{
@@ -229,13 +228,14 @@ func TestValidatingWebhookInWorkspace(t *testing.T) {
 
 	t.Logf("Installing webhook into the first workspace")
 	sideEffect := admissionregistrationv1.SideEffectClassNone
+	url := testWebhook.GetURL()
 	webhook := &admissionregistrationv1.ValidatingWebhookConfiguration{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: "test-webhook"},
 		Webhooks: []admissionregistrationv1.ValidatingWebhook{{
 			Name: "test-webhook.cowboy.io",
 			ClientConfig: admissionregistrationv1.WebhookClientConfig{
-				URL:      testWebhook.GetURL(),
+				URL:      &url,
 				CABundle: cfg.CAData,
 			},
 			Rules: []admissionregistrationv1.RuleWithOperations{{
@@ -272,7 +272,7 @@ func TestValidatingWebhookInWorkspace(t *testing.T) {
 		return true
 
 	}, wait.ForeverTestTimeout, 100*time.Millisecond)
-	require.Equal(t, 0, testWebhook.Calls, "expected that the webhook is not called for logical cluster where webhook is not installed")
+	require.Equal(t, 0, testWebhook.Calls(), "expected that the webhook is not called for logical cluster where webhook is not installed")
 
 	t.Logf("Creating cowboy resource in first logical cluster")
 	require.Eventually(t, func() bool {
@@ -287,6 +287,6 @@ func TestValidatingWebhookInWorkspace(t *testing.T) {
 	//Avoid race condition where webhook informer is not updated before the call to create was made.
 	t.Log("Verify webhook is eventually called")
 	require.Eventually(t, func() bool {
-		return testWebhook.Calls == 1
+		return testWebhook.Calls() == 1
 	}, wait.ForeverTestTimeout, 100*time.Millisecond)
 }
