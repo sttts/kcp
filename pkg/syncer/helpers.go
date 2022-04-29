@@ -23,7 +23,7 @@ import (
 )
 
 func WorkloadClusterLabelName(workloadClusterName string) string {
-	return workloadv1alpha1.InternalWorkloadClusterStateLabelPrefix + workloadClusterName
+	return workloadv1alpha1.InternalClusterResourceStateLabelPrefix + workloadClusterName
 }
 
 // DeprecatedGetAssignedWorkloadCluster returns one assigned workload cluster in Sync state. It will
