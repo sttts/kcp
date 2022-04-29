@@ -157,7 +157,7 @@ func (c *Controller) ensureDownstreamNamespaceExists(ctx context.Context, downst
 	if upstreamObj.GetLabels() != nil {
 		newNamespace.SetLabels(map[string]string{
 			// TODO: this should be set once at syncer startup and propagated around everywhere.
-			WorkloadClusterLabelName(c.pcluster): workloadv1alpha1.ResourceStateSync,
+			WorkloadClusterLabelName(c.pcluster): string(workloadv1alpha1.ResourceStateSync),
 		})
 	}
 
