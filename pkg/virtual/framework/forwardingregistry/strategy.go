@@ -38,13 +38,22 @@ import (
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 )
 
-var typerSchema = runtime.NewScheme()
+var typerScheme = runtime.NewScheme()
 
 func init() {
-	_ = tenancyv1alpha1.AddToScheme(typerSchema)
+	if err := tenancyv1alpha1.AddToScheme(typerScheme); err != nil {
+		panic(err)
+	}
 }
 
-func NewStrategy(typer runtime.ObjectTyper, namespaceScoped bool, kind schema.GroupVersionKind, schemaValidator, statusSchemaValidator *validate.SchemaValidator, structuralSchema *structuralschema.Structural, statusEnabled bool) strategy {
+// NewStrategy returns a strategy built from the given arguments
+func NewStrategy(
+	typer runtime.ObjectTyper,
+	namespaceScoped bool,
+	kind schema.GroupVersionKind,
+	schemaValidator, statusSchemaValidator *validate.SchemaValidator,
+	structuralSchema *structuralschema.Structural,
+	statusEnabled bool) strategy {
 	return strategy{
 		ObjectTyper:     typer,
 		NameGenerator:   names.SimpleNameGenerator,
@@ -113,14 +122,15 @@ func (s strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object)
 	newCustomResource := newCustomResourceObject.UnstructuredContent()
 	oldCustomResource := oldCustomResourceObject.UnstructuredContent()
 
-	// If the /status subresource endpoint is installed, update is not allowed to set status.
+	// If the /status subresource endpoint is installed, update will not set the status.
+	// Setting the status will only be possible by calling update on the status sub-resource.
 	if s.statusEnabled {
-		_, ok1 := newCustomResource["status"]
-		_, ok2 := oldCustomResource["status"]
+		_, oldStatusExists := oldCustomResource["status"]
+		_, newStatusExists := newCustomResource["status"]
 		switch {
-		case ok2:
+		case oldStatusExists:
 			newCustomResource["status"] = oldCustomResource["status"]
-		case ok1:
+		case newStatusExists:
 			delete(newCustomResource, "status")
 		}
 	}

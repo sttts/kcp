@@ -42,8 +42,8 @@ type ClientGetter interface {
 	GetDynamicClient(ctx context.Context) (dynamic.Interface, error)
 }
 
-// ForwardingREST is a REST stofzage implementation that forwards the requests to a
-// client-go dynamic client chosen based on the curret request context.
+// ForwardingREST is a REST storage implementation that forwards the requests to a
+// client-go dynamic client chosen based on the current request context.
 type ForwardingREST struct {
 	// createStrategy allows extended behavior during creation, required
 	createStrategy rest.RESTCreateStrategy
@@ -71,10 +71,17 @@ var _ rest.Getter = &ForwardingREST{}
 var _ rest.Updater = &ForwardingREST{}
 
 // NewForwardingREST returns a REST storage that forwards calls to a dynamic client
-func NewForwardingREST(resource schema.GroupVersionResource, kind, listKind schema.GroupVersionKind, strategy strategy, tableConvertor rest.TableConvertor, clientGetter ClientGetter, patchConflictRetryBackoff *wait.Backoff) (*ForwardingREST, *StatusREST) {
+func NewForwardingREST(
+	resource schema.GroupVersionResource,
+	kind, listKind schema.GroupVersionKind,
+	strategy strategy,
+	tableConvertor rest.TableConvertor,
+	clientGetter ClientGetter,
+	patchConflictRetryBackoff *wait.Backoff) (*ForwardingREST, *StatusREST) {
 	if patchConflictRetryBackoff == nil {
 		patchConflictRetryBackoff = &retry.DefaultRetry
 	}
+
 	mainREST := &ForwardingREST{
 		createStrategy:      strategy,
 		updateStrategy:      strategy,
@@ -90,9 +97,11 @@ func NewForwardingREST(resource schema.GroupVersionResource, kind, listKind sche
 
 		patchConflictRetryBackoff: *patchConflictRetryBackoff,
 	}
+
 	statusMainREST := *mainREST
 	statusMainREST.subResources = []string{"status"}
 	statusMainREST.updateStrategy = NewStatusStrategy(strategy)
+
 	return mainREST,
 		&StatusREST{
 			mainREST: &statusMainREST,
@@ -105,15 +114,14 @@ func (s *ForwardingREST) getClientResource(ctx context.Context) (dynamic.Resourc
 		return nil, err
 	}
 
-	if s.createStrategy.NamespaceScoped() {
-		if namespace, ok := genericapirequest.NamespaceFrom(ctx); ok {
-			return client.Resource(s.resource).Namespace(namespace), nil
-		} else {
-			return nil, fmt.Errorf("there should be a Namespace context in a request for a namespaced resource: %s", s.resource.String())
-		}
-	} else {
+	if !s.createStrategy.NamespaceScoped() {
 		return client.Resource(s.resource), nil
 	}
+	namespace, hasNamespace := genericapirequest.NamespaceFrom(ctx)
+	if !hasNamespace {
+		return nil, fmt.Errorf("there should be a Namespace context in a request for a namespaced resource: %s", s.resource.String())
+	}
+	return client.Resource(s.resource).Namespace(namespace), nil
 }
 
 // New implements rest.Updater.
@@ -186,9 +194,9 @@ func (s *ForwardingREST) Update(ctx context.Context, name string, objInfo rest.U
 			return nil, err
 		}
 
-		unstructuredObj, ok := obj.(*unstructured.Unstructured)
-		if !ok {
-			return nil, fmt.Errorf("not an Unstructured: %#v", obj)
+		unstructuredObj, isUnstructured := obj.(*unstructured.Unstructured)
+		if !isUnstructured {
+			return nil, fmt.Errorf("Updated object for %s(%s) not an Unstructured: %T", s.resource.String(), name, obj)
 		}
 
 		s.updateStrategy.PrepareForUpdate(ctx, obj, oldObj)
