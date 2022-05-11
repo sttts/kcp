@@ -38,12 +38,12 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
 // resourceHandler serves the `/apis` and `/api`` endpoints.
 type resourceHandler struct {
-	apiSetRetriever         apidefs.APIDefinitionSetGetter
+	apiSetRetriever         apidefinition.APIDefinitionSetGetter
 	versionDiscoveryHandler *versionDiscoveryHandler
 	groupDiscoveryHandler   *groupDiscoveryHandler
 	rootDiscoveryHandler    *rootDiscoveryHandler
@@ -67,7 +67,7 @@ type resourceHandler struct {
 }
 
 func newResourceHandler(
-	apiSetRetriever apidefs.APIDefinitionSetGetter,
+	apiSetRetriever apidefinition.APIDefinitionSetGetter,
 	versionDiscoveryHandler *versionDiscoveryHandler,
 	groupDiscoveryHandler *groupDiscoveryHandler,
 	rootDiscoveryHandler *rootDiscoveryHandler,
@@ -128,7 +128,7 @@ func (r *resourceHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	locationKey := ctx.Value(apidefs.APIDomainKeyContextKey).(string)
+	locationKey := ctx.Value(apidefinition.APIDomainKeyContextKey).(string)
 
 	apiDefs, _ := r.apiSetRetriever.GetAPIDefinitionSet(locationKey)
 	apiDef, exists := apiDefs[schema.GroupVersionResource{
@@ -201,7 +201,7 @@ func (r *resourceHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (r *resourceHandler) serveResource(w http.ResponseWriter, req *http.Request, requestInfo *apirequest.RequestInfo, apiDef apidefs.APIDefinition, supportedTypes []string) http.HandlerFunc {
+func (r *resourceHandler) serveResource(w http.ResponseWriter, req *http.Request, requestInfo *apirequest.RequestInfo, apiDef apidefinition.APIDefinition, supportedTypes []string) http.HandlerFunc {
 	requestScope := apiDef.GetRequestScope()
 	storage := apiDef.GetStorage()
 
@@ -254,7 +254,7 @@ func (r *resourceHandler) serveResource(w http.ResponseWriter, req *http.Request
 	return nil
 }
 
-func (r *resourceHandler) serveStatus(w http.ResponseWriter, req *http.Request, requestInfo *apirequest.RequestInfo, apiDef apidefs.APIDefinition, supportedTypes []string) http.HandlerFunc {
+func (r *resourceHandler) serveStatus(w http.ResponseWriter, req *http.Request, requestInfo *apirequest.RequestInfo, apiDef apidefinition.APIDefinition, supportedTypes []string) http.HandlerFunc {
 	requestScope := apiDef.GetSubResourceRequestScope("status")
 	storage := apiDef.GetSubResourceStorage("status")
 

@@ -22,7 +22,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
 	"github.com/kcp-dev/kcp/pkg/virtual/framework"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
 var _ framework.VirtualWorkspace = (*DynamicVirtualWorkspace)(nil)
@@ -37,7 +37,7 @@ type DynamicVirtualWorkspace struct {
 	// BootstrapAPISetManagement creates, initializes and returns an apidefs.APISetRetriever.
 	// Usually it would also setup some logic that will call the apiserver.CreateServingInfoFor() method
 	// to add an apidefs.APIDefinition in the apidefs.APISetRetriever on some event.
-	BootstrapAPISetManagement func(mainConfig genericapiserver.CompletedConfig) (apidefs.APIDefinitionSetGetter, error)
+	BootstrapAPISetManagement func(mainConfig genericapiserver.CompletedConfig) (apidefinition.APIDefinitionSetGetter, error)
 }
 
 func (vw *DynamicVirtualWorkspace) GetName() string {

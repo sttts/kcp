@@ -40,23 +40,22 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	apiDefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
-type mockedAPISetRetriever apiDefs.APIDefinitionSet
+type mockedAPISetRetriever apidefinition.APIDefinitionSet
 
-var _ apiDefs.APIDefinitionSetGetter = (*mockedAPISetRetriever)(nil)
+var _ apidefinition.APIDefinitionSetGetter = (*mockedAPISetRetriever)(nil)
 
-func (masr mockedAPISetRetriever) GetAPIDefinitionSet(apiDomainKey string) (apis apidefs.APIDefinitionSet, apisExist bool) {
-	return apiDefs.APIDefinitionSet(masr), true
+func (masr mockedAPISetRetriever) GetAPIDefinitionSet(apiDomainKey string) (apis apidefinition.APIDefinitionSet, apisExist bool) {
+	return apidefinition.APIDefinitionSet(masr), true
 }
 
 type mockedAPIDefinition struct {
 	apiResourceSpec *v1alpha1.CommonAPIResourceSpec
 }
 
-var _ apiDefs.APIDefinition = (*mockedAPIDefinition)(nil)
+var _ apidefinition.APIDefinition = (*mockedAPIDefinition)(nil)
 
 func (apiDef *mockedAPIDefinition) GetAPIResourceSpec() *v1alpha1.CommonAPIResourceSpec {
 	return apiDef.apiResourceSpec
@@ -524,7 +523,7 @@ func TestRouting(t *testing.T) {
 					}
 
 					req = req.WithContext(apirequest.WithRequestInfo(
-						context.WithValue(req.Context(), apiDefs.APIDomainKeyContextKey, "domain"),
+						context.WithValue(req.Context(), apidefinition.APIDomainKeyContextKey, "domain"),
 						&apirequest.RequestInfo{
 							Verb:              tc.Verb,
 							Resource:          tc.Resource,

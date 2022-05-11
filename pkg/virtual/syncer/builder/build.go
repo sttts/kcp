@@ -34,7 +34,7 @@ import (
 	kcpinformer "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
 	"github.com/kcp-dev/kcp/pkg/virtual/framework"
 	virtualworkspacesdynamic "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	apidefinition "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apiserver"
 	"github.com/kcp-dev/kcp/pkg/virtual/syncer"
 	"github.com/kcp-dev/kcp/pkg/virtual/syncer/controllers"
@@ -98,7 +98,7 @@ func BuildVirtualWorkspace(rootPathPrefix string, dynamicClusterClient dynamic.C
 				return
 			}
 
-			completedContext = context.WithValue(completedContext, apidefs.APIDomainKeyContextKey, workloadClusterKey)
+			completedContext = context.WithValue(completedContext, apidefinition.APIDomainKeyContextKey, workloadClusterKey)
 			prefixToStrip = strings.TrimSuffix(urlPath, realPath)
 			accepted = true
 			return
@@ -109,13 +109,13 @@ func BuildVirtualWorkspace(rootPathPrefix string, dynamicClusterClient dynamic.C
 			}
 			return nil
 		},
-		BootstrapAPISetManagement: func(mainConfig genericapiserver.CompletedConfig) (apidefs.APIDefinitionSetGetter, error) {
+		BootstrapAPISetManagement: func(mainConfig genericapiserver.CompletedConfig) (apidefinition.APIDefinitionSetGetter, error) {
 
 			clusterInformer := wildcardKcpInformers.Workload().V1alpha1().WorkloadClusters().Informer()
 			apiResourceImportInformer := wildcardKcpInformers.Apiresource().V1alpha1().APIResourceImports()
 			negotiatedAPIResourceInformer := wildcardKcpInformers.Apiresource().V1alpha1().NegotiatedAPIResources()
 
-			installedAPIs = newInstalledAPIs(func(logicalClusterName logicalcluster.Name, spec *apiresourcev1alpha1.CommonAPIResourceSpec) (apidefs.APIDefinition, error) {
+			installedAPIs = newInstalledAPIs(func(logicalClusterName logicalcluster.Name, spec *apiresourcev1alpha1.CommonAPIResourceSpec) (apidefinition.APIDefinition, error) {
 				return apiserver.CreateServingInfoFor(mainConfig, logicalClusterName, spec, provideForwardingRestStorage(&clusterAwareClientGetter{
 					clusterInterface: dynamicClusterClient,
 				}))

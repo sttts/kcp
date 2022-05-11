@@ -30,7 +30,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
 	virtualcontext "github.com/kcp-dev/kcp/pkg/virtual/framework/context"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
 var (
@@ -58,7 +58,7 @@ func init() {
 
 // DynamicAPIServerExtraConfig contains additional configuration for the DynamicAPIServer
 type DynamicAPIServerExtraConfig struct {
-	APISetRetriever apidefs.APIDefinitionSetGetter
+	APISetRetriever apidefinition.APIDefinitionSetGetter
 }
 
 // DynamicAPIServerConfig contains the configuration for the DynamicAPIServer
@@ -71,7 +71,7 @@ type DynamicAPIServerConfig struct {
 // dynamically serve resources based on an API definitions (provided by the APISetRetriever).
 type DynamicAPIServer struct {
 	GenericAPIServer *genericapiserver.GenericAPIServer
-	APISetRetriever  apidefs.APIDefinitionSetGetter
+	APISetRetriever  apidefinition.APIDefinitionSetGetter
 }
 
 type completedConfig struct {

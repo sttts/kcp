@@ -22,24 +22,24 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	apidefinition "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 	"github.com/kcp-dev/kcp/pkg/virtual/syncer"
 )
 
 var _ syncer.WorkloadClusterAPIManager = (*installedAPIs)(nil)
-var _ apidefs.APIDefinitionSetGetter = (*installedAPIs)(nil)
+var _ apidefinition.APIDefinitionSetGetter = (*installedAPIs)(nil)
 
 type installedAPIs struct {
-	createAPIDefinition apidefs.CreateAPIDefinitionFunc
+	createAPIDefinition apidefinition.CreateAPIDefinitionFunc
 
 	mutex   sync.RWMutex
-	apiSets map[string]apidefs.APIDefinitionSet
+	apiSets map[string]apidefinition.APIDefinitionSet
 }
 
-func newInstalledAPIs(createAPIDefinition apidefs.CreateAPIDefinitionFunc) *installedAPIs {
+func newInstalledAPIs(createAPIDefinition apidefinition.CreateAPIDefinitionFunc) *installedAPIs {
 	return &installedAPIs{
 		createAPIDefinition: createAPIDefinition,
-		apiSets:             make(map[string]apidefs.APIDefinitionSet),
+		apiSets:             make(map[string]apidefinition.APIDefinitionSet),
 	}
 }
 
@@ -49,7 +49,7 @@ func (apis *installedAPIs) addWorkloadCluster(workloadCluster syncer.WorkloadClu
 
 	workloadClusterKey := workloadCluster.Key()
 	if _, exists := apis.apiSets[workloadClusterKey]; !exists {
-		apis.apiSets[workloadClusterKey] = make(apidefs.APIDefinitionSet)
+		apis.apiSets[workloadClusterKey] = make(apidefinition.APIDefinitionSet)
 	}
 }
 
@@ -61,7 +61,7 @@ func (apis *installedAPIs) removeWorkloadCluster(workloadCluster syncer.Workload
 	delete(apis.apiSets, workloadClusterKey)
 }
 
-func (apis *installedAPIs) GetAPIDefinitionSet(apiDomainKey string) (apidefs.APIDefinitionSet, bool) {
+func (apis *installedAPIs) GetAPIDefinitionSet(apiDomainKey string) (apidefinition.APIDefinitionSet, bool) {
 	apis.mutex.RLock()
 	defer apis.mutex.RUnlock()
 

@@ -31,11 +31,11 @@ import (
 	"k8s.io/kubernetes/pkg/genericcontrolplane/aggregator"
 
 	apiresourcev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
 type versionDiscoveryHandler struct {
-	apiSetRetriever apidefs.APIDefinitionSetGetter
+	apiSetRetriever apidefinition.APIDefinitionSetGetter
 	delegate        http.Handler
 }
 
@@ -58,7 +58,7 @@ func (r *versionDiscoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Req
 
 	ctx := req.Context()
 
-	apiDomainKey := ctx.Value(apidefs.APIDomainKeyContextKey).(string)
+	apiDomainKey := ctx.Value(apidefinition.APIDomainKeyContextKey).(string)
 
 	apiSet, _ := r.apiSetRetriever.GetAPIDefinitionSet(apiDomainKey)
 
@@ -122,7 +122,7 @@ func (r *versionDiscoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Req
 }
 
 type groupDiscoveryHandler struct {
-	apiSetRetriever apidefs.APIDefinitionSetGetter
+	apiSetRetriever apidefinition.APIDefinitionSetGetter
 	delegate        http.Handler
 }
 
@@ -145,7 +145,7 @@ func (r *groupDiscoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 
 	ctx := req.Context()
 
-	apiDomainKey := ctx.Value(apidefs.APIDomainKeyContextKey).(string)
+	apiDomainKey := ctx.Value(apidefinition.APIDomainKeyContextKey).(string)
 
 	apiSet, _ := r.apiSetRetriever.GetAPIDefinitionSet(apiDomainKey)
 
@@ -191,7 +191,7 @@ func (r *groupDiscoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 }
 
 type rootDiscoveryHandler struct {
-	apiSetRetriever apidefs.APIDefinitionSetGetter
+	apiSetRetriever apidefinition.APIDefinitionSetGetter
 	delegate        http.Handler
 }
 
@@ -200,7 +200,7 @@ func (r *rootDiscoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	versionsForDiscoveryMap := map[string]map[metav1.GroupVersion]bool{}
 
 	ctx := req.Context()
-	apiDomainKey := ctx.Value(apidefs.APIDomainKeyContextKey).(string)
+	apiDomainKey := ctx.Value(apidefinition.APIDomainKeyContextKey).(string)
 
 	apiSet, _ := r.apiSetRetriever.GetAPIDefinitionSet(apiDomainKey)
 

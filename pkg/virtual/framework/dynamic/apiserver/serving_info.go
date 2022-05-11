@@ -50,16 +50,16 @@ import (
 	"k8s.io/kube-openapi/pkg/validation/validate"
 
 	apiresourcev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
-var _ apidefs.APIDefinition = (*servingInfo)(nil)
+var _ apidefinition.APIDefinition = (*servingInfo)(nil)
 
 // RestProviderFunc is the type of a function that builds REST storage implementations for the main resource and sub-resources, based on informations passed by the resource handler about a given API.
 type RestProviderFunc func(resource schema.GroupVersionResource, kind schema.GroupVersionKind, listKind schema.GroupVersionKind, typer runtime.ObjectTyper, tableConvertor rest.TableConvertor, namespaceScoped bool, schemaValidator *validate.SchemaValidator, subresourcesSchemaValidator map[string]*validate.SchemaValidator, structuralSchema *structuralschema.Structural) (mainStorage rest.Storage, subresourceStorages map[string]rest.Storage)
 
 // CreateServingInfoFor method can be used by external components at any time to create an APIDefinition and add it to an APISetRetriever
-func CreateServingInfoFor(genericConfig genericapiserver.CompletedConfig, logicalClusterName logicalcluster.Name, apiResourceSpec *apiresourcev1alpha1.CommonAPIResourceSpec, restProvider RestProviderFunc) (apidefs.APIDefinition, error) {
+func CreateServingInfoFor(genericConfig genericapiserver.CompletedConfig, logicalClusterName logicalcluster.Name, apiResourceSpec *apiresourcev1alpha1.CommonAPIResourceSpec, restProvider RestProviderFunc) (apidefinition.APIDefinition, error) {
 	equivalentResourceRegistry := runtime.NewEquivalentResourceRegistry()
 
 	v1OpenAPISchema, err := apiResourceSpec.GetSchema()

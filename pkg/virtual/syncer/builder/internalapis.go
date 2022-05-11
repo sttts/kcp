@@ -24,7 +24,7 @@ import (
 	generatedopenapi "k8s.io/kubernetes/pkg/generated/openapi"
 
 	apiresourcev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
-	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 )
 
 // internalAPIs contains a list of internal APIs that should be exposed for the syncer of any WorkloadCluster.
@@ -34,7 +34,7 @@ func init() {
 	schemes := []*runtime.Scheme{legacyscheme.Scheme}
 	openAPIDefinitionsGetters := []common.GetOpenAPIDefinitions{generatedopenapi.GetOpenAPIDefinitions}
 
-	if apis, err := apidefs.ImportInternalAPIs(schemes, openAPIDefinitionsGetters, apidefs.KCPInternalAPIs...); err != nil {
+	if apis, err := apidefinition.ImportInternalAPIs(schemes, openAPIDefinitionsGetters, apidefinition.KCPInternalAPIs...); err != nil {
 		panic(err)
 	} else {
 		internalAPIs = apis

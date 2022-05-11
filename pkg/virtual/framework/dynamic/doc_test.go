@@ -26,14 +26,14 @@ import (
 
 	"github.com/kcp-dev/kcp/pkg/apis/apiresource/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic"
-	apidefs "github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefs"
+	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apidefinition"
 	"github.com/kcp-dev/kcp/pkg/virtual/framework/dynamic/apiserver"
 )
 
 // Typical Usage of a DynamicVirtualWorkspace
 func Example() {
 
-	var someAPISetRetriever apidefs.APIDefinitionSetGetter
+	var someAPISetRetriever apidefinition.APIDefinitionSetGetter
 	ready := false
 
 	var _ = dynamic.DynamicVirtualWorkspace{
@@ -58,7 +58,7 @@ func Example() {
 			// ...
 
 			// Add the apiDomainKey to the request context before passing the request to the virtual workspace APIServer
-			completedContext = context.WithValue(requestContext, apidefs.APIDomainKeyContextKey, apiDomainKey)
+			completedContext = context.WithValue(requestContext, apidefinition.APIDomainKeyContextKey, apiDomainKey)
 			accepted = true
 			return
 		},
@@ -70,7 +70,7 @@ func Example() {
 			return nil
 		},
 
-		BootstrapAPISetManagement: func(mainConfig genericapiserver.CompletedConfig) (apidefs.APIDefinitionSetGetter, error) {
+		BootstrapAPISetManagement: func(mainConfig genericapiserver.CompletedConfig) (apidefinition.APIDefinitionSetGetter, error) {
 
 			// Initialize the implementation of the APISetRetriever
 
@@ -78,7 +78,7 @@ func Example() {
 
 			// Setup some controller that will add APIDefinitions on demand
 
-			someController := setupController(func(logicalClusterName logicalcluster.Name, spec *v1alpha1.CommonAPIResourceSpec) (apidefs.APIDefinition, error) {
+			someController := setupController(func(logicalClusterName logicalcluster.Name, spec *v1alpha1.CommonAPIResourceSpec) (apidefinition.APIDefinition, error) {
 				// apiserver.CreateServingInfoFor() creates and initializes all the required information to serve an API
 				return apiserver.CreateServingInfoFor(mainConfig, logicalClusterName, spec, someRestProviderFunc)
 			})
@@ -102,12 +102,14 @@ func Example() {
 	}
 }
 
-func newAPISetRetriever() apidefs.APIDefinitionSetGetter { return nil }
+func newAPISetRetriever() apidefinition.APIDefinitionSetGetter { return nil }
 
 type someController interface {
 	Start()
 }
 
-func setupController(createAPIDefinition apidefs.CreateAPIDefinitionFunc) someController { return nil }
+func setupController(createAPIDefinition apidefinition.CreateAPIDefinitionFunc) someController {
+	return nil
+}
 
 var someRestProviderFunc apiserver.RestProviderFunc
