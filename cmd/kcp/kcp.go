@@ -19,9 +19,22 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
+	"github.com/bombsimon/logrusr/v3"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	"github.com/go-logr/zerologr"
+	"github.com/mattn/go-colorable"
+	"github.com/rs/zerolog"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"k8s.io/apimachinery/pkg/util/errors"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -32,6 +45,7 @@ import (
 	"k8s.io/component-base/config"
 	"k8s.io/component-base/logs"
 	"k8s.io/component-base/term"
+	"k8s.io/klog/v2"
 
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/kcp-dev/kcp/pkg/server"
@@ -100,6 +114,94 @@ func main() {
 				return err
 			}
 
+			logger := "zerolog"
+			switch logger {
+			case "logrus":
+				logrusLogr := logrusr.New(logrus.StandardLogger())
+				logrus.SetReportCaller(true)
+				logrus.SetFormatter(&logrus.TextFormatter{
+					CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+						filename := path.Base(f.File)
+						return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("%s:%d", filepath.Base(filename), f.Line)
+					},
+				})
+				klog.SetLogger(logrusLogr)
+
+			case "zerolog":
+				fileColumn := 40
+				pad := func(n int) string {
+					if n <= 0 {
+						return ""
+					}
+					return strings.Repeat(" ", n)
+				}
+				zerolog.TimeFieldFormat = "2006-01-02T15:04:05.000"
+				zerologr.NameFieldName = "logger"
+				zerologr.NameSeparator = "/"
+				zerolog.CallerMarshalFunc = func(file string, line int) string {
+					at := strings.Index(file, "@")
+					if at == -1 {
+						lineStr := strconv.Itoa(line)
+						slash := strings.LastIndex(file, "/")
+						if slash == -1 {
+							return file + ":" + lineStr + pad(fileColumn-len(file)-1-len(lineStr))
+						}
+						return file[slash+1:] + ":" + lineStr + pad(fileColumn-len(file)+slash+1-1-len(lineStr))
+					}
+					pth := file[at+1:]
+					slash := strings.LastIndex(pth, "/")
+					if slash != -1 {
+						pth = pth[slash+1:]
+					}
+					pkg := file[:at]
+					slash = strings.LastIndex(pkg, "/")
+					if slash != -1 {
+						pkg = pkg[slash+1:]
+					}
+					ret := fmt.Sprintf("%s@%s:%d", pkg, pth, line)
+					return ret + pad(fileColumn-len(ret))
+				}
+
+				zl := zerolog.New(zerolog.ConsoleWriter{
+					Out:        os.Stdout,
+					TimeFormat: "15:04:05.000",
+					FormatMessage: func(i interface{}) string {
+						if i == nil {
+							return ""
+						}
+						return strings.TrimSuffix(fmt.Sprintf("%s", i), "\n")
+					},
+				})
+				zl = zl.With().Caller().Timestamp().Logger()
+
+				klog.SetLogger(logr.New(klogZlAdjust{zerologr.NewLogSink(&zl)}))
+
+				/*
+					klog.V(9).Info("v9")
+					klog.V(5).Info("v5")
+					klog.V(4).Info("v4")
+					klog.V(3).Info("v3")
+					klog.V(2).Info("v2")
+					klog.V(1).Info("v1")
+					klog.Info("v0")
+					klog.Warningf("warning")
+					klog.Errorf("error")
+					klog.InfoS("structured", "key", "value")
+					os.Exit(1)
+				*/
+			case "zap":
+				zapEncCfg := zap.NewDevelopmentEncoderConfig()
+				zapEncCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+				zapLog := zap.New(zapcore.NewCore(
+					zapcore.NewConsoleEncoder(zapEncCfg),
+					zapcore.AddSync(colorable.NewColorableStdout()),
+					zapcore.DebugLevel,
+				))
+
+				zapLogr := zapr.NewLogger(zapLog)
+				klog.SetLogger(zapLogr)
+			}
+
 			completed, err := serverOptions.Complete()
 			if err != nil {
 				return err
@@ -158,4 +260,40 @@ func main() {
 	help.FitTerminal(cmd.OutOrStdout())
 
 	os.Exit(cli.Run(cmd))
+}
+
+type klogZlAdjust struct {
+	logr.LogSink
+}
+
+func (ls klogZlAdjust) Enabled(level int) bool {
+	return ls.LogSink.Enabled(toZeroLogrLevel(level))
+}
+
+func (ls klogZlAdjust) Info(level int, msg string, keysAndValues ...interface{}) {
+	ls.LogSink.Info(toZeroLogrLevel(level), msg, keysAndValues...)
+}
+
+func (ls klogZlAdjust) Error(err error, msg string, keysAndValues ...interface{}) {
+	ls.LogSink.Error(err, msg, keysAndValues...)
+}
+
+func (ls klogZlAdjust) WithCallDepth(depth int) logr.LogSink {
+	if logSink, ok := ls.LogSink.(logr.CallDepthLogSink); ok {
+		return klogZlAdjust{logSink.WithCallDepth(depth + 1)}
+	}
+	return ls
+}
+
+func toZeroLogrLevel(level int) int {
+	switch level {
+	case 4, 5, 6, 7, 8, 9:
+		return 2
+	case 3:
+		return 1
+	case 0, 1, 2:
+		return 0
+	default:
+		return level - 1
+	}
 }
