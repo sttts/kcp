@@ -49,6 +49,7 @@ import (
 
 	configroot "github.com/kcp-dev/kcp/config/root"
 	configrootphase0 "github.com/kcp-dev/kcp/config/root-phase0"
+	configshard "github.com/kcp-dev/kcp/config/shard"
 	systemcrds "github.com/kcp-dev/kcp/config/system-crds"
 	kcpadmissioninitializers "github.com/kcp-dev/kcp/pkg/admission/initializers"
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
@@ -68,6 +69,10 @@ import (
 )
 
 const resyncPeriod = 10 * time.Hour
+
+// systemShardCluster is the name of a logical cluster on every shard (including the root
+// shard) that holds essential system resources.
+var systemShardCluster = logicalcluster.New("system:shard")
 
 // Server manages the configuration and kcp api-server. It allows callers to easily use kcp
 // as a library rather than as a single binary. Using its constructor function, you can easily
@@ -415,19 +420,25 @@ func (s *Server) Run(ctx context.Context) error {
 		klog.Infof("Finished starting APIExport and APIBinding informers")
 
 		// bootstrap root workspace phase 0, no APIBinding resources yet
-		if err := configrootphase0.Bootstrap(goContext(ctx),
-			kcpClusterClient.Cluster(tenancyv1alpha1.RootCluster),
-			apiextensionsClusterClient.Cluster(tenancyv1alpha1.RootCluster).Discovery(),
-			dynamicClusterClient.Cluster(tenancyv1alpha1.RootCluster),
-		); err != nil {
+		if s.options.Extra.ShardName == tenancyv1alpha1.RootCluster.String() {
+			if err := configrootphase0.Bootstrap(goContext(ctx),
+				kcpClusterClient.Cluster(tenancyv1alpha1.RootCluster),
+				apiextensionsClusterClient.Cluster(tenancyv1alpha1.RootCluster).Discovery(),
+				dynamicClusterClient.Cluster(tenancyv1alpha1.RootCluster),
+			); err != nil {
+				// nolint:nilerr
+				return nil // don't klog.Fatal. This only happens when context is cancelled.
+			}
+			klog.Infof("Bootstrapped root workspace phase 0")
+		}
+
+		if err := configshard.Bootstrap(goContext(ctx), kcpClusterClient.Cluster(systemShardCluster)); err != nil {
 			// nolint:nilerr
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
-
-		klog.Infof("Bootstrapped root workspace phase 0")
+		klog.Infof("Bootstrapped shard workspace")
 
 		klog.Infof("Getting kcp APIExport identities")
-
 		if err := wait.PollImmediateInfiniteWithContext(goContext(ctx), time.Millisecond*500, func(ctx context.Context) (bool, error) {
 			if err := resolveIdentities(ctx); err != nil {
 				klog.V(3).Infof("failed to resolve identities, keeping trying: %v", err)
@@ -439,7 +450,6 @@ func (s *Server) Run(ctx context.Context) error {
 			// nolint:nilerr
 			return nil // don't klog.Fatal. This only happens when context is cancelled.
 		}
-
 		klog.Infof("Finished getting kcp APIExport identities")
 
 		s.kcpSharedInformerFactory.Start(ctx.StopCh)
