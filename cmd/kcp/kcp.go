@@ -25,7 +25,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/errors"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	"k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/rest"
 	"k8s.io/component-base/cli"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -38,6 +37,7 @@ import (
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/kcp-dev/kcp/pkg/server"
 	"github.com/kcp-dev/kcp/pkg/server/options"
+	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 )
 
 func main() {
@@ -98,7 +98,7 @@ func main() {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// run as early as possible to avoid races later when some components (e.g. grpc) start early using klog
-			if err := serverOptions.GenericControlPlane.Logs.ValidateAndApply(feature.DefaultFeatureGate); err != nil {
+			if err := serverOptions.GenericControlPlane.Logs.ValidateAndApply(kcpfeatures.DefaultFeatureGate); err != nil {
 				return err
 			}
 

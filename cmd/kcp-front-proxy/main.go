@@ -32,7 +32,6 @@ import (
 	genericapifilters "k8s.io/apiserver/pkg/endpoints/filters"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericfilters "k8s.io/apiserver/pkg/server/filters"
-	"k8s.io/apiserver/pkg/util/feature"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	utilflag "k8s.io/component-base/cli/flag"
@@ -49,6 +48,7 @@ import (
 	"github.com/kcp-dev/kcp/pkg/server"
 	bootstrap "github.com/kcp-dev/kcp/pkg/server/bootstrap"
 	"github.com/kcp-dev/kcp/pkg/server/requestinfo"
+	kcpfeatures "github.com/kcp-dev/kcp/pkg/features"
 )
 
 func main() {
@@ -79,7 +79,7 @@ forwards Common Name and Organizations to backend API servers in HTTP headers.
 The proxy terminates TLS and communicates with API servers via mTLS. Traffic is
 routed based on paths.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := options.Logs.ValidateAndApply(feature.DefaultFeatureGate); err != nil {
+			if err := options.Logs.ValidateAndApply(kcpfeatures.DefaultFeatureGate); err != nil {
 				return err
 			}
 			if err := options.Complete(); err != nil {
