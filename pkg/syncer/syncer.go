@@ -98,10 +98,8 @@ func StartSyncer(ctx context.Context, cfg *SyncerConfig, numSyncerThreads int, i
 
 		// If the SyncTargetUID flag is set, we compare the provided value with the kcp synctarget uid, if the values don't match
 		// the syncer will refuse to work.
-		if cfg.SyncTargetUID != "" {
-			if cfg.SyncTargetUID != string(syncTarget.UID) {
-				return false, fmt.Errorf("the synctarget UID is not the expected one, expected: %s got: %s, refusing to sync.", cfg.SyncTargetUID, syncTarget.UID)
-			}
+		if cfg.SyncTargetUID != "" && cfg.SyncTargetUID != string(syncTarget.UID) {
+			return false, fmt.Errorf("unexpected SyncTarget UID %s, expected %s, refusing to sync", syncTarget.UID, cfg.SyncTargetUID)
 		}
 
 		if len(syncTarget.Status.VirtualWorkspaces) == 0 {
