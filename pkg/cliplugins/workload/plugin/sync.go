@@ -148,7 +148,7 @@ func getSyncerID(syncTarget *workloadv1alpha1.SyncTarget) string {
 // enableSyncerForWorkspace creates a sync target with the given name and creates a service
 // account for the syncer in the given namespace. The expectation is that the provided config is
 // for a logical cluster (workspace). Returns the token the syncer will use to connect to kcp.
-func (c *Config) enableSyncerForWorkspace(ctx context.Context, config *rest.Config, syncTargetName, namespace string) (string, string, string, error) {
+func (c *Config) enableSyncerForWorkspace(ctx context.Context, config *rest.Config, syncTargetName, namespace string) (saToken string, syncerID string, syncTargetUID string, err error) {
 	kcpClient, err := kcpclientset.NewForConfig(config)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to create kcp client: %w", err)
@@ -187,7 +187,7 @@ func (c *Config) enableSyncerForWorkspace(ctx context.Context, config *rest.Conf
 		return "", "", "", fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	syncerID := getSyncerID(syncTarget)
+	syncerID = getSyncerID(syncTarget)
 
 	syncTargetOwnerReferences := []metav1.OwnerReference{{
 		APIVersion: workloadv1alpha1.SchemeGroupVersion.String(),
@@ -380,12 +380,12 @@ func (c *Config) enableSyncerForWorkspace(ctx context.Context, config *rest.Conf
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to retrieve Secret: %w", err)
 	}
-	saToken := tokenSecret.Data["token"]
+	saTokenBytes := tokenSecret.Data["token"]
 	if len(saToken) == 0 {
 		return "", "", "", fmt.Errorf("token secret %s/%s is missing a value for `token`", namespace, tokenSecretName)
 	}
 
-	return string(saToken), syncerID, string(syncTarget.UID), nil
+	return string(saTokenBytes), syncerID, string(syncTarget.UID), nil
 }
 
 // mergeOwnerReference: merge a slice of ownerReference with a given ownerReferences
