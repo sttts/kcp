@@ -498,7 +498,7 @@ func TestReconcileBinding(t *testing.T) {
 
 					return crd, nil
 				},
-				createCRD: func(ctx context.Context, clusterName logicalcluster.Name, crd *apiextensionsv1.CustomResourceDefinition) (*apiextensionsv1.CustomResourceDefinition, error) {
+				createCRD: func(ctx context.Context, crd *apiextensionsv1.CustomResourceDefinition) (*apiextensionsv1.CustomResourceDefinition, error) {
 					createCRDCalled = true
 					return crd, tc.createCRDError
 				},
