@@ -19,6 +19,7 @@ package logging
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	"github.com/kcp-dev/logicalcluster/v2"
@@ -59,6 +60,10 @@ func WithObject(logger logr.Logger, obj metav1.Object) logr.Logger {
 
 // From provides the structured logging fields that identify an object.
 func From(obj metav1.Object) []interface{} {
+	if obj == nil || reflect.ValueOf(obj).IsNil() {
+		return nil
+	}
+
 	return []interface{}{
 		WorkspaceKey,
 		logicalcluster.From(obj).String(),
@@ -71,6 +76,10 @@ func From(obj metav1.Object) []interface{} {
 
 // Key is like cache.MetaNamespaceKeyFunc, but with a restricted input set, so it can't error.
 func Key(obj metav1.Object) string {
+	if obj == nil || reflect.ValueOf(obj).IsNil() {
+		return ""
+	}
+
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
 		panic(fmt.Errorf("got an error from cache.MetaNamespaceKeyFunc: %w", err))
