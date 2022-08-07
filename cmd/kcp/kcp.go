@@ -21,7 +21,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/buffer"
+	"go.uber.org/zap/zapcore"
 
 	"k8s.io/apimachinery/pkg/util/errors"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -33,6 +39,7 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/component-base/term"
 	"k8s.io/component-base/version"
+	"k8s.io/klog/v2"
 
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
@@ -102,6 +109,19 @@ func main() {
 			if err := serverOptions.GenericControlPlane.Logs.ValidateAndApply(kcpfeatures.DefaultFeatureGate); err != nil {
 				return err
 			}
+
+			// setup zap
+			encoderConfig := zap.NewDevelopmentEncoderConfig()
+			encoderConfig.EncodeLevel = capitalColorLevelEncoder
+			encoderConfig.ConsoleSeparator = " "
+			encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.000")
+			zapLog := zap.New(zapcore.NewCore(
+				colorEncoder{Encoder: zapcore.NewConsoleEncoder(encoderConfig)},
+				zapcore.AddSync(os.Stderr),
+				zapcore.DebugLevel,
+			))
+			zapLogr := zapr.NewLogger(zapLog)
+			klog.SetLogger(logr.New(trimNewlines{zapLogr.GetSink()}))
 
 			completed, err := serverOptions.Complete()
 			if err != nil {
@@ -185,4 +205,63 @@ func main() {
 	}
 
 	os.Exit(cli.Run(cmd))
+}
+
+// trimNewlines implements a logr.Logger that removes trailing msg newlines.
+type trimNewlines struct {
+	logr.LogSink // already initialized
+}
+
+func (s trimNewlines) Init(info logr.RuntimeInfo) {}
+func (s trimNewlines) Info(level int, msg string, keysAndValues ...interface{}) {
+	s.LogSink.Info(level, strings.TrimRight(msg, "\n"), keysAndValues...)
+}
+func (s trimNewlines) Error(err error, msg string, keysAndValues ...interface{}) {
+	s.LogSink.Error(err, strings.TrimRight(msg, "\n"), keysAndValues...)
+}
+
+type colorEncoder struct {
+	zapcore.Encoder
+}
+
+func (e colorEncoder) Clone() zapcore.Encoder {
+	return colorEncoder{Encoder: e.Encoder.Clone()}
+}
+
+var (
+	messageColor = color.New(color.FgWhite).SprintFunc()
+)
+
+func (e colorEncoder) EncodeEntry(ent zapcore.Entry, flds []zapcore.Field) (*buffer.Buffer, error) {
+	ent.Message = messageColor(ent.Message)
+
+	return e.Encoder.EncodeEntry(ent, flds)
+}
+
+var (
+	levelToColor = map[zapcore.Level]color.Attribute{
+		zapcore.DebugLevel:  color.FgMagenta,
+		zapcore.InfoLevel:   color.FgBlue,
+		zapcore.WarnLevel:   color.FgYellow,
+		zapcore.ErrorLevel:  color.FgRed,
+		zapcore.DPanicLevel: color.FgRed,
+		zapcore.PanicLevel:  color.FgRed,
+		zapcore.FatalLevel:  color.FgRed,
+	}
+	unknownLevelColor         = color.New(color.FgRed).Add(color.Bold)
+	levelToCapitalColorString = make(map[zapcore.Level]string, len(levelToColor))
+)
+
+func capitalColorLevelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+	s, ok := levelToCapitalColorString[l]
+	if !ok {
+		s = unknownLevelColor.Sprintf("%-5s", l.CapitalString())
+	}
+	enc.AppendString(s)
+}
+
+func init() {
+	for level, c := range levelToColor {
+		levelToCapitalColorString[level] = color.New(c).Add(color.Bold).Sprintf("%-5s", level.CapitalString())
+	}
 }
