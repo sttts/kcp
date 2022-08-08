@@ -19,8 +19,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -33,6 +37,7 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/component-base/term"
 	"k8s.io/component-base/version"
+	"k8s.io/klog/v2"
 
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
@@ -102,6 +107,58 @@ func main() {
 			if err := serverOptions.GenericControlPlane.Logs.ValidateAndApply(kcpfeatures.DefaultFeatureGate); err != nil {
 				return err
 			}
+
+			// setup zap
+			fileColumn := 50
+			pad := func(n int) string {
+				if n <= 0 {
+					return ""
+				}
+				return strings.Repeat(" ", n)
+			}
+			zerolog.TimeFieldFormat = "2006-01-02T15:04:05.000"
+			zerologr.NameFieldName = "logger"
+			zerologr.NameSeparator = "/"
+			zerolog.CallerMarshalFunc = func(file string, line int) string {
+				at := strings.Index(file, "@")
+				if at == -1 {
+					lineStr := strconv.Itoa(line)
+					slash := strings.LastIndex(file, "/")
+					if slash == -1 {
+						return file + ":" + lineStr + pad(fileColumn-len(file)-1-len(lineStr))
+					}
+					return file[slash+1:] + ":" + lineStr + pad(fileColumn-len(file)+slash+1-1-len(lineStr))
+				}
+				pth := file[at+1:]
+				slash := strings.LastIndex(pth, "/")
+				if slash != -1 {
+					pth = pth[slash+1:]
+				}
+				pkg := file[:at]
+				slash = strings.LastIndex(pkg, "/")
+				if slash != -1 {
+					pkg = pkg[slash+1:]
+				}
+				ret := fmt.Sprintf("%s@%s:%d", pkg, pth, line)
+				return ret + pad(fileColumn-len(ret))
+			}
+
+			zl := zerolog.New(zerolog.ConsoleWriter{
+				Out:        os.Stdout,
+				TimeFormat: "15:04:05.000",
+				FormatMessage: func(i interface{}) string {
+					if i == nil {
+						return ""
+					}
+					if s, ok := i.(string); ok {
+						return strings.TrimSuffix(s, "\n")
+					}
+					return strings.TrimSuffix(fmt.Sprintf("%v", i), "\n")
+				},
+			})
+			zl = zl.With().Caller().Timestamp().Logger()
+
+			klog.SetLogger(logr.New(klogZlAdjust{zerologr.NewLogSink(&zl)}))
 
 			completed, err := serverOptions.Complete()
 			if err != nil {
@@ -185,4 +242,40 @@ func main() {
 	}
 
 	os.Exit(cli.Run(cmd))
+}
+
+type klogZlAdjust struct {
+	logr.LogSink
+}
+
+func (ls klogZlAdjust) Enabled(level int) bool {
+	return ls.LogSink.Enabled(toZeroLogrLevel(level))
+}
+
+func (ls klogZlAdjust) Info(level int, msg string, keysAndValues ...interface{}) {
+	ls.LogSink.Info(toZeroLogrLevel(level), msg, keysAndValues...)
+}
+
+func (ls klogZlAdjust) Error(err error, msg string, keysAndValues ...interface{}) {
+	ls.LogSink.Error(err, msg, keysAndValues...)
+}
+
+func (ls klogZlAdjust) WithCallDepth(depth int) logr.LogSink {
+	if logSink, ok := ls.LogSink.(logr.CallDepthLogSink); ok {
+		return klogZlAdjust{logSink.WithCallDepth(depth + 1)}
+	}
+	return ls
+}
+
+func toZeroLogrLevel(level int) int {
+	switch level {
+	case 4, 5, 6, 7, 8, 9:
+		return 2
+	case 3:
+		return 1
+	case 0, 1, 2:
+		return 0
+	default:
+		return level - 1
+	}
 }
