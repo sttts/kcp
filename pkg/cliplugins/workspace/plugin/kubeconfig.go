@@ -213,17 +213,24 @@ func (kc *KubeConfig) UseWorkspace(ctx context.Context, name string) (err error)
 		}
 
 		if strings.Contains(name, ":") && cluster.HasPrefix(tenancyv1alpha1.RootCluster) {
-			// absolute logical cluster under root:
-			parentClusterName, workspaceName := logicalcluster.New(name).Split()
-			ws, err := kc.clusterClient.Cluster(parentClusterName).TenancyV1beta1().Workspaces().Get(ctx, workspaceName, metav1.GetOptions{})
-			if err != nil {
+			// e.g. root:something
+			groups, err := kc.clusterClient.Cluster(logicalcluster.New(name)).Discovery().ServerGroups()
+			if err != nil && !apierrors.IsForbidden(err) {
 				return err
 			}
+			if apierrors.IsForbidden(err) || len(groups.Groups) == 0 {
+				return fmt.Errorf("access to workspace %n denied", name)
+			}
 
-			// intentionally do not check for readiness here
+			// TODO(sttts): in both the case of root and this case here we assume that the current cluster client
+			//              is talking to the right external URL. This obviously not guaranteed, and hence we
+			//              silently assume that the front-proxy will route to every workspace.
+			//			    We might want to add permanent redirections to the front-proxy if the external
+			//              URL does not match the workspace's shard, and then add redirect support here to
+			//              use the right front-proxy URL in the kubeonfig.
 
-			newServerHost = ws.Status.URL
-			workspaceType = &ws.Spec.Type
+			u.Path = path.Join(u.Path, logicalcluster.New(name).Path())
+			newServerHost = u.String()
 		} else if strings.Contains(name, ":") {
 			// e.g. system:something
 			u.Path = path.Join(u.Path, logicalcluster.New(name).Path())
