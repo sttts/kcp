@@ -23,6 +23,7 @@ import (
 	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
 	rbacv1listers "github.com/kcp-dev/client-go/listers/rbac/v1"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	kaudit "k8s.io/apiserver/pkg/audit"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
+	"github.com/kcp-dev/kcp/pkg/apis/tenancy"
 	rbacwrapper "github.com/kcp-dev/kcp/pkg/virtual/framework/wrappers/rbac"
 )
 
@@ -61,6 +63,8 @@ func (a *LocalAuthorizer) RulesFor(user user.Info, namespace string) ([]authoriz
 	panic("implement me")
 }
 
+var readOnlyVerbs = sets.NewString("get", "list", "watch")
+
 func (a *LocalAuthorizer) Authorize(ctx context.Context, attr authorizer.Attributes) (authorized authorizer.Decision, reason string, err error) {
 	cluster := genericapirequest.ClusterFrom(ctx)
 	if cluster == nil || cluster.Name.Empty() {
@@ -68,6 +72,15 @@ func (a *LocalAuthorizer) Authorize(ctx context.Context, attr authorizer.Attribu
 			ctx,
 			LocalAuditDecision, DecisionNoOpinion,
 			LocalAuditReason, "empty cluster name",
+		)
+		return authorizer.DecisionNoOpinion, "", nil
+	}
+
+	if attr.GetAPIGroup() == tenancy.GroupName && attr.GetResource() == "thisworkspaces" && !readOnlyVerbs.Has(attr.GetVerb()) {
+		kaudit.AddAuditAnnotations(
+			ctx,
+			LocalAuditDecision, DecisionNoOpinion,
+			LocalAuditReason, "thisworkspaces is read-only",
 		)
 		return authorizer.DecisionNoOpinion, "", nil
 	}
