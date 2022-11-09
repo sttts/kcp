@@ -109,6 +109,10 @@ spec:
                   x-kubernetes-validations:
                   - message: either "all" or "resourceSelector" must be set
                     rule: self.all != has(self.resourceSelector)
+                  - message: thisworkspaces cannot be claimed
+                    rule: '!has(self.group) || self.group != "tenancy.kcp.dev" ||
+                      self.resource != "thisworkspaces" || (has(self.identityHash)
+                      && self.identityHash != "")'
                 type: array
               reference:
                 description: reference uniquely identifies an API to bind to.
@@ -208,6 +212,10 @@ spec:
                   x-kubernetes-validations:
                   - message: either "all" or "resourceSelector" must be set
                     rule: self.all != has(self.resourceSelector)
+                  - message: thisworkspaces cannot be claimed
+                    rule: '!has(self.group) || self.group != "tenancy.kcp.dev" ||
+                      self.resource != "thisworkspaces" || (has(self.identityHash)
+                      && self.identityHash != "")'
                 type: array
               boundResources:
                 description: boundResources records the state of bound APIs.
@@ -379,6 +387,10 @@ spec:
                   x-kubernetes-validations:
                   - message: either "all" or "resourceSelector" must be set
                     rule: self.all != has(self.resourceSelector)
+                  - message: thisworkspaces cannot be claimed
+                    rule: '!has(self.group) || self.group != "tenancy.kcp.dev" ||
+                      self.resource != "thisworkspaces" || (has(self.identityHash)
+                      && self.identityHash != "")'
                 type: array
               phase:
                 description: 'phase is the current phase of the APIBinding: - "":
