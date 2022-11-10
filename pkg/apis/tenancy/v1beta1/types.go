@@ -82,7 +82,7 @@ type WorkspaceStatus struct {
 	// +kubebuilder:format:uri
 	URL string `json:"URL"`
 
-	// Phase of the workspace (Initializing / Active / Terminating). This field is ALPHA.
+	// Phase of the workspace (Scheduling, Initializing, Ready).
 	Phase v1alpha1.ClusterWorkspacePhaseType `json:"phase,omitempty"`
 
 	// Current processing state of the ClusterWorkspace.
