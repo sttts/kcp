@@ -46,8 +46,8 @@ func indexUnschedulable(obj interface{}) ([]string, error) {
 }
 
 func indexByBase36Sha224Name(obj interface{}) ([]string, error) {
-	s := obj.(*tenancyv1alpha1.ClusterWorkspaceShard)
-	return []string{ByBase36Sha224NameValue(s.Name)}, nil
+	ws := obj.(*tenancyv1alpha1.ClusterWorkspaceShard)
+	return []string{ByBase36Sha224NameValue(ws.Name)}, nil
 }
 
 func ByBase36Sha224NameValue(name string) string {
