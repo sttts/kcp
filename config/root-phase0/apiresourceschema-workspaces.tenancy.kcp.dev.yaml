@@ -2,7 +2,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v221110-a0af4384.workspaces.tenancy.kcp.dev
+  name: v221111-912eb2f3.workspaces.tenancy.kcp.dev
 spec:
   group: tenancy.kcp.dev
   names:
@@ -159,8 +159,6 @@ spec:
             phase:
               description: Phase of the workspace (Scheduling, Initializing, Ready).
               type: string
-          required:
-          - URL
           type: object
       required:
       - spec

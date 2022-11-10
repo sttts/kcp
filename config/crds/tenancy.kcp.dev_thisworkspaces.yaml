@@ -150,8 +150,6 @@ spec:
               phase:
                 description: Phase of the workspace (Scheduling, Initializing, Ready).
                 type: string
-            required:
-            - URL
             type: object
         type: object
     served: true
