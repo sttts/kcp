@@ -101,13 +101,14 @@ func TestGetHomeLogicalClusterName(t *testing.T) {
 		t.Run(
 			fmt.Sprintf("levels: %d size: %d prefix: %s userName: %s", testCase.bucketLevels, testCase.bucketSize, testCase.homePrefix, testCase.userName),
 			func(t *testing.T) {
+				homeParent, homeName := homeWorkspaceHandlerBuilder{
+					bucketLevels: testCase.bucketLevels,
+					bucketSize:   testCase.bucketSize,
+					homePrefix:   logicalcluster.New(testCase.homePrefix),
+				}.build().getHomeLogicalClusterName(testCase.userName)
 				require.Equal(t,
 					testCase.expectedHome,
-					homeWorkspaceHandlerBuilder{
-						bucketLevels: testCase.bucketLevels,
-						bucketSize:   testCase.bucketSize,
-						homePrefix:   logicalcluster.New(testCase.homePrefix),
-					}.build().getHomeLogicalClusterName(testCase.userName).String(),
+					homeParent.Join(homeName).String(),
 				)
 			})
 	}
@@ -194,7 +195,7 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 		isHome        bool
 		userName      string
 
-		getLocalClusterWorkspace func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error)
+		getThisWorkspace func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error)
 
 		mocks homeWorkspaceFeatureLogic
 
@@ -210,7 +211,7 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
 				return nil, errors.New("an error")
 			},
 
@@ -223,7 +224,7 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
 				return nil, kerrors.NewNotFound(schema.GroupResource{}, "user-1")
 			},
 
@@ -236,8 +237,8 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseReady).ClusterWorkspace, nil
+			getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return newThisWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseReady).ThisWorkspace, nil
 			},
 
 			mocks: homeWorkspaceFeatureLogic{
@@ -256,8 +257,8 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseReady).ClusterWorkspace, nil
+			getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return newThisWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseReady).ThisWorkspace, nil
 			},
 
 			mocks: homeWorkspaceFeatureLogic{
@@ -277,8 +278,8 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseReady).ClusterWorkspace, nil
+			getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return newThisWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseReady).ThisWorkspace, nil
 			},
 
 			mocks: homeWorkspaceFeatureLogic{
@@ -299,8 +300,8 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").ClusterWorkspace, nil
+			getThisWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return newThisWorkspace("root:users:ab:cd:user-1").ThisWorkspace, nil
 			},
 
 			mocks: homeWorkspaceFeatureLogic{
@@ -320,8 +321,8 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			isHome:        true,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseInitializing).ClusterWorkspace, nil
+			getThisWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return newThisWorkspace("root:users:ab:cd:user-1").inPhase(tenancyv1alpha1.ClusterWorkspacePhaseInitializing).ThisWorkspace, nil
 			},
 
 			mocks: homeWorkspaceFeatureLogic{
@@ -335,62 +336,14 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 			expectedToSearchForRBAC:   true,
 		},
 		{
-			testName: "return error when workspace unschedulale (reason: unschedulable)",
-
-			workspaceName: "root:users:ab:cd:user-1",
-			isHome:        true,
-			userName:      "user-1",
-
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").unschedulable().ClusterWorkspace, nil
-			},
-
-			expectedFound:             false,
-			expectedRetryAfterSeconds: 0,
-			expectedToSearchForRBAC:   false,
-			expectedCheckError:        `clusterworkspaces.tenancy.kcp.dev "root:users:ab:cd:user-1" is forbidden: unschedulable workspace cannot be accessed`,
-		},
-		{
-			testName: "return error when workspace unschedulale (reason: unknown)",
-
-			workspaceName: "root:users:ab:cd:user-1",
-			isHome:        true,
-			userName:      "user-1",
-
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").unschedulable().ClusterWorkspace, nil
-			},
-
-			expectedFound:             false,
-			expectedRetryAfterSeconds: 0,
-			expectedToSearchForRBAC:   false,
-			expectedCheckError:        `clusterworkspaces.tenancy.kcp.dev "root:users:ab:cd:user-1" is forbidden: unschedulable workspace cannot be accessed`,
-		},
-		{
-			testName: "return error when workspace unschedulale (reason: unreschedulable)",
-
-			workspaceName: "root:users:ab:cd:user-1",
-			isHome:        true,
-			userName:      "user-1",
-
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").unschedulable().ClusterWorkspace, nil
-			},
-
-			expectedFound:             false,
-			expectedRetryAfterSeconds: 0,
-			expectedToSearchForRBAC:   false,
-			expectedCheckError:        `clusterworkspaces.tenancy.kcp.dev "root:users:ab:cd:user-1" is forbidden: unschedulable workspace cannot be accessed`,
-		},
-		{
 			testName: "don't check workspace phase not RBAC when workspace is a not a home workspace",
 
 			workspaceName: "root:users:ab:cd",
 			isHome:        false,
 			userName:      "user-1",
 
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return newWorkspace("root:users:ab:cd:user-1").ClusterWorkspace, nil
+			getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return newThisWorkspace("root:users:ab:cd:user-1").ThisWorkspace, nil
 			},
 
 			expectedFound:           true,
@@ -409,7 +362,7 @@ func TestSearchForReadyWorkspaceInLocalInformers(t *testing.T) {
 					homePrefix:           logicalcluster.New("root:users"),
 					creationDelaySeconds: creationDelaySeconds,
 					localInformers: localInformersAccess{
-						getClusterWorkspace: testCase.getLocalClusterWorkspace,
+						getThisWorkspace: testCase.getThisWorkspace,
 					},
 				}.build()
 
@@ -1247,7 +1200,7 @@ func TestServeHTTP(t *testing.T) {
 		userName           string
 
 		synced                   bool
-		getLocalClusterWorkspace func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error)
+		getLocalClusterWorkspace func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error)
 		authz                    authorizer.AuthorizerFunc
 
 		mocks homeWorkspaceFeatureLogic
@@ -1315,8 +1268,8 @@ func TestServeHTTP(t *testing.T) {
 			authz: func(ctx context.Context, a authorizer.Attributes) (authorizer.Decision, string, error) {
 				return authorizer.DecisionAllow, "", nil
 			},
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
-				return nil, kerrors.NewNotFound(tenancyv1alpha1.Resource("clusterworkspaces"), fullName.String())
+			getLocalClusterWorkspace: func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error) {
+				return nil, kerrors.NewNotFound(tenancyv1alpha1.Resource("clusterworkspaces"), clusterName.Join(name).String())
 			},
 			mocks: homeWorkspaceFeatureLogic{
 				searchForWorkspaceAndRBACInLocalInformers: func(workspaceName logicalcluster.Name, isHome bool, userName string) (found bool, retryAfterSeconds int, checkError error) {
@@ -1342,7 +1295,7 @@ func TestServeHTTP(t *testing.T) {
 			contextRequestInfo: &request.RequestInfo{IsResourceRequest: true, APIGroup: "tenancy.kcp.dev", Resource: "workspaces", Name: "~", Verb: "get"},
 
 			synced: true,
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getLocalClusterWorkspace: func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error) {
 				return newWorkspace("root:users:bi:ie:user-2").withType("root:home").withRV("someRealResourceVersion").withStatus(tenancyv1alpha1.ClusterWorkspaceStatus{
 					Phase:   tenancyv1alpha1.ClusterWorkspacePhaseReady,
 					BaseURL: "https://example.com/clusters/root:users:bi:ie:user-1",
@@ -1360,7 +1313,7 @@ func TestServeHTTP(t *testing.T) {
 			contextRequestInfo: &request.RequestInfo{IsResourceRequest: true, APIGroup: "tenancy.kcp.dev", Resource: "workspaces", Name: "~", Verb: "get"},
 
 			synced: true,
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getLocalClusterWorkspace: func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error) {
 				return nil, errors.New("an error")
 			},
 
@@ -1375,7 +1328,7 @@ func TestServeHTTP(t *testing.T) {
 			contextRequestInfo: &request.RequestInfo{IsResourceRequest: true, APIGroup: "tenancy.kcp.dev", Resource: "workspaces", Name: "~", Verb: "get"},
 
 			synced: true,
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getLocalClusterWorkspace: func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error) {
 				return newWorkspace("root:users:bi:ie:user-1").withType("root:home").withRV("someRealResourceVersion").withStatus(tenancyv1alpha1.ClusterWorkspaceStatus{
 					Phase:   tenancyv1alpha1.ClusterWorkspacePhaseReady,
 					BaseURL: "https://example.com/clusters/root:users:bi:ie:user-1",
@@ -1404,7 +1357,7 @@ func TestServeHTTP(t *testing.T) {
 			authz: func(ctx context.Context, a authorizer.Attributes) (authorizer.Decision, string, error) {
 				return authorizer.DecisionAllow, "", nil
 			},
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getLocalClusterWorkspace: func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error) {
 				return newWorkspace("root:users:bi:ie:user-1").withType("root:home").withRV("someRealResourceVersion").withStatus(tenancyv1alpha1.ClusterWorkspaceStatus{
 					Phase:   tenancyv1alpha1.ClusterWorkspacePhaseInitializing,
 					BaseURL: "https://example.com/clusters/root:users:bi:ie:user-1",
@@ -1437,7 +1390,7 @@ func TestServeHTTP(t *testing.T) {
 			contextRequestInfo: &request.RequestInfo{IsResourceRequest: true, APIGroup: "tenancy.kcp.dev", Resource: "workspaces", Name: "~", Verb: "get"},
 
 			synced: true,
-			getLocalClusterWorkspace: func(fullName logicalcluster.Name) (*tenancyv1alpha1.ClusterWorkspace, error) {
+			getLocalClusterWorkspace: func(clusterName logicalcluster.Name, name string) (*tenancyv1alpha1.ClusterWorkspace, error) {
 				return newWorkspace("root:users:bi:ie:user-1").withType("root:home").withRV("someRealResourceVersion").withStatus(tenancyv1alpha1.ClusterWorkspaceStatus{
 					Phase:   tenancyv1alpha1.ClusterWorkspacePhaseReady,
 					BaseURL: "https://example.com/clusters/root:users:bi:ie:user-1",
@@ -1747,5 +1700,25 @@ func (b wsBuilder) withAnnotations(annotations map[string]string) wsBuilder {
 	for k, v := range annotations {
 		b.Annotations[k] = v
 	}
+	return b
+}
+
+type twsBuilder struct {
+	*tenancyv1alpha1.ThisWorkspace
+}
+
+func newThisWorkspace(clusterName string) twsBuilder {
+	return twsBuilder{&tenancyv1alpha1.ThisWorkspace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: tenancyv1alpha1.ThisWorkspaceName,
+			Annotations: map[string]string{
+				logicalcluster.AnnotationKey: clusterName,
+			},
+		},
+	}}
+}
+
+func (b twsBuilder) inPhase(phase tenancyv1alpha1.ClusterWorkspacePhaseType) twsBuilder {
+	b.Status.Phase = phase
 	return b
 }
