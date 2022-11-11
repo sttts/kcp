@@ -2,7 +2,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v221111-60aeffe9.thisworkspaces.tenancy.kcp.dev
+  name: v221111-745493b0.thisworkspaces.tenancy.kcp.dev
 spec:
   group: tenancy.kcp.dev
   names:
@@ -79,6 +79,7 @@ spec:
               type: object
           type: object
         status:
+          default: {}
           description: ThisWorkspaceStatus communicates the observed state of the
             Workspace.
           properties:
@@ -144,7 +145,12 @@ spec:
                 type: string
               type: array
             phase:
+              default: Scheduling
               description: Phase of the workspace (Scheduling, Initializing, Ready).
+              enum:
+              - Scheduling
+              - Initializing
+              - Ready
               type: string
           type: object
       type: object
