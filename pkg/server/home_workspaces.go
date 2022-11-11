@@ -230,6 +230,7 @@ func (h *homeWorkspaceHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 			},
 			Status: tenancyv1beta1.WorkspaceStatus{
 				URL:          this.Status.URL,
+				Cluster:      logicalcluster.From(this).String(),
 				Phase:        this.Status.Phase,
 				Conditions:   this.Status.Conditions,
 				Initializers: this.Status.Initializers,
@@ -351,6 +352,7 @@ func (h *homeWorkspaceHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 		},
 		Status: tenancyv1beta1.WorkspaceStatus{
 			URL:          this.Status.URL,
+			Cluster:      logicalcluster.From(this).String(),
 			Phase:        this.Status.Phase,
 			Conditions:   this.Status.Conditions,
 			Initializers: this.Status.Initializers,
