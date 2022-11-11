@@ -41,7 +41,7 @@ type workspaceReconciler struct {
 
 func (r *workspaceReconciler) reconcile(ctx context.Context, cw *tenancyv1alpha1.ClusterWorkspace) (reconcileStatus, error) {
 	// not about new workspaces
-	if cw.Status.Phase == tenancyv1alpha1.ClusterWorkspacePhaseScheduling {
+	if cw.Status.Phase == tenancyv1alpha1.WorkspacePhaseScheduling {
 		return reconcileStatusContinue, nil
 	}
 

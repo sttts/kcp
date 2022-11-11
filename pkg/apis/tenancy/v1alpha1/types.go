@@ -365,28 +365,28 @@ type ClusterWorkspaceTypeList struct {
 	Items []ClusterWorkspaceType `json:"items"`
 }
 
-// ClusterWorkspaceInitializer is a unique string corresponding to a cluster workspace
+// WorkspaceInitializer is a unique string corresponding to a cluster workspace
 // initialization controller for the given type of workspaces.
 //
 // +kubebuilder:validation:Pattern:="^(root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(:[a-z][a-z0-9]([-a-z0-9]*[a-z0-9])?))|(system:.+)$"
-type ClusterWorkspaceInitializer string
+type WorkspaceInitializer string
 
-// ClusterWorkspaceAPIBindingsInitializer is a special-case initializer that waits for APIBindings defined
+// WorkspaceAPIBindingsInitializer is a special-case initializer that waits for APIBindings defined
 // on a ClusterWorkspaceType to be created.
-const ClusterWorkspaceAPIBindingsInitializer ClusterWorkspaceInitializer = "system:apibindings"
+const WorkspaceAPIBindingsInitializer WorkspaceInitializer = "system:apibindings"
 
-// ClusterWorkspacePhaseType is the type of the current phase of the workspace
+// WorkspacePhaseType is the type of the current phase of the workspace
 //
 // +kubebuilder:validation:Enum=Scheduling;Initializing;Ready
-type ClusterWorkspacePhaseType string
+type WorkspacePhaseType string
 
 const (
-	ClusterWorkspacePhaseScheduling   ClusterWorkspacePhaseType = "Scheduling"
-	ClusterWorkspacePhaseInitializing ClusterWorkspacePhaseType = "Initializing"
-	ClusterWorkspacePhaseReady        ClusterWorkspacePhaseType = "Ready"
+	WorkspacePhaseScheduling   WorkspacePhaseType = "Scheduling"
+	WorkspacePhaseInitializing WorkspacePhaseType = "Initializing"
+	WorkspacePhaseReady        WorkspacePhaseType = "Ready"
 )
 
-const ExperimentalClusterWorkspaceOwnerAnnotationKey string = "experimental.tenancy.kcp.dev/owner"
+const ExperimentalWorkspaceOwnerAnnotationKey string = "experimental.tenancy.kcp.dev/owner"
 
 // ClusterWorkspaceStatus communicates the observed state of the ClusterWorkspace.
 //
@@ -395,7 +395,7 @@ type ClusterWorkspaceStatus struct {
 	// Phase of the workspace  (Scheduling / Initializing / Ready)
 	//
 	// +kubebuilder:default=Scheduling
-	Phase ClusterWorkspacePhaseType `json:"phase,omitempty"`
+	Phase WorkspacePhaseType `json:"phase,omitempty"`
 
 	// Current processing state of the ClusterWorkspace.
 	// +optional
@@ -428,7 +428,7 @@ type ClusterWorkspaceStatus struct {
 	// clusterworkspaces/initialize resource permission.
 	//
 	// +optional
-	Initializers []ClusterWorkspaceInitializer `json:"initializers,omitempty"`
+	Initializers []WorkspaceInitializer `json:"initializers,omitempty"`
 }
 
 // These are valid conditions of workspace.
@@ -696,7 +696,7 @@ type ThisWorkspaceStatus struct {
 	// Phase of the workspace (Scheduling, Initializing, Ready).
 	//
 	// +kubebuilder:default=Scheduling
-	Phase ClusterWorkspacePhaseType `json:"phase,omitempty"`
+	Phase WorkspacePhaseType `json:"phase,omitempty"`
 
 	// Current processing state of the ThisWorkspace.
 	// +optional
@@ -707,7 +707,7 @@ type ThisWorkspaceStatus struct {
 	// stay in the phase "Initializing" state until all initializers are cleared.
 	//
 	// +optional
-	Initializers []ClusterWorkspaceInitializer `json:"initializers,omitempty"`
+	Initializers []WorkspaceInitializer `json:"initializers,omitempty"`
 }
 
 // ThisWorkspaceList is a list of ThisWorkspaces

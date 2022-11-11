@@ -44,8 +44,8 @@ func TestSchedulingReconciler(t *testing.T) {
 
 		{
 			name:      "no shards, not scheduled",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling, workspace()),
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling, workspace()),
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling, workspace()),
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling, workspace()),
 				conditionsapi.Condition{
 					Type:     tenancyv1alpha1.WorkspaceScheduled,
 					Severity: conditionsapi.ConditionSeverityError,
@@ -57,9 +57,9 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "no shards, to be unscheduled",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling, workspace()),
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling, workspace()),
 				conditionsapi.Condition{
 					Type:     tenancyv1alpha1.WorkspaceScheduled,
 					Severity: conditionsapi.ConditionSeverityError,
@@ -71,9 +71,9 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "no shards, already initializing",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseInitializing,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseInitializing,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseInitializing,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseInitializing,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
 				conditionsapi.Condition{
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
@@ -90,9 +90,9 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "no shards, already ready",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseReady,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseReady,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseReady,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseReady,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
 				conditionsapi.Condition{
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
@@ -109,11 +109,11 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name:      "happy case scheduling",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling, workspace()),
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling, workspace()),
 			shards: []*tenancyv1alpha1.ClusterWorkspaceShard{
 				withURLs("https://root", "https://front-proxy", shard("root")),
 			},
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
 				conditionsapi.Condition{
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
@@ -128,12 +128,12 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "happy case rescheduling",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				scheduled("foo", "https://foo", workspace())),
 			shards: []*tenancyv1alpha1.ClusterWorkspaceShard{
 				withURLs("https://root", "https://front-proxy", shard("root")),
 			},
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				scheduled("root", "https://front-proxy/clusters/workspace", workspace())),
 				conditionsapi.Condition{
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
@@ -148,13 +148,13 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "spec shard name",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				constrained(tenancyv1alpha1.ShardConstraints{Name: "foo"}, workspace())),
 			shards: []*tenancyv1alpha1.ClusterWorkspaceShard{
 				withLabels(map[string]string{"b": "2"}, withURLs("https://root", "https://front-proxy", shard("root"))),
 				withLabels(map[string]string{"a": "1"}, withURLs("https://foo", "https://front-proxy", shard("foo"))),
 			},
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				scheduled("foo", "https://front-proxy/clusters/workspace",
 					constrained(tenancyv1alpha1.ShardConstraints{Name: "foo"}, workspace()))),
 				conditionsapi.Condition{
@@ -170,13 +170,13 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "invalid spec shard name",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				constrained(tenancyv1alpha1.ShardConstraints{Name: "bar"}, workspace())),
 			shards: []*tenancyv1alpha1.ClusterWorkspaceShard{
 				withLabels(map[string]string{"b": "2"}, withURLs("https://root", "https://front-proxy", shard("root"))),
 				withLabels(map[string]string{"a": "1"}, withURLs("https://foo", "https://front-proxy", shard("foo"))),
 			},
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				constrained(tenancyv1alpha1.ShardConstraints{Name: "bar"}, workspace())),
 				conditionsapi.Condition{
 					Type:     tenancyv1alpha1.WorkspaceScheduled,
@@ -189,7 +189,7 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "spec shard selector",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				constrained(tenancyv1alpha1.ShardConstraints{Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{"a": "1"}},
 				}, workspace())),
@@ -197,7 +197,7 @@ func TestSchedulingReconciler(t *testing.T) {
 				withLabels(map[string]string{"b": "2"}, withURLs("https://root", "https://front-proxy", shard("root"))),
 				withLabels(map[string]string{"a": "1"}, withURLs("https://foo", "https://front-proxy", shard("foo"))),
 			},
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				scheduled("foo", "https://front-proxy/clusters/workspace",
 					constrained(tenancyv1alpha1.ShardConstraints{Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"a": "1"}},
@@ -215,7 +215,7 @@ func TestSchedulingReconciler(t *testing.T) {
 		},
 		{
 			name: "invalid spec shard selector",
-			workspace: phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			workspace: phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				constrained(tenancyv1alpha1.ShardConstraints{Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{"c": "1"}},
 				}, workspace())),
@@ -223,7 +223,7 @@ func TestSchedulingReconciler(t *testing.T) {
 				withLabels(map[string]string{"b": "2"}, withURLs("https://root", "https://front-proxy", shard("root"))),
 				withLabels(map[string]string{"a": "1"}, withURLs("https://foo", "https://front-proxy", shard("foo"))),
 			},
-			want: withConditions(phase(tenancyv1alpha1.ClusterWorkspacePhaseScheduling,
+			want: withConditions(phase(tenancyv1alpha1.WorkspacePhaseScheduling,
 				constrained(tenancyv1alpha1.ShardConstraints{Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{"c": "1"}},
 				}, workspace())),
@@ -289,7 +289,7 @@ func workspace() *tenancyv1alpha1.ClusterWorkspace {
 	}
 }
 
-func phase(phase tenancyv1alpha1.ClusterWorkspacePhaseType, shard *tenancyv1alpha1.ClusterWorkspace) *tenancyv1alpha1.ClusterWorkspace {
+func phase(phase tenancyv1alpha1.WorkspacePhaseType, shard *tenancyv1alpha1.ClusterWorkspace) *tenancyv1alpha1.ClusterWorkspace {
 	shard.Status.Phase = phase
 	return shard
 }

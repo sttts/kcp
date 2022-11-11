@@ -66,7 +66,7 @@ type schedulingReconciler struct {
 func (r *schedulingReconciler) reconcile(ctx context.Context, workspace *tenancyv1alpha1.ClusterWorkspace) (reconcileStatus, error) {
 	logger := klog.FromContext(ctx)
 	switch workspace.Status.Phase {
-	case tenancyv1alpha1.ClusterWorkspacePhaseScheduling:
+	case tenancyv1alpha1.WorkspacePhaseScheduling:
 		shardNameHash, hasShard := workspace.Annotations[clusterWorkspaceShardAnnotationKey]
 		clusterNameString, hasCluster := workspace.Annotations[clusterWorkspaceClusterAnnotationKey]
 		clusterName := logicalcluster.New(clusterNameString)
@@ -133,7 +133,7 @@ func (r *schedulingReconciler) reconcile(ctx context.Context, workspace *tenancy
 		conditions.MarkTrue(workspace, tenancyv1alpha1.WorkspaceScheduled)
 		logging.WithObject(logger, shard).Info("scheduled workspace to shard")
 
-	case tenancyv1alpha1.ClusterWorkspacePhaseInitializing, tenancyv1alpha1.ClusterWorkspacePhaseReady:
+	case tenancyv1alpha1.WorkspacePhaseInitializing, tenancyv1alpha1.WorkspacePhaseReady:
 		// movement can only happen after scheduling
 		if workspace.Status.Location.Target == "" {
 			break
