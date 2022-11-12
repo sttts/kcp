@@ -95,7 +95,7 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return reconcileStatusStopAndRequeue, err
 		} else if err == nil {
-			logger.Info("Created ThisWorkspace", logging.From(this)...)
+			logger.WithValues("object", logging.From(this)).Info("Created ThisWorkspace")
 		}
 	} else if this.Status.Phase != workspace.Status.Phase ||
 		this.Status.URL != workspace.Status.BaseURL ||
@@ -114,7 +114,7 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 		} else if errors.IsConflict(err) {
 			return reconcileStatusStopAndRequeue, nil
 		} else {
-			logger.WithValues("patch", diff(orig.Status, this.Status)).Info("Updated ThisWorkspace", logging.From(this)...)
+			logger.WithValues("object", logging.From(this), "patch", diff(orig.Status, this.Status)).Info("Updated ThisWorkspace")
 		}
 	}
 
@@ -164,8 +164,8 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 			}
 		}
 	}
-	logger.Info("Found accessors", "users", accessorUsers.List(), "groups", accessorGroups.List())
-	logger.Info("Found admins", "users", adminUsers.List(), "groups", adminGroups.List())
+	logger.WithValues("users", accessorUsers.List(), "groups", accessorGroups.List()).Info("Found accessors")
+	logger.WithValues("users", adminUsers.List(), "groups", adminGroups.List()).Info("Found admins")
 
 	// update admins and accessors
 	for _, role := range []struct {
@@ -225,7 +225,7 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return reconcileStatusStopAndRequeue, err
 				} else if err == nil {
-					logger.Info("Created ClusterRoleBinding", logging.From(created)...)
+					logger.WithValues("object", logging.From(created)).Info("Created ClusterRoleBinding")
 				}
 			} else {
 				if !equality.Semantic.DeepEqual(binding.Subjects, newBinding.Subjects) {
@@ -237,7 +237,7 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 					if err != nil {
 						return reconcileStatusStopAndRequeue, err
 					}
-					logger.WithValues("patch", diff(orig, binding)).Info("Updated ClusterRoleBinding", logging.From(updated)...)
+					logger.WithValues("object", logging.From(updated), "patch", diff(orig, binding)).Info("Updated ClusterRoleBinding")
 				}
 			}
 		}
