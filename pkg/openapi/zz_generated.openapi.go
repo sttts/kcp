@@ -3381,7 +3381,7 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspace(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ThisWorkspace",
+				Description: "ThisWorkspace describes the current workspace.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -3478,8 +3478,19 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceSpec(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type defines properties of the workspace both on creation (e.g. initial resources and initially installed APIs) and during runtime (e.g. permissions). If no type is provided, the default type for the workspace in which this workspace is nesting will be used.\n\nThe type is a reference to a ClusterWorkspaceType in the listed workspace, but lower-cased. The ClusterWorkspaceType existence is validated at admission during creation. The type is immutable after creation. The use of a type is gated via the RBAC clusterworkspacetypes/use resource permission.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ClusterWorkspaceTypeReference"),
+						},
+					},
+				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ClusterWorkspaceTypeReference"},
 	}
 }
 
@@ -3490,9 +3501,17 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceStatus(ref common.ReferenceCa
 				Description: "ThisWorkspaceStatus communicates the observed state of the Workspace.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"URL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "url is the address under which the Kubernetes-cluster-like endpoint can be found. This URL can be used to access the workspace with standard Kubernetes client libraries and command line tools.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Phase of the workspace (Initializing / Active / Terminating). This field is ALPHA.",
+							Description: "Phase of the workspace (Scheduling, Initializing, Ready).",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3527,6 +3546,7 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceStatus(ref common.ReferenceCa
 						},
 					},
 				},
+				Required: []string{"URL"},
 			},
 		},
 		Dependencies: []string{
@@ -3691,7 +3711,7 @@ func schema_pkg_apis_tenancy_v1beta1_WorkspaceStatus(ref common.ReferenceCallbac
 					},
 					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Phase of the workspace (Initializing / Active / Terminating). This field is ALPHA.",
+							Description: "Phase of the workspace (Scheduling, Initializing, Ready).",
 							Type:        []string{"string"},
 							Format:      "",
 						},
