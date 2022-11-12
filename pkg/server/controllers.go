@@ -320,7 +320,7 @@ func (s *Server) installWorkspaceDeletionController(ctx context.Context, config 
 		kubeClusterClient,
 		kcpClusterClient,
 		metadataClusterClient,
-		s.KcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
+		s.KcpSharedInformerFactory.Tenancy().V1alpha1().ThisWorkspaces(),
 		discoverResourcesFn,
 	)
 

@@ -710,6 +710,17 @@ type ThisWorkspaceStatus struct {
 	Initializers []WorkspaceInitializer `json:"initializers,omitempty"`
 }
 
+func (in *ThisWorkspace) SetConditions(c conditionsv1alpha1.Conditions) {
+	in.Status.Conditions = c
+}
+
+func (in *ThisWorkspace) GetConditions() conditionsv1alpha1.Conditions {
+	return in.Status.Conditions
+}
+
+var _ conditions.Getter = &ThisWorkspace{}
+var _ conditions.Setter = &ThisWorkspace{}
+
 // ThisWorkspaceList is a list of ThisWorkspaces
 //
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
