@@ -31,7 +31,6 @@ import (
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
-	"github.com/kcp-dev/kcp/pkg/apis/tenancy"
 	rbacwrapper "github.com/kcp-dev/kcp/pkg/virtual/framework/wrappers/rbac"
 )
 
@@ -72,15 +71,6 @@ func (a *LocalAuthorizer) Authorize(ctx context.Context, attr authorizer.Attribu
 			ctx,
 			LocalAuditDecision, DecisionNoOpinion,
 			LocalAuditReason, "empty cluster name",
-		)
-		return authorizer.DecisionNoOpinion, "", nil
-	}
-
-	if attr.GetAPIGroup() == tenancy.GroupName && attr.GetResource() == "thisworkspaces" && !readOnlyVerbs.Has(attr.GetVerb()) {
-		kaudit.AddAuditAnnotations(
-			ctx,
-			LocalAuditDecision, DecisionNoOpinion,
-			LocalAuditReason, "thisworkspaces is read-only",
 		)
 		return authorizer.DecisionNoOpinion, "", nil
 	}
