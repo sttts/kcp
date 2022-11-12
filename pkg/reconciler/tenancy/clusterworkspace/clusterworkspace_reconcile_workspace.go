@@ -50,7 +50,7 @@ func (r *workspaceReconciler) reconcile(ctx context.Context, cw *tenancyv1alpha1
 		if err != nil && !errors.IsNotFound(err) {
 			return reconcileStatusStopAndRequeue, err
 		} else if err == nil && ws.DeletionTimestamp.IsZero() {
-			if err := r.deleteWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), cw.Name); err != nil && !errors.IsNotFound(err) {
+			if err = r.deleteWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), cw.Name); err != nil && !errors.IsNotFound(err) {
 				return reconcileStatusStopAndRequeue, err
 			}
 		}
@@ -67,15 +67,15 @@ func (r *workspaceReconciler) reconcile(ctx context.Context, cw *tenancyv1alpha1
 			Annotations: ws.Annotations,
 			Labels:      ws.Labels,
 		}
-		if _, err := r.createWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), &ws); err != nil && !errors.IsAlreadyExists(err) {
-			return reconcileStatusStopAndRequeue, nil
+		if _, err = r.createWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), &ws); err != nil && !errors.IsAlreadyExists(err) {
+			return reconcileStatusStopAndRequeue, err
 		}
 	} else if !reflect.DeepEqual(ws.Annotations, cw.Annotations) || !reflect.DeepEqual(ws.Labels, cw.Labels) {
 		ws := ws.DeepCopy()
 		ws.Annotations = cw.Annotations
 		ws.Labels = cw.Labels
-		if _, err := r.updateWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), ws); err != nil {
-			return reconcileStatusStopAndRequeue, nil
+		if _, err = r.updateWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), ws); err != nil {
+			return reconcileStatusStopAndRequeue, err
 		}
 	}
 
