@@ -133,6 +133,9 @@ func (c *Controller) reconcile(ctx context.Context, ws *tenancyv1alpha1.ClusterW
 			updateWorkspaceWithoutProjection: func(ctx context.Context, clusterName logicalcluster.Name, workspace *tenancyv1beta1.Workspace) (*tenancyv1beta1.Workspace, error) {
 				return c.kcpClusterClient.TenancyV1beta1().Workspaces().Update(logicalcluster.WithCluster(ctx, clusterName), workspace, metav1.UpdateOptions{})
 			},
+			updateWorkspaceStatusWithoutProjection: func(ctx context.Context, clusterName logicalcluster.Name, this *tenancyv1beta1.Workspace) (*tenancyv1beta1.Workspace, error) {
+				return c.kcpClusterClient.TenancyV1beta1().Workspaces().UpdateStatus(logicalcluster.WithCluster(ctx, clusterName), this, metav1.UpdateOptions{})
+			},
 		},
 	}
 
