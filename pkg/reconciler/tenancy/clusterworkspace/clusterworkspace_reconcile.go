@@ -46,6 +46,7 @@ type reconciler interface {
 func (c *Controller) reconcile(ctx context.Context, ws *tenancyv1alpha1.ClusterWorkspace) (bool, error) {
 	reconcilers := []reconciler{
 		&metaDataReconciler{},
+		&preThisWorkspaceReconciler{},
 		&schedulingReconciler{
 			getShard: func(name string) (*tenancyv1alpha1.ClusterWorkspaceShard, error) {
 				return c.clusterWorkspaceShardLister.Get(client.ToClusterAwareKey(tenancyv1alpha1.RootCluster, name))
@@ -90,6 +91,9 @@ func (c *Controller) reconcile(ctx context.Context, ws *tenancyv1alpha1.ClusterW
 			deleteThisWorkspace: func(ctx context.Context, clusterName logicalcluster.Name) error {
 				return c.kcpClusterClient.TenancyV1alpha1().ThisWorkspaces().Delete(logicalcluster.WithCluster(ctx, clusterName), tenancyv1alpha1.ThisWorkspaceName, metav1.DeleteOptions{})
 			},
+			updateThisWorkspace: func(ctx context.Context, clusterName logicalcluster.Name, this *tenancyv1alpha1.ThisWorkspace) (*tenancyv1alpha1.ThisWorkspace, error) {
+				return c.kcpClusterClient.TenancyV1alpha1().ThisWorkspaces().Update(logicalcluster.WithCluster(ctx, clusterName), this, metav1.UpdateOptions{})
+			},
 			updateThisWorkspaceStatus: func(ctx context.Context, clusterName logicalcluster.Name, this *tenancyv1alpha1.ThisWorkspace) (*tenancyv1alpha1.ThisWorkspace, error) {
 				return c.kcpClusterClient.TenancyV1alpha1().ThisWorkspaces().UpdateStatus(logicalcluster.WithCluster(ctx, clusterName), this, metav1.UpdateOptions{})
 			},
@@ -132,6 +136,9 @@ func (c *Controller) reconcile(ctx context.Context, ws *tenancyv1alpha1.ClusterW
 			},
 			updateWorkspaceWithoutProjection: func(ctx context.Context, clusterName logicalcluster.Name, workspace *tenancyv1beta1.Workspace) (*tenancyv1beta1.Workspace, error) {
 				return c.kcpClusterClient.TenancyV1beta1().Workspaces().Update(logicalcluster.WithCluster(ctx, clusterName), workspace, metav1.UpdateOptions{})
+			},
+			updateWorkspaceStatusWithoutProjection: func(ctx context.Context, clusterName logicalcluster.Name, this *tenancyv1beta1.Workspace) (*tenancyv1beta1.Workspace, error) {
+				return c.kcpClusterClient.TenancyV1beta1().Workspaces().UpdateStatus(logicalcluster.WithCluster(ctx, clusterName), this, metav1.UpdateOptions{})
 			},
 		},
 	}
