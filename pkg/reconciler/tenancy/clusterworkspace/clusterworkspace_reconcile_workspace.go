@@ -68,9 +68,7 @@ func (r *workspaceReconciler) reconcile(ctx context.Context, cw *tenancyv1alpha1
 		}
 
 		// Workspace is gone. Remove finalizer from ClusterWorkspace
-		if len(ws.Finalizers) == 0 {
-			cw.Finalizers = sets.NewString(cw.Finalizers...).Delete(mirrorWorkspaceFinalizer).List()
-		}
+		cw.Finalizers = sets.NewString(cw.Finalizers...).Delete(mirrorWorkspaceFinalizer).List()
 
 		return reconcileStatusContinue, nil
 	}
@@ -92,6 +90,11 @@ func (r *workspaceReconciler) reconcile(ctx context.Context, cw *tenancyv1alpha1
 		logger.Info("Creating Workspace from ClusterWorkspace")
 		if ws, err = r.createWorkspaceWithoutProjection(ctx, logicalcluster.From(cw), ws); err != nil && !errors.IsAlreadyExists(err) {
 			return reconcileStatusStopAndRequeue, err
+		} else if errors.IsAlreadyExists(err) {
+			ws, err = r.getWorkspace(logicalcluster.From(cw), cw.Name)
+			if err != nil {
+				return reconcileStatusStopAndRequeue, err
+			}
 		}
 	}
 
