@@ -3504,7 +3504,6 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceStatus(ref common.ReferenceCa
 					"URL": {
 						SchemaProps: spec.SchemaProps{
 							Description: "url is the address under which the Kubernetes-cluster-like endpoint can be found. This URL can be used to access the workspace with standard Kubernetes client libraries and command line tools.",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3546,7 +3545,6 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceStatus(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"URL"},
 			},
 		},
 		Dependencies: []string{
@@ -3704,7 +3702,6 @@ func schema_pkg_apis_tenancy_v1beta1_WorkspaceStatus(ref common.ReferenceCallbac
 					"URL": {
 						SchemaProps: spec.SchemaProps{
 							Description: "url is the address under which the Kubernetes-cluster-like endpoint can be found. This URL can be used to access the workspace with standard Kubernetes client libraries and command line tools.",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3746,7 +3743,6 @@ func schema_pkg_apis_tenancy_v1beta1_WorkspaceStatus(ref common.ReferenceCallbac
 						},
 					},
 				},
-				Required: []string{"URL"},
 			},
 		},
 		Dependencies: []string{
