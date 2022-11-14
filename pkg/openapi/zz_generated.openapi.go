@@ -100,6 +100,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ShardConstraints":                         schema_pkg_apis_tenancy_v1alpha1_ShardConstraints(ref),
 		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspace":                            schema_pkg_apis_tenancy_v1alpha1_ThisWorkspace(ref),
 		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspaceList":                        schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceList(ref),
+		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspaceOwner":                       schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceOwner(ref),
 		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspaceSpec":                        schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceSpec(ref),
 		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspaceStatus":                      schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceStatus(ref),
 		"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.VirtualWorkspace":                         schema_pkg_apis_tenancy_v1alpha1_VirtualWorkspace(ref),
@@ -3473,11 +3474,73 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceList(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceOwner(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ThisWorkspaceOwner is a reference to a resource controlling the life-cycle of a ThisWorkspace.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "apiVersion is the group and API version of the owner.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"resource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "resource is API resource to access the owner.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "name is the name of the owner.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "namespace is the optional namespace of the owner.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"cluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "cluster is the logical cluster in which the owner is located.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"uid": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UID is the UID of the owner.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"apiVersion", "resource", "name", "cluster", "uid"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "ThisWorkspaceSpec is the specification of the ThisWorkspace resource.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
@@ -3486,11 +3549,17 @@ func schema_pkg_apis_tenancy_v1alpha1_ThisWorkspaceSpec(ref common.ReferenceCall
 							Ref:         ref("github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ClusterWorkspaceTypeReference"),
 						},
 					},
+					"owner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "owner is a reference to a resource controlling the life-cycle of this workspace. On deletion of the ThisWorkspace, the finalizer tenancy.kcp.dev/thisworkspace is removed from the owner.\n\nWhen this object is deleted, but the owner is not deleted, the owner is deleted too.",
+							Ref:         ref("github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspaceOwner"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ClusterWorkspaceTypeReference"},
+			"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ClusterWorkspaceTypeReference", "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1.ThisWorkspaceOwner"},
 	}
 }
 
