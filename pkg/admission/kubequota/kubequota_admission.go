@@ -27,6 +27,7 @@ import (
 	"github.com/kcp-dev/logicalcluster/v2"
 
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/admission/initializer"
 	"k8s.io/apiserver/pkg/admission/plugin/resourcequota"
@@ -135,8 +136,11 @@ func (k *KubeResourceQuota) Validate(ctx context.Context, a admission.Attributes
 	if a.GetResource() == tenancyv1alpha1.SchemeGroupVersion.WithResource("thisworkspaces") {
 		return nil
 	}
-	if a.GetResource() == rbacv1.SchemeGroupVersion.WithResource("clusterrolebindings") && a.GetName() == "workspace-admin" {
-		return nil
+	if a.GetResource() == rbacv1.SchemeGroupVersion.WithResource("clusterrolebindings") {
+		allowedNames := sets.NewString("workspace-admin", "workspace-admin-legacy", "workspace-access-legacy")
+		if allowedNames.Has(a.GetName()) {
+			return nil
+		}
 	}
 
 	k.clusterWorkspaceDeletionMonitorStarter.Do(func() {
