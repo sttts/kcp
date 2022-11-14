@@ -26,6 +26,7 @@ import (
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
 	"github.com/kcp-dev/logicalcluster/v2"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/admission/initializer"
 	"k8s.io/apiserver/pkg/admission/plugin/resourcequota"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kcp-dev/kcp/pkg/admission/initializers"
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
 	kcpinformers "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
 	tenancyinformers "github.com/kcp-dev/kcp/pkg/client/informers/externalversions/tenancy/v1alpha1"
 	tenancylisters "github.com/kcp-dev/kcp/pkg/client/listers/tenancy/v1alpha1"
@@ -129,6 +131,14 @@ var _ = initializers.WantsServerShutdownChannel(&KubeResourceQuota{})
 // Validate gets or creates a resourcequota.QuotaAdmission plugin for the logical cluster in the request and then
 // delegates validation to it.
 func (k *KubeResourceQuota) Validate(ctx context.Context, a admission.Attributes, o admission.ObjectInterfaces) error {
+	// TODO:(p0lyn0mial): the following checks are temporary only to get the phase A merged
+	if a.GetResource() == tenancyv1alpha1.SchemeGroupVersion.WithResource("thisworkspaces") {
+		return nil
+	}
+	if a.GetResource() == rbacv1.SchemeGroupVersion.WithResource("clusterrolebindings") && a.GetName() == "workspace-admin" {
+		return nil
+	}
+
 	k.clusterWorkspaceDeletionMonitorStarter.Do(func() {
 		m := newClusterWorkspaceDeletionMonitor(k.clusterWorkspaceInformer, k.stopQuotaAdmissionForCluster)
 		go m.Start(k.serverDone)
