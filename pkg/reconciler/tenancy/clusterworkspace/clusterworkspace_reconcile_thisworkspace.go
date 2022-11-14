@@ -168,10 +168,10 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 				if subject.Kind == "User" && verbs.Has("access") && !strings.HasPrefix(subject.Name, "system:serviceaccount:") {
 					accessorUsers.Insert(subject.Name)
 				}
-				if subject.Kind == "User" && verbs.Has("admin") && !strings.HasPrefix(subject.Name, "system:serviceaccounts:") {
+				if subject.Kind == "User" && verbs.Has("admin") && !strings.HasPrefix(subject.Name, "system:serviceaccount:") {
 					adminUsers.Insert(subject.Name)
 				}
-				if subject.Kind == "Group" && verbs.Has("access") && !strings.HasPrefix(subject.Name, "system:serviceaccount:") {
+				if subject.Kind == "Group" && verbs.Has("access") && !strings.HasPrefix(subject.Name, "system:serviceaccounts:") {
 					accessorGroups.Insert(subject.Name)
 				}
 				if subject.Kind == "Group" && verbs.Has("admin") && !strings.HasPrefix(subject.Name, "system:serviceaccounts:") {
@@ -218,14 +218,14 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 					Name:     role.roleName,
 				},
 			}
-			for _, user := range adminUsers.List() {
+			for _, user := range role.users {
 				newBinding.Subjects = append(newBinding.Subjects, rbacv1.Subject{
 					APIGroup: rbacv1.GroupName,
 					Kind:     "User",
 					Name:     user,
 				})
 			}
-			for _, group := range adminGroups.List() {
+			for _, group := range role.groups.List() {
 				newBinding.Subjects = append(newBinding.Subjects, rbacv1.Subject{
 					APIGroup: rbacv1.GroupName,
 					Kind:     "Group",
