@@ -191,13 +191,13 @@ func (r *thisWorkspaceReconciler) reconcile(ctx context.Context, workspace *tena
 		roleName    string
 	}{
 		{
-			bindingName: "workspace-admin",
+			bindingName: "workspace-admin-legacy",
 			users:       adminUsers,
 			groups:      adminGroups,
 			roleName:    "cluster-admin",
 		},
 		{
-			bindingName: "workspace-access",
+			bindingName: "workspace-access-legacy",
 			users:       accessorUsers,
 			groups:      accessorGroups,
 			roleName:    bootstrap.SystemKcpWorkspaceAccessGroup,
