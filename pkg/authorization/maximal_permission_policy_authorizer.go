@@ -55,10 +55,10 @@ func NewMaximalPermissionPolicyAuthorizer(kubeInformers kcpkubernetesinformers.S
 	kubeInformers.Rbac().V1().ClusterRoleBindings().Lister()
 
 	return &MaximalPermissionPolicyAuthorizer{
-		getAPIBindingReferenceForAttributes: func(attr authorizer.Attributes, clusterName logicalcluster.Name) (*apisv1alpha1.ExportReference, bool, error) {
+		getAPIBindingReferenceForAttributes: func(attr authorizer.Attributes, clusterName logicalcluster.Name) (*apisv1alpha1.BindingReference, bool, error) {
 			return getAPIBindingReferenceForAttributes(kcpInformers.Apis().V1alpha1().APIBindings().Lister(), attr, clusterName)
 		},
-		getAPIExportByReference: func(exportRef *apisv1alpha1.ExportReference) (*apisv1alpha1.APIExport, bool, error) {
+		getAPIExportByReference: func(exportRef *apisv1alpha1.BindingReference) (*apisv1alpha1.APIExport, bool, error) {
 			return getAPIExportByReference(kcpInformers.Apis().V1alpha1().APIExports().Lister(), exportRef)
 		},
 		newAuthorizer: func(clusterName logicalcluster.Name) authorizer.Authorizer {
@@ -85,8 +85,8 @@ func NewMaximalPermissionPolicyAuthorizer(kubeInformers kcpkubernetesinformers.S
 type MaximalPermissionPolicyAuthorizer struct {
 	delegate authorizer.Authorizer
 
-	getAPIBindingReferenceForAttributes func(attr authorizer.Attributes, clusterName logicalcluster.Name) (ref *apisv1alpha1.ExportReference, found bool, err error)
-	getAPIExportByReference             func(exportRef *apisv1alpha1.ExportReference) (ref *apisv1alpha1.APIExport, found bool, err error)
+	getAPIBindingReferenceForAttributes func(attr authorizer.Attributes, clusterName logicalcluster.Name) (ref *apisv1alpha1.BindingReference, found bool, err error)
+	getAPIExportByReference             func(exportRef *apisv1alpha1.BindingReference) (ref *apisv1alpha1.APIExport, found bool, err error)
 	newAuthorizer                       func(clusterName logicalcluster.Name) authorizer.Authorizer
 }
 
@@ -133,9 +133,9 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 
 	path := "unknown"
 	exportName := "unknown"
-	if bindingLogicalCluster.Workspace != nil {
-		exportName = bindingLogicalCluster.Workspace.ExportName
-		path = bindingLogicalCluster.Workspace.Path
+	if bindingLogicalCluster.Export != nil {
+		exportName = bindingLogicalCluster.Export.Name
+		path = bindingLogicalCluster.Export.Path
 	}
 
 	// If we can't find the export default to close
@@ -198,7 +198,7 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 	return authorizer.DecisionNoOpinion, reason, nil
 }
 
-func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1listers.APIBindingClusterLister, attr authorizer.Attributes, clusterName logicalcluster.Name) (*apisv1alpha1.ExportReference, bool, error) {
+func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1listers.APIBindingClusterLister, attr authorizer.Attributes, clusterName logicalcluster.Name) (*apisv1alpha1.BindingReference, bool, error) {
 	objs, err := apiBindingClusterLister.Cluster(clusterName).List(labels.Everything())
 	if err != nil {
 		return nil, false, err
@@ -213,13 +213,13 @@ func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1lis
 	return nil, false, nil
 }
 
-func getAPIExportByReference(apiExportClusterLister apisv1alpha1listers.APIExportClusterLister, exportRef *apisv1alpha1.ExportReference) (*apisv1alpha1.APIExport, bool, error) {
-	objs, err := apiExportClusterLister.Cluster(logicalcluster.New(exportRef.Workspace.Path)).List(labels.Everything())
+func getAPIExportByReference(apiExportClusterLister apisv1alpha1listers.APIExportClusterLister, exportRef *apisv1alpha1.BindingReference) (*apisv1alpha1.APIExport, bool, error) {
+	objs, err := apiExportClusterLister.Cluster(logicalcluster.New(exportRef.Export.Path)).List(labels.Everything())
 	if err != nil {
 		return nil, false, err
 	}
 	for _, apiExport := range objs {
-		if apiExport.Name == exportRef.Workspace.ExportName {
+		if apiExport.Name == exportRef.Export.Name {
 			return apiExport, true, err
 		}
 	}
