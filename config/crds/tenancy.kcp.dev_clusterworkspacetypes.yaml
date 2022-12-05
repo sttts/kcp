@@ -60,8 +60,8 @@ spec:
                   description: APIExportReference provides the fields necessary to
                     resolve an APIExport.
                   properties:
-                    exportName:
-                      description: exportName is the name of the APIExport.
+                    export:
+                      description: export is the name of the APIExport.
                       type: string
                     path:
                       description: path is the fully-qualified path to the workspace
@@ -69,13 +69,13 @@ spec:
                       pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                       type: string
                   required:
-                  - exportName
+                  - export
                   - path
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:
                 - path
-                - exportName
+                - export
                 x-kubernetes-list-type: map
               defaultChildWorkspaceType:
                 default:
