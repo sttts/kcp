@@ -1168,7 +1168,7 @@ func (s *Server) installKubeQuotaController(
 	)
 
 	c, err := kubequota.NewController(
-		s.KcpSharedInformerFactory.Tenancy().V1beta1().Workspaces(),
+		s.KcpSharedInformerFactory.Tenancy().V1alpha1().ThisWorkspaces(),
 		kubeClusterClient,
 		s.KubeSharedInformerFactory,
 		s.DynamicDiscoverySharedInformerFactory,
