@@ -24,7 +24,7 @@ package v1beta1
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ type workspacesClusterClient struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *workspacesClusterClient) Cluster(cluster logicalcluster.Name) tenancyv1beta1client.WorkspaceInterface {
+func (c *workspacesClusterClient) Cluster(cluster logicalcluster.Path) tenancyv1beta1client.WorkspaceInterface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -81,7 +81,7 @@ func (c *workspacesClusterClient) Watch(ctx context.Context, opts metav1.ListOpt
 
 type workspacesClient struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *workspacesClient) Create(ctx context.Context, workspace *tenancyv1beta1.Workspace, opts metav1.CreateOptions) (*tenancyv1beta1.Workspace, error) {

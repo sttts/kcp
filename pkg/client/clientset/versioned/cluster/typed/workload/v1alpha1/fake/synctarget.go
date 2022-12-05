@@ -24,7 +24,7 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ type syncTargetsClusterClient struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *syncTargetsClusterClient) Cluster(cluster logicalcluster.Name) workloadv1alpha1client.SyncTargetInterface {
+func (c *syncTargetsClusterClient) Cluster(cluster logicalcluster.Path) workloadv1alpha1client.SyncTargetInterface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -81,7 +81,7 @@ func (c *syncTargetsClusterClient) Watch(ctx context.Context, opts metav1.ListOp
 
 type syncTargetsClient struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *syncTargetsClient) Create(ctx context.Context, syncTarget *workloadv1alpha1.SyncTarget, opts metav1.CreateOptions) (*workloadv1alpha1.SyncTarget, error) {

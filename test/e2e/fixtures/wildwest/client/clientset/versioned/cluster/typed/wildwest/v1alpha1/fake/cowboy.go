@@ -24,7 +24,7 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +47,7 @@ type cowboysClusterClient struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *cowboysClusterClient) Cluster(cluster logicalcluster.Name) kcpwildwestv1alpha1.CowboysNamespacer {
+func (c *cowboysClusterClient) Cluster(cluster logicalcluster.Path) kcpwildwestv1alpha1.CowboysNamespacer {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -82,7 +82,7 @@ func (c *cowboysClusterClient) Watch(ctx context.Context, opts metav1.ListOption
 
 type cowboysNamespacer struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (n *cowboysNamespacer) Namespace(namespace string) wildwestv1alpha1client.CowboyInterface {
@@ -91,7 +91,7 @@ func (n *cowboysNamespacer) Namespace(namespace string) wildwestv1alpha1client.C
 
 type cowboysClient struct {
 	*kcptesting.Fake
-	Cluster   logicalcluster.Name
+	Cluster   logicalcluster.Path
 	Namespace string
 }
 

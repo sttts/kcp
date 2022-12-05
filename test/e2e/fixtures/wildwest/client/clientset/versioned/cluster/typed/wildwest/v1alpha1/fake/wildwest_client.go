@@ -22,7 +22,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	"k8s.io/client-go/rest"
@@ -37,7 +37,7 @@ type WildwestV1alpha1ClusterClient struct {
 	*kcptesting.Fake
 }
 
-func (c *WildwestV1alpha1ClusterClient) Cluster(cluster logicalcluster.Name) wildwestv1alpha1.WildwestV1alpha1Interface {
+func (c *WildwestV1alpha1ClusterClient) Cluster(cluster logicalcluster.Path) wildwestv1alpha1.WildwestV1alpha1Interface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -52,7 +52,7 @@ var _ wildwestv1alpha1.WildwestV1alpha1Interface = (*WildwestV1alpha1Client)(nil
 
 type WildwestV1alpha1Client struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *WildwestV1alpha1Client) RESTClient() rest.Interface {

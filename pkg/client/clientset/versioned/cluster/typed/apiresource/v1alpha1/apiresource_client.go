@@ -25,7 +25,7 @@ import (
 	"net/http"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"k8s.io/client-go/rest"
 
@@ -39,14 +39,14 @@ type ApiresourceV1alpha1ClusterInterface interface {
 }
 
 type ApiresourceV1alpha1ClusterScoper interface {
-	Cluster(logicalcluster.Name) apiresourcev1alpha1.ApiresourceV1alpha1Interface
+	Cluster(logicalcluster.Path) apiresourcev1alpha1.ApiresourceV1alpha1Interface
 }
 
 type ApiresourceV1alpha1ClusterClient struct {
 	clientCache kcpclient.Cache[*apiresourcev1alpha1.ApiresourceV1alpha1Client]
 }
 
-func (c *ApiresourceV1alpha1ClusterClient) Cluster(name logicalcluster.Name) apiresourcev1alpha1.ApiresourceV1alpha1Interface {
+func (c *ApiresourceV1alpha1ClusterClient) Cluster(name logicalcluster.Path) apiresourcev1alpha1.ApiresourceV1alpha1Interface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}

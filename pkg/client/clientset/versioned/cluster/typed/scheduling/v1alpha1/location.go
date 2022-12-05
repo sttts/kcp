@@ -25,7 +25,7 @@ import (
 	"context"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ type LocationsClusterGetter interface {
 // LocationClusterInterface can operate on Locations across all clusters,
 // or scope down to one cluster and return a schedulingv1alpha1client.LocationInterface.
 type LocationClusterInterface interface {
-	Cluster(logicalcluster.Name) schedulingv1alpha1client.LocationInterface
+	Cluster(logicalcluster.Path) schedulingv1alpha1client.LocationInterface
 	List(ctx context.Context, opts metav1.ListOptions) (*schedulingv1alpha1.LocationList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
@@ -53,7 +53,7 @@ type locationsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *locationsClusterInterface) Cluster(name logicalcluster.Name) schedulingv1alpha1client.LocationInterface {
+func (c *locationsClusterInterface) Cluster(name logicalcluster.Path) schedulingv1alpha1client.LocationInterface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}

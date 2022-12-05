@@ -25,7 +25,7 @@ import (
 	"context"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ type ClusterWorkspaceTypesClusterGetter interface {
 // ClusterWorkspaceTypeClusterInterface can operate on ClusterWorkspaceTypes across all clusters,
 // or scope down to one cluster and return a tenancyv1alpha1client.ClusterWorkspaceTypeInterface.
 type ClusterWorkspaceTypeClusterInterface interface {
-	Cluster(logicalcluster.Name) tenancyv1alpha1client.ClusterWorkspaceTypeInterface
+	Cluster(logicalcluster.Path) tenancyv1alpha1client.ClusterWorkspaceTypeInterface
 	List(ctx context.Context, opts metav1.ListOptions) (*tenancyv1alpha1.ClusterWorkspaceTypeList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
@@ -53,7 +53,7 @@ type clusterWorkspaceTypesClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *clusterWorkspaceTypesClusterInterface) Cluster(name logicalcluster.Name) tenancyv1alpha1client.ClusterWorkspaceTypeInterface {
+func (c *clusterWorkspaceTypesClusterInterface) Cluster(name logicalcluster.Path) tenancyv1alpha1client.ClusterWorkspaceTypeInterface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}

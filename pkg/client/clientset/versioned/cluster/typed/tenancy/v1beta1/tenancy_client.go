@@ -25,7 +25,7 @@ import (
 	"net/http"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"k8s.io/client-go/rest"
 
@@ -38,14 +38,14 @@ type TenancyV1beta1ClusterInterface interface {
 }
 
 type TenancyV1beta1ClusterScoper interface {
-	Cluster(logicalcluster.Name) tenancyv1beta1.TenancyV1beta1Interface
+	Cluster(logicalcluster.Path) tenancyv1beta1.TenancyV1beta1Interface
 }
 
 type TenancyV1beta1ClusterClient struct {
 	clientCache kcpclient.Cache[*tenancyv1beta1.TenancyV1beta1Client]
 }
 
-func (c *TenancyV1beta1ClusterClient) Cluster(name logicalcluster.Name) tenancyv1beta1.TenancyV1beta1Interface {
+func (c *TenancyV1beta1ClusterClient) Cluster(name logicalcluster.Path) tenancyv1beta1.TenancyV1beta1Interface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}

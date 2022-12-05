@@ -24,7 +24,7 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ type placementsClusterClient struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *placementsClusterClient) Cluster(cluster logicalcluster.Name) schedulingv1alpha1client.PlacementInterface {
+func (c *placementsClusterClient) Cluster(cluster logicalcluster.Path) schedulingv1alpha1client.PlacementInterface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -81,7 +81,7 @@ func (c *placementsClusterClient) Watch(ctx context.Context, opts metav1.ListOpt
 
 type placementsClient struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *placementsClient) Create(ctx context.Context, placement *schedulingv1alpha1.Placement, opts metav1.CreateOptions) (*schedulingv1alpha1.Placement, error) {

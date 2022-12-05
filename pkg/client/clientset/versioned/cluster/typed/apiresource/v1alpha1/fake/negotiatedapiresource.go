@@ -24,7 +24,7 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ type negotiatedAPIResourcesClusterClient struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *negotiatedAPIResourcesClusterClient) Cluster(cluster logicalcluster.Name) apiresourcev1alpha1client.NegotiatedAPIResourceInterface {
+func (c *negotiatedAPIResourcesClusterClient) Cluster(cluster logicalcluster.Path) apiresourcev1alpha1client.NegotiatedAPIResourceInterface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -81,7 +81,7 @@ func (c *negotiatedAPIResourcesClusterClient) Watch(ctx context.Context, opts me
 
 type negotiatedAPIResourcesClient struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *negotiatedAPIResourcesClient) Create(ctx context.Context, negotiatedAPIResource *apiresourcev1alpha1.NegotiatedAPIResource, opts metav1.CreateOptions) (*apiresourcev1alpha1.NegotiatedAPIResource, error) {

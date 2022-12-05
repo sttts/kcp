@@ -26,7 +26,7 @@ import (
 	"net/http"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -37,7 +37,7 @@ import (
 )
 
 type ClusterInterface interface {
-	Cluster(logicalcluster.Name) client.Interface
+	Cluster(logicalcluster.Path) client.Interface
 	Discovery() discovery.DiscoveryInterface
 	WildwestV1alpha1() wildwestv1alpha1.WildwestV1alpha1ClusterInterface
 }
@@ -63,7 +63,7 @@ func (c *ClusterClientset) WildwestV1alpha1() wildwestv1alpha1.WildwestV1alpha1C
 }
 
 // Cluster scopes this clientset to one cluster.
-func (c *ClusterClientset) Cluster(name logicalcluster.Name) client.Interface {
+func (c *ClusterClientset) Cluster(name logicalcluster.Path) client.Interface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}

@@ -24,7 +24,7 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +46,7 @@ type aPIExportsClusterClient struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *aPIExportsClusterClient) Cluster(cluster logicalcluster.Name) apisv1alpha1client.APIExportInterface {
+func (c *aPIExportsClusterClient) Cluster(cluster logicalcluster.Path) apisv1alpha1client.APIExportInterface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -81,7 +81,7 @@ func (c *aPIExportsClusterClient) Watch(ctx context.Context, opts metav1.ListOpt
 
 type aPIExportsClient struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *aPIExportsClient) Create(ctx context.Context, aPIExport *apisv1alpha1.APIExport, opts metav1.CreateOptions) (*apisv1alpha1.APIExport, error) {

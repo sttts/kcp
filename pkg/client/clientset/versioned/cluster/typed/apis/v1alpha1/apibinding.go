@@ -25,7 +25,7 @@ import (
 	"context"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ type APIBindingsClusterGetter interface {
 // APIBindingClusterInterface can operate on APIBindings across all clusters,
 // or scope down to one cluster and return a apisv1alpha1client.APIBindingInterface.
 type APIBindingClusterInterface interface {
-	Cluster(logicalcluster.Name) apisv1alpha1client.APIBindingInterface
+	Cluster(logicalcluster.Path) apisv1alpha1client.APIBindingInterface
 	List(ctx context.Context, opts metav1.ListOptions) (*apisv1alpha1.APIBindingList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
@@ -53,7 +53,7 @@ type aPIBindingsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *aPIBindingsClusterInterface) Cluster(name logicalcluster.Name) apisv1alpha1client.APIBindingInterface {
+func (c *aPIBindingsClusterInterface) Cluster(name logicalcluster.Path) apisv1alpha1client.APIBindingInterface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}

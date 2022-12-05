@@ -22,7 +22,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	kcptesting "github.com/kcp-dev/client-go/third_party/k8s.io/client-go/testing"
 	"k8s.io/client-go/rest"
@@ -37,7 +37,7 @@ type TenancyV1beta1ClusterClient struct {
 	*kcptesting.Fake
 }
 
-func (c *TenancyV1beta1ClusterClient) Cluster(cluster logicalcluster.Name) tenancyv1beta1.TenancyV1beta1Interface {
+func (c *TenancyV1beta1ClusterClient) Cluster(cluster logicalcluster.Path) tenancyv1beta1.TenancyV1beta1Interface {
 	if cluster == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
@@ -52,7 +52,7 @@ var _ tenancyv1beta1.TenancyV1beta1Interface = (*TenancyV1beta1Client)(nil)
 
 type TenancyV1beta1Client struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Name
+	Cluster logicalcluster.Path
 }
 
 func (c *TenancyV1beta1Client) RESTClient() rest.Interface {

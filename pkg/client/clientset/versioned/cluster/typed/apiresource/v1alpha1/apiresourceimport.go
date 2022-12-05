@@ -25,7 +25,7 @@ import (
 	"context"
 
 	kcpclient "github.com/kcp-dev/apimachinery/pkg/client"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ type APIResourceImportsClusterGetter interface {
 // APIResourceImportClusterInterface can operate on APIResourceImports across all clusters,
 // or scope down to one cluster and return a apiresourcev1alpha1client.APIResourceImportInterface.
 type APIResourceImportClusterInterface interface {
-	Cluster(logicalcluster.Name) apiresourcev1alpha1client.APIResourceImportInterface
+	Cluster(logicalcluster.Path) apiresourcev1alpha1client.APIResourceImportInterface
 	List(ctx context.Context, opts metav1.ListOptions) (*apiresourcev1alpha1.APIResourceImportList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
@@ -53,7 +53,7 @@ type aPIResourceImportsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *aPIResourceImportsClusterInterface) Cluster(name logicalcluster.Name) apiresourcev1alpha1client.APIResourceImportInterface {
+func (c *aPIResourceImportsClusterInterface) Cluster(name logicalcluster.Path) apiresourcev1alpha1client.APIResourceImportInterface {
 	if name == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
