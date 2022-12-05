@@ -323,16 +323,12 @@ func (o *BindComputeOptions) supportedAPIExports(ctx context.Context, client kcp
 	supportedExports := sets.NewString()
 	for _, syncTarget := range syncTargets.Items {
 		for _, apiExport := range syncTarget.Spec.SupportedAPIExports {
-			if apiExport.Workspace == nil {
-				continue
-			}
-
-			path := apiExport.Workspace.Path
+			cluster := apiExport.Path
 			// if path is not set, the apiexport is in the location workspace
-			if len(path) == 0 {
-				path = o.LocationWorkspace.String()
+			if len(cluster) == 0 {
+				cluster = o.LocationWorkspace.String()
 			}
-			supportedExports.Insert(fmt.Sprintf("%s:%s", path, apiExport.Workspace.ExportName))
+			supportedExports.Insert(fmt.Sprintf("%s:%s", cluster, apiExport.ExportName))
 		}
 	}
 
