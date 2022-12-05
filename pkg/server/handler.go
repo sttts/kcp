@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	"github.com/emicklei/go-restful"
-	"github.com/kcp-dev/logicalcluster/v2"
+	"github.com/kcp-dev/logicalcluster/v3"
 	jwt2 "gopkg.in/square/go-jose.v2/jwt"
 
 	apiextensionsapiserver "k8s.io/apiextensions-apiserver/pkg/apiserver"
