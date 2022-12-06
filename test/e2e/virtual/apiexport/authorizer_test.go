@@ -180,8 +180,8 @@ func TestAPIExportAuthorizers(t *testing.T) {
 		Spec: apisv1alpha1.APIBindingSpec{
 			Reference: apisv1alpha1.BindingReference{
 				Export: &apisv1alpha1.ExportBindingReference{
-					Path: serviceProvider2Workspace.String(),
-					Name: "today-cowboys",
+					Cluster: serviceProvider2Workspace.String(),
+					Name:    "today-cowboys",
 				},
 			},
 		},
@@ -233,8 +233,8 @@ func TestAPIExportAuthorizers(t *testing.T) {
 		Spec: apisv1alpha1.APIBindingSpec{
 			Reference: apisv1alpha1.BindingReference{
 				Export: &apisv1alpha1.ExportBindingReference{
-					Path: serviceProvider2Workspace.String(),
-					Name: "today-cowboys",
+					Cluster: serviceProvider2Workspace.String(),
+					Name:    "today-cowboys",
 				},
 			},
 		},

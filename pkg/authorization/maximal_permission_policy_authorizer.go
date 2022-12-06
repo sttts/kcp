@@ -135,7 +135,7 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 	exportName := "unknown"
 	if bindingLogicalCluster.Export != nil {
 		exportName = bindingLogicalCluster.Export.Name
-		path = bindingLogicalCluster.Export.Path
+		path = bindingLogicalCluster.Export.Cluster
 	}
 
 	// If we can't find the export default to close
@@ -214,7 +214,7 @@ func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1lis
 }
 
 func getAPIExportByReference(apiExportClusterLister apisv1alpha1listers.APIExportClusterLister, exportRef *apisv1alpha1.BindingReference) (*apisv1alpha1.APIExport, bool, error) {
-	objs, err := apiExportClusterLister.Cluster(logicalcluster.New(exportRef.Export.Path)).List(labels.Everything())
+	objs, err := apiExportClusterLister.Cluster(logicalcluster.New(exportRef.Export.Cluster)).List(labels.Everything())
 	if err != nil {
 		return nil, false, err
 	}
