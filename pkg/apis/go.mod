@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/google/go-cmp v0.5.5
-	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3
 	github.com/onsi/gomega v1.10.1
 	github.com/stretchr/testify v1.7.1
 	k8s.io/api v0.24.3
@@ -47,4 +46,37 @@ require (
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
+)
+
+replace (
+	github.com/kcp-dev/apimachinery => ../../../apimachinery
+	github.com/kcp-dev/client-go => ../../../client-go
+	github.com/kcp-dev/kcp/pkg/apis => ./pkg/apis
+	github.com/kcp-dev/logicalcluster/v3 => ../../../logicalcluster
+	k8s.io/api => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/api
+	k8s.io/apiextensions-apiserver => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/apiextensions-apiserver
+	k8s.io/apimachinery => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/apimachinery
+	k8s.io/apiserver => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/apiserver
+	k8s.io/cli-runtime => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/cli-runtime
+	k8s.io/client-go => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/client-go
+	k8s.io/cloud-provider => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/cloud-provider
+	k8s.io/cluster-bootstrap => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/cluster-bootstrap
+	k8s.io/code-generator => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/code-generator
+	k8s.io/component-base => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/component-base
+	k8s.io/component-helpers => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/component-helpers
+	k8s.io/controller-manager => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/controller-manager
+	k8s.io/cri-api => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/cri-api
+	k8s.io/csi-translation-lib => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/csi-translation-lib
+	k8s.io/kube-aggregator => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/kube-aggregator
+	k8s.io/kube-controller-manager => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/kube-controller-manager
+	k8s.io/kube-proxy => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/kube-proxy
+	k8s.io/kube-scheduler => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/kube-scheduler
+	k8s.io/kubectl => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/kubectl
+	k8s.io/kubelet => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/kubelet
+	k8s.io/kubernetes => ../../../../../k8s.io/kubernetes
+	k8s.io/legacy-cloud-providers => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/legacy-cloud-providers
+	k8s.io/metrics => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/metrics
+	k8s.io/mount-utils => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/mount-utils
+	k8s.io/pod-security-admission => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/pod-security-admission
+	k8s.io/sample-apiserver => ../../../../../k8s.io/kubernetes/staging/src/k8s.io/sample-apiserver
 )
