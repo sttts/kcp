@@ -328,7 +328,7 @@ func (o *BindComputeOptions) supportedAPIExports(ctx context.Context, client kcp
 			if len(cluster) == 0 {
 				cluster = o.LocationWorkspace.String()
 			}
-			supportedExports.Insert(fmt.Sprintf("%s:%s", cluster, apiExport.ExportName))
+			supportedExports.Insert(fmt.Sprintf("%s:%s", cluster, apiExport.Export))
 		}
 	}
 
