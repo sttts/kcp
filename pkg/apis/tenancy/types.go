@@ -60,7 +60,7 @@ func From(obj Object) Cluster {
 // mapping backed by the workspace index, probably of the front-proxy.
 //
 // Deprecated: don't depend on this mapping.
-func TemporaryCanonicalPath(c Cluster) logicalcluster.Name {
+func TemporaryCanonicalPath(c logicalcluster.Name) logicalcluster.Path {
 	path := logicalcluster.New(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(string(c), "-", "§"), "-", ":"), "§", "-"))
 
 	logger := klog.Background()
@@ -72,8 +72,8 @@ func TemporaryCanonicalPath(c Cluster) logicalcluster.Name {
 // TemporaryClusterFrom returns the cluster name for a given workspace path.
 // This is temporary, and it will be replaced by some cached mapping backed
 // by the workspace index, probably of the front-proxy.
-func TemporaryClusterFrom(path logicalcluster.Name) Cluster {
-	cluster := Cluster(strings.ReplaceAll(strings.ReplaceAll(path.String(), "-", "--"), ":", "-"))
+func TemporaryClusterFrom(path logicalcluster.Path) logicalcluster.Name {
+	cluster := logicalcluster.Name(strings.ReplaceAll(strings.ReplaceAll(path.String(), "-", "--"), ":", "-"))
 
 	logger := klog.Background()
 	logger.V(1).Info("TemporaryClusterFrom", "path", path, "cluster", cluster) // intentionally noisy output

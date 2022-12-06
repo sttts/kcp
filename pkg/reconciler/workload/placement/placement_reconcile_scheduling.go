@@ -38,9 +38,9 @@ import (
 // It considers only valid SyncTargets and updates the internal.workload.kcp.dev/synctarget
 // annotation with the selected one on the placement object.
 type placementSchedulingReconciler struct {
-	listSyncTarget func(clusterName logicalcluster.Name) ([]*workloadv1alpha1.SyncTarget, error)
-	getLocation    func(clusterName logicalcluster.Name, name string) (*schedulingv1alpha1.Location, error)
-	patchPlacement func(ctx context.Context, clusterName logicalcluster.Name, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*schedulingv1alpha1.Placement, error)
+	listSyncTarget func(clusterName logicalcluster.Path) ([]*workloadv1alpha1.SyncTarget, error)
+	getLocation    func(clusterName logicalcluster.Path, name string) (*schedulingv1alpha1.Location, error)
+	patchPlacement func(ctx context.Context, clusterName logicalcluster.Path, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*schedulingv1alpha1.Placement, error)
 }
 
 func (r *placementSchedulingReconciler) reconcile(ctx context.Context, placement *schedulingv1alpha1.Placement) (reconcileStatus, *schedulingv1alpha1.Placement, error) {
@@ -88,9 +88,9 @@ func (r *placementSchedulingReconciler) reconcile(ctx context.Context, placement
 	return reconcileStatusContinue, placement, nil
 }
 
-func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(clusterName logicalcluster.Name, placement *schedulingv1alpha1.Placement) (logicalcluster.Name, []*workloadv1alpha1.SyncTarget, error) {
+func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(clusterName logicalcluster.Path, placement *schedulingv1alpha1.Placement) (logicalcluster.Path, []*workloadv1alpha1.SyncTarget, error) {
 	if placement.Status.Phase == schedulingv1alpha1.PlacementPending || placement.Status.SelectedLocation == nil {
-		return logicalcluster.Name{}, nil, nil
+		return logicalcluster.Path{}, nil, nil
 	}
 
 	locationWorkspace := logicalcluster.New(placement.Status.SelectedLocation.Path)
@@ -122,7 +122,7 @@ func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(clust
 	return locationWorkspace, validClusters, nil
 }
 
-func (r *placementSchedulingReconciler) patchPlacementAnnotation(ctx context.Context, clusterName logicalcluster.Name, placement *schedulingv1alpha1.Placement, annotations map[string]interface{}) (*schedulingv1alpha1.Placement, error) {
+func (r *placementSchedulingReconciler) patchPlacementAnnotation(ctx context.Context, clusterName logicalcluster.Path, placement *schedulingv1alpha1.Placement, annotations map[string]interface{}) (*schedulingv1alpha1.Placement, error) {
 	logger := klog.FromContext(ctx)
 	patch := map[string]interface{}{}
 	if len(annotations) > 0 {

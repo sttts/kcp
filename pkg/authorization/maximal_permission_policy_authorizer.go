@@ -55,13 +55,13 @@ func NewMaximalPermissionPolicyAuthorizer(kubeInformers kcpkubernetesinformers.S
 	kubeInformers.Rbac().V1().ClusterRoleBindings().Lister()
 
 	return &MaximalPermissionPolicyAuthorizer{
-		getAPIBindingReferenceForAttributes: func(attr authorizer.Attributes, clusterName logicalcluster.Name) (*apisv1alpha1.BindingReference, bool, error) {
+		getAPIBindingReferenceForAttributes: func(attr authorizer.Attributes, clusterName logicalcluster.Path) (*apisv1alpha1.BindingReference, bool, error) {
 			return getAPIBindingReferenceForAttributes(kcpInformers.Apis().V1alpha1().APIBindings().Lister(), attr, clusterName)
 		},
 		getAPIExportByReference: func(exportRef *apisv1alpha1.BindingReference) (*apisv1alpha1.APIExport, bool, error) {
 			return getAPIExportByReference(kcpInformers.Apis().V1alpha1().APIExports().Lister(), exportRef)
 		},
-		newAuthorizer: func(clusterName logicalcluster.Name) authorizer.Authorizer {
+		newAuthorizer: func(clusterName logicalcluster.Path) authorizer.Authorizer {
 			return rbac.New(
 				&rbac.RoleGetter{Lister: rbacwrapper.NewMergedRoleLister(
 					kubeInformers.Rbac().V1().Roles().Lister().Cluster(clusterName),
@@ -85,9 +85,9 @@ func NewMaximalPermissionPolicyAuthorizer(kubeInformers kcpkubernetesinformers.S
 type MaximalPermissionPolicyAuthorizer struct {
 	delegate authorizer.Authorizer
 
-	getAPIBindingReferenceForAttributes func(attr authorizer.Attributes, clusterName logicalcluster.Name) (ref *apisv1alpha1.BindingReference, found bool, err error)
+	getAPIBindingReferenceForAttributes func(attr authorizer.Attributes, clusterName logicalcluster.Path) (ref *apisv1alpha1.BindingReference, found bool, err error)
 	getAPIExportByReference             func(exportRef *apisv1alpha1.BindingReference) (ref *apisv1alpha1.APIExport, found bool, err error)
-	newAuthorizer                       func(clusterName logicalcluster.Name) authorizer.Authorizer
+	newAuthorizer                       func(clusterName logicalcluster.Path) authorizer.Authorizer
 }
 
 func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr authorizer.Attributes) (authorizer.Decision, string, error) {
@@ -198,7 +198,7 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 	return authorizer.DecisionNoOpinion, reason, nil
 }
 
-func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1listers.APIBindingClusterLister, attr authorizer.Attributes, clusterName logicalcluster.Name) (*apisv1alpha1.BindingReference, bool, error) {
+func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1listers.APIBindingClusterLister, attr authorizer.Attributes, clusterName logicalcluster.Path) (*apisv1alpha1.BindingReference, bool, error) {
 	objs, err := apiBindingClusterLister.Cluster(clusterName).List(labels.Everything())
 	if err != nil {
 		return nil, false, err
