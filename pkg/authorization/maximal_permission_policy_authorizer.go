@@ -131,11 +131,11 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 		return authorizer.DecisionNoOpinion, MaximalPermissionPolicyAccessNotPermittedReason, err
 	}
 
-	path := "unknown"
+	cluster := "unknown"
 	exportName := "unknown"
 	if bindingLogicalCluster.Export != nil {
 		exportName = bindingLogicalCluster.Export.Name
-		path = bindingLogicalCluster.Export.Cluster
+		cluster = string(bindingLogicalCluster.Export.Cluster)
 	}
 
 	// If we can't find the export default to close
@@ -143,7 +143,7 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 		kaudit.AddAuditAnnotations(
 			ctx,
 			MaximalPermissionPolicyAuditDecision, DecisionNoOpinion,
-			MaximalPermissionPolicyAuditReason, fmt.Sprintf("API export %q not found, path: %q", exportName, path),
+			MaximalPermissionPolicyAuditReason, fmt.Sprintf("API export %q in cluster %q not found", exportName, cluster),
 		)
 		return authorizer.DecisionNoOpinion, MaximalPermissionPolicyAccessNotPermittedReason, err
 	}
@@ -152,7 +152,7 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 		kaudit.AddAuditAnnotations(
 			ctx,
 			MaximalPermissionPolicyAuditDecision, DecisionAllowed,
-			MaximalPermissionPolicyAuditReason, fmt.Sprintf("no maximal permission policy present in API export %q, path: %q, owning cluster: %q", exportName, path, logicalcluster.From(apiExport)),
+			MaximalPermissionPolicyAuditReason, fmt.Sprintf("no maximal permission policy present in API export %q in cluster %q, owning cluster: %q", exportName, cluster, logicalcluster.From(apiExport)),
 		)
 		return a.delegate.Authorize(ctx, attr)
 	}
@@ -161,7 +161,7 @@ func (a *MaximalPermissionPolicyAuthorizer) Authorize(ctx context.Context, attr 
 		kaudit.AddAuditAnnotations(
 			ctx,
 			MaximalPermissionPolicyAuditDecision, DecisionAllowed,
-			MaximalPermissionPolicyAuditReason, fmt.Sprintf("no maximal local permission policy present in API export %q, path: %q, owning cluster: %q", apiExport.Name, path, logicalcluster.From(apiExport)),
+			MaximalPermissionPolicyAuditReason, fmt.Sprintf("no maximal local permission policy present in API export %q, path: %q, owning cluster: %q", apiExport.Name, cluster, logicalcluster.From(apiExport)),
 		)
 		return a.delegate.Authorize(ctx, attr)
 	}
@@ -214,7 +214,7 @@ func getAPIBindingReferenceForAttributes(apiBindingClusterLister apisv1alpha1lis
 }
 
 func getAPIExportByReference(apiExportClusterLister apisv1alpha1listers.APIExportClusterLister, exportRef *apisv1alpha1.BindingReference) (*apisv1alpha1.APIExport, bool, error) {
-	objs, err := apiExportClusterLister.Cluster(logicalcluster.New(exportRef.Export.Cluster)).List(labels.Everything())
+	objs, err := apiExportClusterLister.Cluster(exportRef.Export.Cluster.Path()).List(labels.Everything())
 	if err != nil {
 		return nil, false, err
 	}
