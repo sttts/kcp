@@ -58,7 +58,7 @@ import (
 
 type SyncerOption func(t *testing.T, fs *syncerFixture)
 
-func NewSyncerFixture(t *testing.T, server RunningServer, clusterName logicalcluster.Name, opts ...SyncerOption) *syncerFixture {
+func NewSyncerFixture(t *testing.T, server RunningServer, clusterName logicalcluster.Path, opts ...SyncerOption) *syncerFixture {
 	if !sets.NewString(TestConfig.Suites()...).HasAny("transparent-multi-cluster", "transparent-multi-cluster:requires-kind") {
 		t.Fatalf("invalid to use a syncer fixture when only the following suites were requested: %v", TestConfig.Suites())
 	}
@@ -77,9 +77,9 @@ func NewSyncerFixture(t *testing.T, server RunningServer, clusterName logicalclu
 type syncerFixture struct {
 	upstreamServer RunningServer
 
-	syncedUserWorkspaces []logicalcluster.Name
+	syncedUserWorkspaces []logicalcluster.Path
 
-	syncTargetClusterName logicalcluster.Name
+	syncTargetClusterName logicalcluster.Path
 	syncTargetName        string
 
 	extraResourcesToSync []string
@@ -93,7 +93,7 @@ func WithSyncTargetName(name string) SyncerOption {
 	}
 }
 
-func WithSyncedUserWorkspaces(syncedUserWorkspaces ...logicalcluster.Name) SyncerOption {
+func WithSyncedUserWorkspaces(syncedUserWorkspaces ...logicalcluster.Path) SyncerOption {
 	return func(t *testing.T, sf *syncerFixture) {
 		sf.syncedUserWorkspaces = syncedUserWorkspaces
 	}
