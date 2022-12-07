@@ -16,10 +16,11 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0
-	github.com/kcp-dev/apimachinery v0.0.0-20221205201657-a88957b72f6d
-	github.com/kcp-dev/client-go v0.0.0-20221205150201-dfa4fc4b06bb
+	github.com/kcp-dev/apimachinery v0.0.0-20221206204155-b672b50acabd
+	github.com/kcp-dev/client-go v0.0.0-20221206205322-e284b023fabf
 	github.com/kcp-dev/kcp/pkg/apis v0.0.0-00010101000000-000000000000
-	github.com/kcp-dev/logicalcluster/v3 v3.0.0-20221205140724-b21d40759226
+	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.1
+	github.com/kcp-dev/logicalcluster/v3 v3.0.0-20221206202856-4d025e96f4a8
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/miekg/dns v1.1.50
 	github.com/muesli/reflow v0.1.0
