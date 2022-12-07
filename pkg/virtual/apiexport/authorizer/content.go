@@ -45,7 +45,7 @@ type apiExportsContentAuthorizer struct {
 func NewAPIExportsContentAuthorizer(delegate authorizer.Authorizer, kubeClusterClient kcpkubernetesclientset.ClusterInterface) authorizer.Authorizer {
 	auth := &apiExportsContentAuthorizer{
 		newDelegatedAuthorizer: func(clusterName string) (authorizer.Authorizer, error) {
-			return delegated.NewDelegatedAuthorizer(logicalcluster.New(clusterName), kubeClusterClient)
+			return delegated.NewDelegatedAuthorizer(logicalcluster.Name(clusterName), kubeClusterClient)
 		},
 		delegate: delegate,
 	}

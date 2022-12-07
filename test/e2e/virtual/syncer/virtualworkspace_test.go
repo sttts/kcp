@@ -1907,7 +1907,7 @@ func TestUpsyncerVirtualWorkspace(t *testing.T) {
 				return true
 			}, wait.ForeverTestTimeout, time.Millisecond*100)
 
-			syncTargetKey := workloadv1alpha1.ToSyncTargetKey(upsyncer.SyncerConfig.SyncTargetWorkspace, upsyncer.SyncerConfig.SyncTargetName)
+			syncTargetKey := workloadv1alpha1.ToSyncTargetKey(upsyncer.SyncerConfig.SyncTargetClusterName, upsyncer.SyncerConfig.SyncTargetName)
 
 			logWithTimestamp(t, "Starting test...")
 			testCase.work(t, upsyncer, upsyncerWorkspace, syncTargetKey)

@@ -1283,7 +1283,7 @@ func (s *Server) installGarbageCollectorController(ctx context.Context, config *
 	)
 
 	c, err := garbagecollector.NewController(
-		s.KcpSharedInformerFactory.Tenancy().V1beta1().Workspaces(),
+		s.KcpSharedInformerFactory.Tenancy().V1alpha1().ThisWorkspaces(),
 		kubeClusterClient,
 		metadataClient,
 		s.DynamicDiscoverySharedInformerFactory,

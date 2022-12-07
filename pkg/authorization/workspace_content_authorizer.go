@@ -19,6 +19,7 @@ package authorization
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
 	rbacv1listers "github.com/kcp-dev/client-go/listers/rbac/v1"
@@ -80,7 +81,7 @@ type workspaceContentAuthorizer struct {
 func (a *workspaceContentAuthorizer) Authorize(ctx context.Context, attr authorizer.Attributes) (authorizer.Decision, string, error) {
 	cluster := genericapirequest.ClusterFrom(ctx)
 	// empty or non-root based workspaces have no meaning in the context of authorizing workspace content.
-	if cluster == nil || cluster.Name.Empty() || cluster.Name.HasPrefix(logicalcluster.New("system")) {
+	if cluster == nil || cluster.Name.Empty() || strings.HasPrefix(cluster.Name.String(), "system:") {
 		kaudit.AddAuditAnnotations(
 			ctx,
 			WorkspaceContentAuditDecision, DecisionNoOpinion,
@@ -89,9 +90,9 @@ func (a *workspaceContentAuthorizer) Authorize(ctx context.Context, attr authori
 		return authorizer.DecisionNoOpinion, WorkspaceAccessNotPermittedReason, nil
 	}
 
-	subjectClusters := map[logicalcluster.Path]bool{}
+	subjectClusters := map[logicalcluster.Name]bool{}
 	for _, sc := range attr.GetUser().GetExtra()[authserviceaccount.ClusterNameKey] {
-		subjectClusters[logicalcluster.New(sc)] = true
+		subjectClusters[logicalcluster.Name(sc)] = true
 	}
 
 	isAuthenticated := sets.NewString(attr.GetUser().GetGroups()...).Has("system:authenticated")
