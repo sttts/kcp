@@ -148,7 +148,7 @@ func TestSchedulingReconcile(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			listSyncTarget := func(clusterName logicalcluster.Path) ([]*workloadv1alpha1.SyncTarget, error) {
+			listSyncTarget := func(clusterName logicalcluster.Name) ([]*workloadv1alpha1.SyncTarget, error) {
 				return testCase.syncTargets, nil
 			}
 			getLocation := func(clusterName logicalcluster.Path, name string) (*schedulingv1alpha1.Location, error) {
@@ -213,7 +213,7 @@ func newPlacement(name, location, synctarget string) *schedulingv1alpha1.Placeme
 
 	if len(synctarget) > 0 {
 		placement.Annotations = map[string]string{
-			workloadv1alpha1.InternalSyncTargetPlacementAnnotationKey: workloadv1alpha1.ToSyncTargetKey(logicalcluster.New(""), synctarget),
+			workloadv1alpha1.InternalSyncTargetPlacementAnnotationKey: workloadv1alpha1.ToSyncTargetKey("", synctarget),
 		}
 	}
 

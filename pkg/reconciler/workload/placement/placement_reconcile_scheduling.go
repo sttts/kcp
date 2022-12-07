@@ -43,8 +43,8 @@ import (
 // It considers only valid SyncTargets and updates the internal.workload.kcp.dev/synctarget
 // annotation with the selected one on the placement object.
 type placementSchedulingReconciler struct {
-	listSyncTarget          func(clusterName logicalcluster.Path) ([]*workloadv1alpha1.SyncTarget, error)
-	listWorkloadAPIBindings func(clusterName logicalcluster.Path) ([]*apisv1alpha1.APIBinding, error)
+	listSyncTarget          func(clusterName logicalcluster.Name) ([]*workloadv1alpha1.SyncTarget, error)
+	listWorkloadAPIBindings func(clusterName logicalcluster.Name) ([]*apisv1alpha1.APIBinding, error)
 	getLocation             func(clusterName logicalcluster.Path, name string) (*schedulingv1alpha1.Location, error)
 	patchPlacement          func(ctx context.Context, clusterName logicalcluster.Path, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*schedulingv1alpha1.Placement, error)
 }
@@ -57,7 +57,7 @@ func (r *placementSchedulingReconciler) reconcile(ctx context.Context, placement
 	currentScheduled, foundScheduled := placement.Annotations[workloadv1alpha1.InternalSyncTargetPlacementAnnotationKey]
 
 	// 2. pick all valid synctargets in this placements
-	locationWorkspace, validSyncTargets, err := r.getAllValidSyncTargetsForPlacement(ctx, clusterName, placement)
+	validSyncTargets, err := r.getAllValidSyncTargetsForPlacement(ctx, placement)
 	if err != nil {
 		return reconcileStatusStopAndRequeue, placement, err
 	}
@@ -66,8 +66,8 @@ func (r *placementSchedulingReconciler) reconcile(ctx context.Context, placement
 	if len(validSyncTargets) == 0 {
 		if foundScheduled {
 			expectedAnnotations[workloadv1alpha1.InternalSyncTargetPlacementAnnotationKey] = nil
-			placement, err = r.patchPlacementAnnotation(ctx, clusterName, placement, expectedAnnotations)
-			return reconcileStatusStopAndRequeue, placement, err
+			updated, err := r.patchPlacementAnnotation(ctx, clusterName.Path(), placement, expectedAnnotations)
+			return reconcileStatusContinue, updated, err
 		}
 
 		return reconcileStatusContinue, placement, nil
@@ -90,12 +90,12 @@ func (r *placementSchedulingReconciler) reconcile(ctx context.Context, placement
 	// when the same synctargets are in multiple locations, we need to rethink whether we need a better algorithm or we need location
 	// to be exclusive.
 	scheduledSyncTarget := validSyncTargets[rand.Intn(len(validSyncTargets))]
-	expectedAnnotations[workloadv1alpha1.InternalSyncTargetPlacementAnnotationKey] = workloadv1alpha1.ToSyncTargetKey(locationWorkspace, scheduledSyncTarget.Name)
-	updated, err := r.patchPlacementAnnotation(ctx, clusterName, placement, expectedAnnotations)
+	expectedAnnotations[workloadv1alpha1.InternalSyncTargetPlacementAnnotationKey] = workloadv1alpha1.ToSyncTargetKey(logicalcluster.From(scheduledSyncTarget), scheduledSyncTarget.Name)
+	updated, err := r.patchPlacementAnnotation(ctx, clusterName.Path(), placement, expectedAnnotations)
 	return reconcileStatusStopAndRequeue, updated, err
 }
 
-func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx context.Context, clusterName logicalcluster.Name, placement *schedulingv1alpha1.Placement) (logicalcluster.Path, []*workloadv1alpha1.SyncTarget, error) {
+func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx context.Context, placement *schedulingv1alpha1.Placement) ([]*workloadv1alpha1.SyncTarget, error) {
 	if placement.Status.Phase == schedulingv1alpha1.PlacementPending || placement.Status.SelectedLocation == nil {
 		conditions.MarkFalse(placement,
 			schedulingv1alpha1.PlacementScheduled,
@@ -103,7 +103,7 @@ func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx c
 			conditionsv1alpha1.ConditionSeverityWarning,
 			"No selected location is scheduled",
 		)
-		return logicalcluster.Path{}, nil, nil
+		return nil, nil
 	}
 
 	locationWorkspace := logicalcluster.New(placement.Status.SelectedLocation.Path)
@@ -118,21 +118,21 @@ func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx c
 			conditionsv1alpha1.ConditionSeverityWarning,
 			"Selected location is not found",
 		)
-		return locationWorkspace, nil, nil
+		return nil, nil
 	case err != nil:
-		return locationWorkspace, nil, err
+		return nil, err
 	}
 
 	// find all synctargets in the location workspace
-	syncTargets, err := r.listSyncTarget(locationWorkspace)
+	syncTargets, err := r.listSyncTarget(logicalcluster.From(location))
 	if err != nil {
-		return locationWorkspace, nil, err
+		return nil, err
 	}
 
 	// filter the sync targets by location
 	locationSyncTargets, err := locationreconciler.LocationSyncTargets(syncTargets, location)
 	if err != nil {
-		return locationWorkspace, nil, err
+		return nil, err
 	}
 	if len(locationSyncTargets) == 0 {
 		conditions.MarkFalse(placement,
@@ -141,16 +141,16 @@ func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx c
 			conditionsv1alpha1.ConditionSeverityWarning,
 			"No SyncTarget in the selected Location",
 		)
-		return locationWorkspace, nil, nil
+		return nil, nil
 	}
 
-	validSyncTargets, err := r.filterAPICompatible(ctx, clusterName, placement, locationSyncTargets)
+	validSyncTargets, err := r.filterAPICompatible(ctx, logicalcluster.From(location), placement, locationSyncTargets)
 	if err != nil {
-		return locationWorkspace, nil, err
+		return nil, err
 	}
 
 	if len(validSyncTargets) == 0 {
-		return locationWorkspace, validSyncTargets, nil
+		return validSyncTargets, nil
 	}
 
 	// find all the valid sync targets.
@@ -164,7 +164,7 @@ func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx c
 		)
 	}
 
-	return locationWorkspace, validSyncTargets, nil
+	return validSyncTargets, nil
 }
 
 func (r *placementSchedulingReconciler) filterAPICompatible(ctx context.Context, clusterName logicalcluster.Name, placement *schedulingv1alpha1.Placement, syncTargets []*workloadv1alpha1.SyncTarget) ([]*workloadv1alpha1.SyncTarget, error) {
