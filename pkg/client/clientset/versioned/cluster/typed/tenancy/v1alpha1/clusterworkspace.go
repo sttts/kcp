@@ -53,12 +53,12 @@ type clusterWorkspacesClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *clusterWorkspacesClusterInterface) Cluster(name logicalcluster.Path) tenancyv1alpha1client.ClusterWorkspaceInterface {
-	if name == logicalcluster.Wildcard {
+func (c *clusterWorkspacesClusterInterface) Cluster(clusterPath logicalcluster.Path) tenancyv1alpha1client.ClusterWorkspaceInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).ClusterWorkspaces()
+	return c.clientCache.ClusterOrDie(clusterPath).ClusterWorkspaces()
 }
 
 // List returns the entire collection of all ClusterWorkspaces across all clusters.

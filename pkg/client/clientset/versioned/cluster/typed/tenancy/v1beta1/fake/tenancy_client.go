@@ -37,11 +37,11 @@ type TenancyV1beta1ClusterClient struct {
 	*kcptesting.Fake
 }
 
-func (c *TenancyV1beta1ClusterClient) Cluster(cluster logicalcluster.Path) tenancyv1beta1.TenancyV1beta1Interface {
-	if cluster == logicalcluster.Wildcard {
+func (c *TenancyV1beta1ClusterClient) Cluster(clusterPath logicalcluster.Path) tenancyv1beta1.TenancyV1beta1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return &TenancyV1beta1Client{Fake: c.Fake, Cluster: cluster}
+	return &TenancyV1beta1Client{Fake: c.Fake, ClusterPath: clusterPath}
 }
 
 func (c *TenancyV1beta1ClusterClient) Workspaces() kcptenancyv1beta1.WorkspaceClusterInterface {
@@ -52,7 +52,7 @@ var _ tenancyv1beta1.TenancyV1beta1Interface = (*TenancyV1beta1Client)(nil)
 
 type TenancyV1beta1Client struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Path
+	ClusterPath logicalcluster.Path
 }
 
 func (c *TenancyV1beta1Client) RESTClient() rest.Interface {
@@ -61,5 +61,5 @@ func (c *TenancyV1beta1Client) RESTClient() rest.Interface {
 }
 
 func (c *TenancyV1beta1Client) Workspaces() tenancyv1beta1.WorkspaceInterface {
-	return &workspacesClient{Fake: c.Fake, Cluster: c.Cluster}
+	return &workspacesClient{Fake: c.Fake, ClusterPath: c.ClusterPath}
 }

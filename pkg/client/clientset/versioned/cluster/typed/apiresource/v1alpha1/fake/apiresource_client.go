@@ -37,11 +37,11 @@ type ApiresourceV1alpha1ClusterClient struct {
 	*kcptesting.Fake
 }
 
-func (c *ApiresourceV1alpha1ClusterClient) Cluster(cluster logicalcluster.Path) apiresourcev1alpha1.ApiresourceV1alpha1Interface {
-	if cluster == logicalcluster.Wildcard {
+func (c *ApiresourceV1alpha1ClusterClient) Cluster(clusterPath logicalcluster.Path) apiresourcev1alpha1.ApiresourceV1alpha1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return &ApiresourceV1alpha1Client{Fake: c.Fake, Cluster: cluster}
+	return &ApiresourceV1alpha1Client{Fake: c.Fake, ClusterPath: clusterPath}
 }
 
 func (c *ApiresourceV1alpha1ClusterClient) APIResourceImports() kcpapiresourcev1alpha1.APIResourceImportClusterInterface {
@@ -56,7 +56,7 @@ var _ apiresourcev1alpha1.ApiresourceV1alpha1Interface = (*ApiresourceV1alpha1Cl
 
 type ApiresourceV1alpha1Client struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Path
+	ClusterPath logicalcluster.Path
 }
 
 func (c *ApiresourceV1alpha1Client) RESTClient() rest.Interface {
@@ -65,9 +65,9 @@ func (c *ApiresourceV1alpha1Client) RESTClient() rest.Interface {
 }
 
 func (c *ApiresourceV1alpha1Client) APIResourceImports() apiresourcev1alpha1.APIResourceImportInterface {
-	return &aPIResourceImportsClient{Fake: c.Fake, Cluster: c.Cluster}
+	return &aPIResourceImportsClient{Fake: c.Fake, ClusterPath: c.ClusterPath}
 }
 
 func (c *ApiresourceV1alpha1Client) NegotiatedAPIResources() apiresourcev1alpha1.NegotiatedAPIResourceInterface {
-	return &negotiatedAPIResourcesClient{Fake: c.Fake, Cluster: c.Cluster}
+	return &negotiatedAPIResourcesClient{Fake: c.Fake, ClusterPath: c.ClusterPath}
 }

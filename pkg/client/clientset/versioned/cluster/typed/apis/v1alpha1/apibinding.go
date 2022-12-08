@@ -53,12 +53,12 @@ type aPIBindingsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *aPIBindingsClusterInterface) Cluster(name logicalcluster.Path) apisv1alpha1client.APIBindingInterface {
-	if name == logicalcluster.Wildcard {
+func (c *aPIBindingsClusterInterface) Cluster(clusterPath logicalcluster.Path) apisv1alpha1client.APIBindingInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).APIBindings()
+	return c.clientCache.ClusterOrDie(clusterPath).APIBindings()
 }
 
 // List returns the entire collection of all APIBindings across all clusters.

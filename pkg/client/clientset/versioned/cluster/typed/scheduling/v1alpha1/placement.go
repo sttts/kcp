@@ -53,12 +53,12 @@ type placementsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *placementsClusterInterface) Cluster(name logicalcluster.Path) schedulingv1alpha1client.PlacementInterface {
-	if name == logicalcluster.Wildcard {
+func (c *placementsClusterInterface) Cluster(clusterPath logicalcluster.Path) schedulingv1alpha1client.PlacementInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).Placements()
+	return c.clientCache.ClusterOrDie(clusterPath).Placements()
 }
 
 // List returns the entire collection of all Placements across all clusters.

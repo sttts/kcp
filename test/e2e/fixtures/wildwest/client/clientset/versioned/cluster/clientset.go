@@ -63,11 +63,11 @@ func (c *ClusterClientset) WildwestV1alpha1() wildwestv1alpha1.WildwestV1alpha1C
 }
 
 // Cluster scopes this clientset to one cluster.
-func (c *ClusterClientset) Cluster(name logicalcluster.Path) client.Interface {
-	if name == logicalcluster.Wildcard {
+func (c *ClusterClientset) Cluster(clusterPath logicalcluster.Path) client.Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return c.clientCache.ClusterOrDie(name)
+	return c.clientCache.ClusterOrDie(clusterPath)
 }
 
 // NewForConfig creates a new ClusterClientset for the given config.
@@ -107,7 +107,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*ClusterCli
 	cache := kcpclient.NewCache(c, httpClient, &kcpclient.Constructor[*client.Clientset]{
 		NewForConfigAndClient: client.NewForConfigAndClient,
 	})
-	if _, err := cache.Cluster(logicalcluster.NewPath("root")); err != nil {
+	if _, err := cache.Cluster(logicalcluster.Name("root").Path()); err != nil {
 		return nil, err
 	}
 
