@@ -140,7 +140,7 @@ func ClusterPathFromAndStrip(req *http.Request) (logicalcluster.Path, *url.URL, 
 		if i == -1 {
 			return logicalcluster.Path{}, nil, false, fmt.Errorf("unable to parse cluster: no `/` found in path %s", reqPath)
 		}
-		path, reqPath := logicalcluster.New(reqPath[:i]), reqPath[i:]
+		path, reqPath := logicalcluster.NewPath(reqPath[:i]), reqPath[i:]
 		req.URL.Path = reqPath
 		newURL, err := url.Parse(req.URL.String())
 		if err != nil {
@@ -149,7 +149,7 @@ func ClusterPathFromAndStrip(req *http.Request) (logicalcluster.Path, *url.URL, 
 		return path, newURL, true, nil
 	}
 
-	path := logicalcluster.New(req.Header.Get(logicalcluster.ClusterHeader))
+	path := logicalcluster.NewPath(req.Header.Get(logicalcluster.ClusterHeader))
 	if !path.Empty() {
 		return path, req.URL, true, nil
 	}
