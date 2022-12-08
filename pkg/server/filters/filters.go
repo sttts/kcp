@@ -83,31 +83,16 @@ func WithAuditEventClusterAnnotation(handler http.Handler) http.HandlerFunc {
 // If the path doesn't contain the cluster name then a default "system:admin" name is assigned.
 func WithClusterScope(apiHandler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		var path logicalcluster.Path
-		if reqPath := req.URL.Path; strings.HasPrefix(reqPath, "/clusters/") {
-			reqPath = strings.TrimPrefix(reqPath, "/clusters/")
-
-			i := strings.Index(reqPath, "/")
-			if i == -1 {
-				responsewriters.ErrorNegotiated(
-					apierrors.NewBadRequest(fmt.Sprintf("unable to parse cluster: no `/` found in path %s", reqPath)),
-					errorCodecs, schema.GroupVersion{},
-					w, req)
-				return
-			}
-			path, reqPath = logicalcluster.New(reqPath[:i]), reqPath[i:]
-			req.URL.Path = reqPath
-			newURL, err := url.Parse(req.URL.String())
-			if err != nil {
-				responsewriters.ErrorNegotiated(
-					apierrors.NewInternalError(fmt.Errorf("unable to resolve %s, err %w", req.URL.Path, err)),
-					errorCodecs, schema.GroupVersion{},
-					w, req)
-				return
-			}
+		path, newURL, found, err := ClusterPathFromAndStrip(req)
+		if err != nil {
+			responsewriters.ErrorNegotiated(
+				apierrors.NewBadRequest(err.Error()),
+				errorCodecs, schema.GroupVersion{}, w, req,
+			)
+			return
+		}
+		if found {
 			req.URL = newURL
-		} else {
-			path = logicalcluster.New(req.Header.Get(logicalcluster.ClusterHeader))
 		}
 
 		var cluster request.Cluster
@@ -143,6 +128,33 @@ func WithClusterScope(apiHandler http.Handler) http.HandlerFunc {
 		ctx := request.WithCluster(req.Context(), cluster)
 		apiHandler.ServeHTTP(w, req.WithContext(ctx))
 	}
+}
+
+// ClusterPathFromAndStrip parses the request for a logical cluster path, returns it if found
+// and strips it from the request URL path.
+func ClusterPathFromAndStrip(req *http.Request) (logicalcluster.Path, *url.URL, bool, error) {
+	if reqPath := req.URL.Path; strings.HasPrefix(reqPath, "/clusters/") {
+		reqPath = strings.TrimPrefix(reqPath, "/clusters/")
+
+		i := strings.Index(reqPath, "/")
+		if i == -1 {
+			return logicalcluster.Path{}, nil, false, fmt.Errorf("unable to parse cluster: no `/` found in path %s", reqPath)
+		}
+		path, reqPath := logicalcluster.New(reqPath[:i]), reqPath[i:]
+		req.URL.Path = reqPath
+		newURL, err := url.Parse(req.URL.String())
+		if err != nil {
+			return logicalcluster.Path{}, nil, false, fmt.Errorf("unable to resolve %s, err %w", req.URL.Path, err)
+		}
+		return path, newURL, true, nil
+	}
+
+	path := logicalcluster.New(req.Header.Get(logicalcluster.ClusterHeader))
+	if !path.Empty() {
+		return path, req.URL, true, nil
+	}
+
+	return logicalcluster.Path{}, req.URL, false, nil
 }
 
 // WithAcceptHeader makes the Accept header available for code in the handler chain. It is needed for
