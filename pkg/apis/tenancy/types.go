@@ -38,7 +38,7 @@ const (
 //
 // Deprecated: don't depend on this mapping.
 func TemporaryCanonicalPath(c logicalcluster.Name) logicalcluster.Path {
-	path := logicalcluster.New(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(string(c), "-", "§"), "-", ":"), "§", "-"))
+	path := logicalcluster.NewPath(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(string(c), "-", "§"), "-", ":"), "§", "-"))
 
 	logger := klog.Background()
 	logger.V(1).Info("TemporaryCanonicalPath", "cluster", c, "path", path) // intentionally noisy output
