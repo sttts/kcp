@@ -53,12 +53,12 @@ type aPIResourceSchemasClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *aPIResourceSchemasClusterInterface) Cluster(name logicalcluster.Path) apisv1alpha1client.APIResourceSchemaInterface {
-	if name == logicalcluster.Wildcard {
+func (c *aPIResourceSchemasClusterInterface) Cluster(clusterPath logicalcluster.Path) apisv1alpha1client.APIResourceSchemaInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).APIResourceSchemas()
+	return c.clientCache.ClusterOrDie(clusterPath).APIResourceSchemas()
 }
 
 // List returns the entire collection of all APIResourceSchemas across all clusters.

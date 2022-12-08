@@ -53,12 +53,12 @@ type negotiatedAPIResourcesClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *negotiatedAPIResourcesClusterInterface) Cluster(name logicalcluster.Path) apiresourcev1alpha1client.NegotiatedAPIResourceInterface {
-	if name == logicalcluster.Wildcard {
+func (c *negotiatedAPIResourcesClusterInterface) Cluster(clusterPath logicalcluster.Path) apiresourcev1alpha1client.NegotiatedAPIResourceInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).NegotiatedAPIResources()
+	return c.clientCache.ClusterOrDie(clusterPath).NegotiatedAPIResources()
 }
 
 // List returns the entire collection of all NegotiatedAPIResources across all clusters.

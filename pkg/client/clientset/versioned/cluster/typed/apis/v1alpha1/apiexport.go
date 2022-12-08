@@ -53,12 +53,12 @@ type aPIExportsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *aPIExportsClusterInterface) Cluster(name logicalcluster.Path) apisv1alpha1client.APIExportInterface {
-	if name == logicalcluster.Wildcard {
+func (c *aPIExportsClusterInterface) Cluster(clusterPath logicalcluster.Path) apisv1alpha1client.APIExportInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).APIExports()
+	return c.clientCache.ClusterOrDie(clusterPath).APIExports()
 }
 
 // List returns the entire collection of all APIExports across all clusters.

@@ -53,12 +53,12 @@ type syncTargetsClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *syncTargetsClusterInterface) Cluster(name logicalcluster.Path) workloadv1alpha1client.SyncTargetInterface {
-	if name == logicalcluster.Wildcard {
+func (c *syncTargetsClusterInterface) Cluster(clusterPath logicalcluster.Path) workloadv1alpha1client.SyncTargetInterface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return c.clientCache.ClusterOrDie(name).SyncTargets()
+	return c.clientCache.ClusterOrDie(clusterPath).SyncTargets()
 }
 
 // List returns the entire collection of all SyncTargets across all clusters.

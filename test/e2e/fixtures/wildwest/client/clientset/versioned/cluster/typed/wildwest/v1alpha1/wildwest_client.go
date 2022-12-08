@@ -45,11 +45,11 @@ type WildwestV1alpha1ClusterClient struct {
 	clientCache kcpclient.Cache[*wildwestv1alpha1.WildwestV1alpha1Client]
 }
 
-func (c *WildwestV1alpha1ClusterClient) Cluster(name logicalcluster.Path) wildwestv1alpha1.WildwestV1alpha1Interface {
-	if name == logicalcluster.Wildcard {
+func (c *WildwestV1alpha1ClusterClient) Cluster(clusterPath logicalcluster.Path) wildwestv1alpha1.WildwestV1alpha1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return c.clientCache.ClusterOrDie(name)
+	return c.clientCache.ClusterOrDie(clusterPath)
 }
 
 func (c *WildwestV1alpha1ClusterClient) Cowboys() CowboyClusterInterface {
@@ -73,7 +73,7 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*WildwestV1alpha1Clu
 	cache := kcpclient.NewCache(c, h, &kcpclient.Constructor[*wildwestv1alpha1.WildwestV1alpha1Client]{
 		NewForConfigAndClient: wildwestv1alpha1.NewForConfigAndClient,
 	})
-	if _, err := cache.Cluster(logicalcluster.NewPath("root")); err != nil {
+	if _, err := cache.Cluster(logicalcluster.Name("root").Path()); err != nil {
 		return nil, err
 	}
 	return &WildwestV1alpha1ClusterClient{clientCache: cache}, nil

@@ -48,11 +48,11 @@ type TenancyV1alpha1ClusterClient struct {
 	clientCache kcpclient.Cache[*tenancyv1alpha1.TenancyV1alpha1Client]
 }
 
-func (c *TenancyV1alpha1ClusterClient) Cluster(name logicalcluster.Path) tenancyv1alpha1.TenancyV1alpha1Interface {
-	if name == logicalcluster.Wildcard {
+func (c *TenancyV1alpha1ClusterClient) Cluster(clusterPath logicalcluster.Path) tenancyv1alpha1.TenancyV1alpha1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return c.clientCache.ClusterOrDie(name)
+	return c.clientCache.ClusterOrDie(clusterPath)
 }
 
 func (c *TenancyV1alpha1ClusterClient) ClusterWorkspaces() ClusterWorkspaceClusterInterface {
@@ -88,7 +88,7 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*TenancyV1alpha1Clus
 	cache := kcpclient.NewCache(c, h, &kcpclient.Constructor[*tenancyv1alpha1.TenancyV1alpha1Client]{
 		NewForConfigAndClient: tenancyv1alpha1.NewForConfigAndClient,
 	})
-	if _, err := cache.Cluster(logicalcluster.NewPath("root")); err != nil {
+	if _, err := cache.Cluster(logicalcluster.Name("root").Path()); err != nil {
 		return nil, err
 	}
 	return &TenancyV1alpha1ClusterClient{clientCache: cache}, nil

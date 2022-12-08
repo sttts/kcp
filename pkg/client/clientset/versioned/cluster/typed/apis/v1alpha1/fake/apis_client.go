@@ -37,11 +37,11 @@ type ApisV1alpha1ClusterClient struct {
 	*kcptesting.Fake
 }
 
-func (c *ApisV1alpha1ClusterClient) Cluster(cluster logicalcluster.Path) apisv1alpha1.ApisV1alpha1Interface {
-	if cluster == logicalcluster.Wildcard {
+func (c *ApisV1alpha1ClusterClient) Cluster(clusterPath logicalcluster.Path) apisv1alpha1.ApisV1alpha1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return &ApisV1alpha1Client{Fake: c.Fake, Cluster: cluster}
+	return &ApisV1alpha1Client{Fake: c.Fake, ClusterPath: clusterPath}
 }
 
 func (c *ApisV1alpha1ClusterClient) APIBindings() kcpapisv1alpha1.APIBindingClusterInterface {
@@ -60,7 +60,7 @@ var _ apisv1alpha1.ApisV1alpha1Interface = (*ApisV1alpha1Client)(nil)
 
 type ApisV1alpha1Client struct {
 	*kcptesting.Fake
-	Cluster logicalcluster.Path
+	ClusterPath logicalcluster.Path
 }
 
 func (c *ApisV1alpha1Client) RESTClient() rest.Interface {
@@ -69,13 +69,13 @@ func (c *ApisV1alpha1Client) RESTClient() rest.Interface {
 }
 
 func (c *ApisV1alpha1Client) APIBindings() apisv1alpha1.APIBindingInterface {
-	return &aPIBindingsClient{Fake: c.Fake, Cluster: c.Cluster}
+	return &aPIBindingsClient{Fake: c.Fake, ClusterPath: c.ClusterPath}
 }
 
 func (c *ApisV1alpha1Client) APIExports() apisv1alpha1.APIExportInterface {
-	return &aPIExportsClient{Fake: c.Fake, Cluster: c.Cluster}
+	return &aPIExportsClient{Fake: c.Fake, ClusterPath: c.ClusterPath}
 }
 
 func (c *ApisV1alpha1Client) APIResourceSchemas() apisv1alpha1.APIResourceSchemaInterface {
-	return &aPIResourceSchemasClient{Fake: c.Fake, Cluster: c.Cluster}
+	return &aPIResourceSchemasClient{Fake: c.Fake, ClusterPath: c.ClusterPath}
 }

@@ -53,12 +53,12 @@ type cowboysClusterInterface struct {
 }
 
 // Cluster scopes the client down to a particular cluster.
-func (c *cowboysClusterInterface) Cluster(name logicalcluster.Path) CowboysNamespacer {
-	if name == logicalcluster.Wildcard {
+func (c *cowboysClusterInterface) Cluster(clusterPath logicalcluster.Path) CowboysNamespacer {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
 
-	return &cowboysNamespacer{clientCache: c.clientCache, name: name}
+	return &cowboysNamespacer{clientCache: c.clientCache, clusterPath: clusterPath}
 }
 
 // List returns the entire collection of all Cowboys across all clusters.
@@ -78,9 +78,9 @@ type CowboysNamespacer interface {
 
 type cowboysNamespacer struct {
 	clientCache kcpclient.Cache[*wildwestv1alpha1client.WildwestV1alpha1Client]
-	name        logicalcluster.Path
+	clusterPath logicalcluster.Path
 }
 
 func (n *cowboysNamespacer) Namespace(namespace string) wildwestv1alpha1client.CowboyInterface {
-	return n.clientCache.ClusterOrDie(n.name).Cowboys(namespace)
+	return n.clientCache.ClusterOrDie(n.clusterPath).Cowboys(namespace)
 }

@@ -47,11 +47,11 @@ type ApisV1alpha1ClusterClient struct {
 	clientCache kcpclient.Cache[*apisv1alpha1.ApisV1alpha1Client]
 }
 
-func (c *ApisV1alpha1ClusterClient) Cluster(name logicalcluster.Path) apisv1alpha1.ApisV1alpha1Interface {
-	if name == logicalcluster.Wildcard {
+func (c *ApisV1alpha1ClusterClient) Cluster(clusterPath logicalcluster.Path) apisv1alpha1.ApisV1alpha1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return c.clientCache.ClusterOrDie(name)
+	return c.clientCache.ClusterOrDie(clusterPath)
 }
 
 func (c *ApisV1alpha1ClusterClient) APIBindings() APIBindingClusterInterface {
@@ -83,7 +83,7 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*ApisV1alpha1Cluster
 	cache := kcpclient.NewCache(c, h, &kcpclient.Constructor[*apisv1alpha1.ApisV1alpha1Client]{
 		NewForConfigAndClient: apisv1alpha1.NewForConfigAndClient,
 	})
-	if _, err := cache.Cluster(logicalcluster.NewPath("root")); err != nil {
+	if _, err := cache.Cluster(logicalcluster.Name("root").Path()); err != nil {
 		return nil, err
 	}
 	return &ApisV1alpha1ClusterClient{clientCache: cache}, nil

@@ -46,11 +46,11 @@ type SchedulingV1alpha1ClusterClient struct {
 	clientCache kcpclient.Cache[*schedulingv1alpha1.SchedulingV1alpha1Client]
 }
 
-func (c *SchedulingV1alpha1ClusterClient) Cluster(name logicalcluster.Path) schedulingv1alpha1.SchedulingV1alpha1Interface {
-	if name == logicalcluster.Wildcard {
+func (c *SchedulingV1alpha1ClusterClient) Cluster(clusterPath logicalcluster.Path) schedulingv1alpha1.SchedulingV1alpha1Interface {
+	if clusterPath == logicalcluster.Wildcard {
 		panic("A specific cluster must be provided when scoping, not the wildcard.")
 	}
-	return c.clientCache.ClusterOrDie(name)
+	return c.clientCache.ClusterOrDie(clusterPath)
 }
 
 func (c *SchedulingV1alpha1ClusterClient) Locations() LocationClusterInterface {
@@ -78,7 +78,7 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*SchedulingV1alpha1C
 	cache := kcpclient.NewCache(c, h, &kcpclient.Constructor[*schedulingv1alpha1.SchedulingV1alpha1Client]{
 		NewForConfigAndClient: schedulingv1alpha1.NewForConfigAndClient,
 	})
-	if _, err := cache.Cluster(logicalcluster.NewPath("root")); err != nil {
+	if _, err := cache.Cluster(logicalcluster.Name("root").Path()); err != nil {
 		return nil, err
 	}
 	return &SchedulingV1alpha1ClusterClient{clientCache: cache}, nil
