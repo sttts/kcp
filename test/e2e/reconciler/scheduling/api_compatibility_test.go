@@ -45,8 +45,8 @@ func TestSchedulingOnSupportedAPI(t *testing.T) {
 
 	source := framework.SharedKcpServer(t)
 	orgClusterName := framework.NewOrganizationFixture(t, source)
-	locationClusterName := framework.NewWorkspaceFixture(t, source, orgClusterName)
-	userClusterName := framework.NewWorkspaceFixture(t, source, orgClusterName)
+	locationClusterName := framework.NewWorkspaceFixture(t, source, orgClusterName.Path())
+	userClusterName := framework.NewWorkspaceFixture(t, source, orgClusterName.Path())
 
 	kcpClusterClient, err := kcpclientset.NewForConfig(source.BaseConfig(t))
 	require.NoError(t, err)
@@ -68,8 +68,8 @@ func TestSchedulingOnSupportedAPI(t *testing.T) {
 
 	placementName := "placement-test-supportedapi"
 	t.Logf("Bind to location workspace")
-	framework.NewBindCompute(t, userClusterName, source,
-		framework.WithLocationWorkspaceWorkloadBindOption(locationClusterName),
+	framework.NewBindCompute(t, userClusterName.Path(), source,
+		framework.WithLocationWorkspaceWorkloadBindOption(locationClusterName.Path()),
 		framework.WithPlacementNameBindOption(placementName),
 		framework.WithAPIExportsWorkloadBindOption("root:compute:kubernetes"),
 	).Bind(t)
@@ -77,7 +77,7 @@ func TestSchedulingOnSupportedAPI(t *testing.T) {
 	scheduledSyncTargetKey := workloadv1alpha1.ToSyncTargetKey(locationClusterName, secondSyncTargetName)
 	t.Logf("check placement should be scheduled to synctarget with supported API")
 	framework.Eventually(t, func() (bool, string) {
-		placement, err := kcpClusterClient.Cluster(userClusterName).SchedulingV1alpha1().Placements().Get(ctx, placementName, metav1.GetOptions{})
+		placement, err := kcpClusterClient.Cluster(userClusterName.Path()).SchedulingV1alpha1().Placements().Get(ctx, placementName, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Sprintf("Failed to get placement: %v", err)
 		}
