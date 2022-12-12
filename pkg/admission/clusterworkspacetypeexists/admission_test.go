@@ -110,6 +110,9 @@ func TestAdmit(t *testing.T) {
 		},
 		{
 			name: "adds additional workspace labels if missing",
+			thisWorkspaces: []*tenancyv1alpha1.ThisWorkspace{
+				newThisWorkspace("root:org:ws").withType("root:org", "parent").ThisWorkspace,
+			},
 			types: []*tenancyv1alpha1.ClusterWorkspaceType{
 				newType("root:org:foo").withAdditionalLabel(map[string]string{
 					"new-label":      "default",
@@ -153,7 +156,6 @@ func TestAdmit(t *testing.T) {
 				transitiveTypeResolver: NewTransitiveTypeResolver(typeLister.GetByPath),
 			}
 			ctx := request.WithCluster(context.Background(), request.Cluster{Name: tt.clusterName})
-			ctx = tenancy.WithCanonicalPath(ctx, tt.clusterName.Path())
 			if err := o.Admit(ctx, tt.a, nil); (err != nil) != tt.wantErr {
 				t.Fatalf("Admit() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err == nil {
@@ -404,7 +406,6 @@ func TestValidate(t *testing.T) {
 				transitiveTypeResolver: NewTransitiveTypeResolver(typeLister.GetByPath),
 			}
 			ctx := request.WithCluster(context.Background(), request.Cluster{Name: tt.clusterName})
-			ctx = tenancy.WithCanonicalPath(ctx, tt.clusterName.Path())
 			if err := o.Validate(ctx, tt.attr, nil); (err != nil) != tt.wantErr {
 				t.Fatalf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -749,7 +750,7 @@ func newType(qualifiedName string) builder {
 
 func (b builder) extending(qualifiedName string) builder {
 	path, name := logicalcluster.NewPath(qualifiedName).Split()
-	b.Spec.Extend.With = append(b.Spec.Extend.With, tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: path.String(), Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name)})
+	b.Spec.Extend.With = append(b.Spec.Extend.With, tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: path, Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name)})
 	return b
 }
 
@@ -758,7 +759,7 @@ func (b builder) allowingParent(qualifiedName string) builder {
 	if b.Spec.LimitAllowedParents == nil {
 		b.Spec.LimitAllowedParents = &tenancyv1alpha1.ClusterWorkspaceTypeSelector{}
 	}
-	b.Spec.LimitAllowedParents.Types = append(b.Spec.LimitAllowedParents.Types, tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: path.String(), Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name)})
+	b.Spec.LimitAllowedParents.Types = append(b.Spec.LimitAllowedParents.Types, tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: path, Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name)})
 	return b
 }
 
@@ -767,14 +768,14 @@ func (b builder) allowingChild(qualifiedName string) builder {
 	if b.Spec.LimitAllowedChildren == nil {
 		b.Spec.LimitAllowedChildren = &tenancyv1alpha1.ClusterWorkspaceTypeSelector{}
 	}
-	b.Spec.LimitAllowedChildren.Types = append(b.Spec.LimitAllowedChildren.Types, tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: path.String(), Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name)})
+	b.Spec.LimitAllowedChildren.Types = append(b.Spec.LimitAllowedChildren.Types, tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: path, Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name)})
 	return b
 }
 
 func (b builder) withDefault(qualifiedName string) builder {
 	path, name := logicalcluster.NewPath(qualifiedName).Split()
 	b.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
-		Path: path.String(),
+		Path: path,
 		Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name),
 	}
 	return b
@@ -800,7 +801,7 @@ func (b builder) withAdditionalLabel(labels map[string]string) builder {
 func (b builder) withAPIBindings() builder {
 	b.ClusterWorkspaceType.Spec.DefaultAPIBindings = []tenancyv1alpha1.APIExportReference{
 		{
-			Path:   "root",
+			Path:   logicalcluster.NewPath("root"),
 			Export: "bar",
 		},
 	}
@@ -826,7 +827,7 @@ func newWorkspace(qualifiedName string) wsBuilder {
 func (b wsBuilder) withType(qualifiedName string) wsBuilder {
 	path, name := logicalcluster.NewPath(qualifiedName).Split()
 	b.Spec.Type = tenancyv1beta1.WorkspaceTypeReference{
-		Path: path.String(),
+		Path: path,
 		Name: tenancyv1alpha1.ClusterWorkspaceTypeName(name),
 	}
 	return b

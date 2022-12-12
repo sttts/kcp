@@ -293,7 +293,7 @@ func (o *SyncOptions) applySyncTarget(ctx context.Context, kcpClient kcpclient.I
 		lclusterName, name := logicalcluster.NewPath(export).Split()
 		supportedAPIExports = append(supportedAPIExports, tenancyv1alpha1.APIExportReference{
 			Export: name,
-			Path:   lclusterName.String(),
+			Path:   lclusterName,
 		})
 	}
 
@@ -395,8 +395,8 @@ func (o *SyncOptions) getResourcesForPermission(ctx context.Context, config *res
 
 		if len(syncTarget.Spec.SupportedAPIExports) == 1 &&
 			syncTarget.Spec.SupportedAPIExports[0].Export == "kubernetes" &&
-			(len(syncTarget.Spec.SupportedAPIExports[0].Path) == 0 ||
-				syncTarget.Spec.SupportedAPIExports[0].Path == clusterName.String()) {
+			(syncTarget.Spec.SupportedAPIExports[0].Path.Empty() ||
+				syncTarget.Spec.SupportedAPIExports[0].Path == clusterName.Path()) {
 			return true, nil
 		}
 

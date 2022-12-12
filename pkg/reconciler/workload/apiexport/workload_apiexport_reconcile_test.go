@@ -584,7 +584,7 @@ func syncTarget(syncTargetName string, computeWorkspace logicalcluster.Path, exp
 		Spec: workloadv1alpha1.SyncTargetSpec{
 			SupportedAPIExports: []tenancyv1alpha1.APIExportReference{
 				{
-					Path:   computeWorkspace.String(),
+					Path:   computeWorkspace,
 					Export: exportName,
 				},
 			},

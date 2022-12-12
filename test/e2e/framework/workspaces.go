@@ -56,7 +56,7 @@ func WithType(path logicalcluster.Path, name tenancyv1alpha1.ClusterWorkspaceTyp
 	return func(ws *tenancyv1alpha1.ClusterWorkspace) {
 		ws.Spec.Type = tenancyv1alpha1.ClusterWorkspaceTypeReference{
 			Name: name,
-			Path: path.String(),
+			Path: path,
 		}
 	}
 }
@@ -83,7 +83,7 @@ func NewWorkspaceFixtureObject(t *testing.T, server RunningServer, orgClusterNam
 		Spec: tenancyv1alpha1.ClusterWorkspaceSpec{
 			Type: tenancyv1alpha1.ClusterWorkspaceTypeReference{
 				Name: tenancyv1alpha1.ClusterWorkspaceTypeName("universal"),
-				Path: "root",
+				Path: logicalcluster.NewPath("root"),
 			},
 		},
 	}
@@ -154,7 +154,7 @@ func NewOrganizationFixtureObject(t *testing.T, server RunningServer, options ..
 		Spec: tenancyv1alpha1.ClusterWorkspaceSpec{
 			Type: tenancyv1alpha1.ClusterWorkspaceTypeReference{
 				Name: "organization",
-				Path: "root",
+				Path: logicalcluster.NewPath("root"),
 			},
 		},
 	}

@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/google/go-cmp/cmp"
+
 	authenticationv1 "k8s.io/api/authentication/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
@@ -167,7 +169,7 @@ func (o *workspace) Validate(ctx context.Context, a admission.Attributes, _ admi
 			return fmt.Errorf("failed to convert unstructured to ClusterWorkspace: %w", err)
 		}
 
-		if errs := validation.ValidateImmutableField(cw.Spec.Type, old.Spec.Type, field.NewPath("spec", "type")); len(errs) > 0 {
+		if errs := validateImmutableField(cw.Spec.Type, old.Spec.Type, field.NewPath("spec", "type")); len(errs) > 0 {
 			return admission.NewForbidden(a, errs.ToAggregate())
 		}
 		if old.Spec.Type.Path != cw.Spec.Type.Path || old.Spec.Type.Name != cw.Spec.Type.Name {
@@ -261,4 +263,16 @@ func WorkspaceOwnerAnnotationValue(user kuser.Info) (string, error) {
 	}
 
 	return string(rawInfo), nil
+}
+
+// validateImmutableField validates the new value and the old value are deeply equal.
+//
+// it is a copy of validation.ValidateImmutableField that replaces the usage of apiequality.Semantic.DeepEqual
+// please visit https://github.com/kcp-dev/logicalcluster/pull/30 for more details
+func validateImmutableField(newVal, oldVal interface{}, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if !cmp.Equal(oldVal, newVal) {
+		allErrs = append(allErrs, field.Invalid(fldPath, newVal, validation.FieldImmutableErrorMsg))
+	}
+	return allErrs
 }

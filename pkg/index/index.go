@@ -72,14 +72,14 @@ func (c *State) UpsertWorkspace(shard string, ws *tenancyv1beta1.Workspace) {
 	got := c.shardWorkspaceNameCluster[shard][clusterName][ws.Name]
 	c.lock.RUnlock()
 
-	if got.String() == ws.Status.Cluster {
+	if got == ws.Status.Cluster {
 		return
 	}
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if got := c.shardWorkspaceNameCluster[shard][clusterName][ws.Name]; got.String() != ws.Status.Cluster {
+	if got := c.shardWorkspaceNameCluster[shard][clusterName][ws.Name]; got != ws.Status.Cluster {
 		if c.shardWorkspaceNameCluster[shard] == nil {
 			c.shardWorkspaceNameCluster[shard] = map[logicalcluster.Name]map[string]logicalcluster.Name{}
 			c.shardClusterWorkspaceName[shard] = map[logicalcluster.Name]string{}

@@ -69,7 +69,7 @@ func InitializerForType(cwt *tenancyv1alpha1.ClusterWorkspaceType) tenancyv1alph
 // InitializerForReference determines the identifier for the implicit initializer associated with the
 // ClusterWorkspaceType referred to with the reference.
 func InitializerForReference(cwtr tenancyv1alpha1.ClusterWorkspaceTypeReference) tenancyv1alpha1.WorkspaceInitializer {
-	return tenancyv1alpha1.WorkspaceInitializer(cwtr.Path + ":" + string(cwtr.Name))
+	return tenancyv1alpha1.WorkspaceInitializer(cwtr.Path.Join(string(cwtr.Name)).String())
 }
 
 // TypeFrom determines the ClusterWorkspaceType workspace and name from an initializer name.

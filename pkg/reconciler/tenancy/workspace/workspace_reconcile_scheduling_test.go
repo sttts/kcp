@@ -27,6 +27,7 @@ import (
 	kcpcache "github.com/kcp-dev/apimachinery/pkg/cache"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
 	kcpfakekubeclient "github.com/kcp-dev/client-go/kubernetes/fake"
+	"github.com/kcp-dev/kcp/pkg/apis/tenancy"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/martinlindhe/base36"
 
@@ -59,6 +60,7 @@ func TestReconcileScheduling(t *testing.T) {
 		initialKubeClientObjects     []runtime.Object
 		initialKcpClientObjects      []runtime.Object
 		targetWorkspace              *tenancyv1beta1.Workspace
+		targetThisWorkspace          *tenancyv1alpha1.ThisWorkspace
 		validateWorkspace            func(t *testing.T, initialWS, ws *tenancyv1beta1.Workspace)
 		validateKubeClientActions    func(t *testing.T, a []kcpclientgotesting.Action)
 		validateKcpClientActions     func(t *testing.T, a []kcpclientgotesting.Action)
@@ -67,14 +69,15 @@ func TestReconcileScheduling(t *testing.T) {
 		expectedStatus               reconcileStatus
 	}{
 		{
-			name:            "two-phase commit, part one: a new workspace gets a shard assigned",
-			initialShards:   []*tenancyv1alpha1.ClusterWorkspaceShard{shard("root")},
-			targetWorkspace: workspace("foo"),
+			name:                "two-phase commit, part one: a new workspace gets a shard assigned",
+			initialShards:       []*tenancyv1alpha1.ClusterWorkspaceShard{shard("root")},
+			targetWorkspace:     workspace("foo"),
+			targetThisWorkspace: &tenancyv1alpha1.ThisWorkspace{},
 			validateWorkspace: func(t *testing.T, initialWS, ws *tenancyv1beta1.Workspace) {
 				initialWS.Annotations["internal.tenancy.kcp.dev/cluster"] = "root-foo"
 				initialWS.Annotations["internal.tenancy.kcp.dev/shard"] = "1pfxsevk"
 				initialWS.Finalizers = append(initialWS.Finalizers, "tenancy.kcp.dev/thisworkspace")
-				if !equality.Semantic.DeepEqual(ws, initialWS) {
+				if !cmp.Equal(ws, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(ws, initialWS)))
 				}
 			},
@@ -85,6 +88,7 @@ func TestReconcileScheduling(t *testing.T) {
 			initialShards:                []*tenancyv1alpha1.ClusterWorkspaceShard{shard("root")},
 			initialClusterWorkspaceTypes: wellKnownClusterWorkspaceTypes(),
 			targetWorkspace:              wellKnownFooWSForPhaseTwo(),
+			targetThisWorkspace:          &tenancyv1alpha1.ThisWorkspace{},
 			validateWorkspace: func(t *testing.T, initialWS, wsAfterReconciliation *tenancyv1beta1.Workspace) {
 				clearLastTransitionTimeOnWsConditions(wsAfterReconciliation)
 				initialWS.CreationTimestamp = wsAfterReconciliation.CreationTimestamp
@@ -94,7 +98,8 @@ func TestReconcileScheduling(t *testing.T) {
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
 					Status: corev1.ConditionTrue,
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				//initialWS.Annotations["tenancy.kcp.dev/path"] = "root:foo"
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -117,7 +122,8 @@ func TestReconcileScheduling(t *testing.T) {
 				thisWS.Annotations["kcp.dev/cluster"] = "root-foo"
 				return thisWS
 			}()},
-			targetWorkspace: wellKnownFooWSForPhaseTwo(),
+			targetWorkspace:     wellKnownFooWSForPhaseTwo(),
+			targetThisWorkspace: &tenancyv1alpha1.ThisWorkspace{},
 			validateWorkspace: func(t *testing.T, initialWS, wsAfterReconciliation *tenancyv1beta1.Workspace) {
 				clearLastTransitionTimeOnWsConditions(wsAfterReconciliation)
 				initialWS.CreationTimestamp = wsAfterReconciliation.CreationTimestamp
@@ -127,7 +133,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
 					Status: corev1.ConditionTrue,
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -151,12 +157,13 @@ func TestReconcileScheduling(t *testing.T) {
 				thisWS.Spec.Owner.UID = "wrong-uid"
 				return thisWS
 			}()},
-			targetWorkspace: wellKnownFooWSForPhaseTwo(),
+			targetWorkspace:     wellKnownFooWSForPhaseTwo(),
+			targetThisWorkspace: &tenancyv1alpha1.ThisWorkspace{},
 			validateWorkspace: func(t *testing.T, initialWS, wsAfterReconciliation *tenancyv1beta1.Workspace) {
 				clearLastTransitionTimeOnWsConditions(wsAfterReconciliation)
 				initialWS.CreationTimestamp = wsAfterReconciliation.CreationTimestamp
 				delete(initialWS.Annotations, "internal.tenancy.kcp.dev/cluster")
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -177,7 +184,8 @@ func TestReconcileScheduling(t *testing.T) {
 				thisWS.Annotations["kcp.dev/cluster"] = "root-foo"
 				return thisWS
 			}()},
-			targetWorkspace: wellKnownFooWSForPhaseTwo(),
+			targetWorkspace:     wellKnownFooWSForPhaseTwo(),
+			targetThisWorkspace: &tenancyv1alpha1.ThisWorkspace{},
 			validateWorkspace: func(t *testing.T, initialWS, wsAfterReconciliation *tenancyv1beta1.Workspace) {
 				clearLastTransitionTimeOnWsConditions(wsAfterReconciliation)
 				initialWS.CreationTimestamp = wsAfterReconciliation.CreationTimestamp
@@ -187,7 +195,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
 					Status: corev1.ConditionTrue,
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -202,8 +210,9 @@ func TestReconcileScheduling(t *testing.T) {
 			expectedKcpClientActions:  []string{"create:thisworkspaces", "get:thisworkspaces", "get:thisworkspaces", "update:thisworkspaces"},
 		},
 		{
-			name:            "no shards available, the ws is unscheduled",
-			targetWorkspace: workspace("foo"),
+			name:                "no shards available, the ws is unscheduled",
+			targetWorkspace:     workspace("foo"),
+			targetThisWorkspace: &tenancyv1alpha1.ThisWorkspace{},
 			validateWorkspace: func(t *testing.T, initialWS, wsAfterReconciliation *tenancyv1beta1.Workspace) {
 				clearLastTransitionTimeOnWsConditions(wsAfterReconciliation)
 				initialWS.Status.Conditions = append(initialWS.Status.Conditions, conditionsapi.Condition{
@@ -213,7 +222,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Reason:   tenancyv1alpha1.WorkspaceReasonUnschedulable,
 					Message:  "No available shards to schedule the workspace.",
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -227,6 +236,7 @@ func TestReconcileScheduling(t *testing.T) {
 				ws.Spec.Location.Selector = selector
 				return ws
 			}(),
+			targetThisWorkspace: &tenancyv1alpha1.ThisWorkspace{},
 			initialShards: []*tenancyv1alpha1.ClusterWorkspaceShard{shard("root"), func() *tenancyv1alpha1.ClusterWorkspaceShard {
 				s := shard("amber")
 				s.Labels["awesome.shard"] = "amber"
@@ -236,7 +246,7 @@ func TestReconcileScheduling(t *testing.T) {
 				initialWS.Annotations["internal.tenancy.kcp.dev/cluster"] = "root-foo"
 				initialWS.Annotations["internal.tenancy.kcp.dev/shard"] = "29hdqnv7"
 				initialWS.Finalizers = append(initialWS.Finalizers, "tenancy.kcp.dev/thisworkspace")
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -304,7 +314,16 @@ func TestReconcileScheduling(t *testing.T) {
 					return nil, kerrors.NewNotFound(tenancyv1alpha1.SchemeGroupVersion.WithResource("ClusterWorkspaceShard").GroupResource(), hash)
 				},
 				getClusterWorkspaceType: getType,
-				transitiveTypeResolver:  clusterworkspacetypeexists.NewTransitiveTypeResolver(getType),
+				getThisWorkspace: func(clusterName logicalcluster.Name) (*tenancyv1alpha1.ThisWorkspace, error) {
+					if clusterName != logicalcluster.Name("root") {
+						return nil, fmt.Errorf("unexpected cluster name = %v, expected = %v", clusterName, "root")
+					}
+					if scenario.targetThisWorkspace == nil {
+						return nil, fmt.Errorf("targetThisWorkspace wasn't provided for this scenario")
+					}
+					return scenario.targetThisWorkspace, nil
+				},
+				transitiveTypeResolver: clusterworkspacetypeexists.NewTransitiveTypeResolver(getType),
 			}
 			targetWorkspaceCopy := scenario.targetWorkspace.DeepCopy()
 			status, err := target.reconcile(context.TODO(), scenario.targetWorkspace)
@@ -358,7 +377,7 @@ func wellKnownFooWSForPhaseTwo() *tenancyv1beta1.Workspace {
 	// type info is assigned by an admission plugin
 	ws.Spec.Type = tenancyv1beta1.WorkspaceTypeReference{
 		Name: "universal",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	return ws
 }
@@ -371,6 +390,7 @@ func wellKnownThisWSForFooWS() *tenancyv1alpha1.ThisWorkspace {
 			Annotations: map[string]string{
 				tenancyv1alpha1.ExperimentalWorkspaceOwnerAnnotationKey: `{"username":"kcp-admin"}`,
 				tenancyv1alpha1.ThisWorkspaceTypeAnnotationKey:          "root:universal",
+				tenancy.LogicalClusterPathAnnotationKey:                 "root:foo",
 			},
 		},
 		Spec: tenancyv1alpha1.ThisWorkspaceSpec{
@@ -496,35 +516,38 @@ func wellKnownClusterWorkspaceTypes() []*tenancyv1alpha1.ClusterWorkspaceType {
 	type0 := workspaceType("root")
 	type0.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		Name: "organization",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	type1 := workspaceType("organization")
 	type1.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		Name: "universal",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	type1.Spec.Initializer = true
 	type2 := workspaceType("universal")
 	type2.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		Name: "universal",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	type2.Spec.DefaultAPIBindings = []tenancyv1alpha1.APIExportReference{
 		{
-			"tenancy.kcp.dev",
+			logicalcluster.NewPath("tenancy.kcp.dev"),
 			"root",
 		},
 	}
 	type2.Spec.Extend.With = []tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		{
 			Name: "organization",
-			Path: "root",
+			Path: logicalcluster.NewPath("root"),
 		},
 	}
 	return []*tenancyv1alpha1.ClusterWorkspaceType{type0, type1, type2}
 }
 
 func clearLastTransitionTimeOnWsConditions(ws *tenancyv1beta1.Workspace) {
+	if len(ws.Status.Conditions) == 0 {
+		return
+	}
 	newConditions := make([]conditionsapi.Condition, 0, len(ws.Status.Conditions))
 	for _, cond := range ws.Status.Conditions {
 		cond.LastTransitionTime = metav1.Time{}

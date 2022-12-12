@@ -106,7 +106,7 @@ func (r *placementSchedulingReconciler) getAllValidSyncTargetsForPlacement(ctx c
 		return nil, nil
 	}
 
-	locationWorkspace := logicalcluster.NewPath(placement.Status.SelectedLocation.Path)
+	locationWorkspace := placement.Status.SelectedLocation.Path
 	location, err := r.getLocation(
 		locationWorkspace,
 		placement.Status.SelectedLocation.LocationName)

@@ -53,7 +53,7 @@ func TestPlacementPhase(t *testing.T) {
 			name:  "namespace does not have placement annotation",
 			phase: schedulingv1alpha1.PlacementUnbound,
 			selectedLocation: &schedulingv1alpha1.LocationReference{
-				Path:         "root",
+				Path:         logicalcluster.NewPath("root"),
 				LocationName: "test-location",
 			},
 			expectedPhase: schedulingv1alpha1.PlacementUnbound,
@@ -63,7 +63,7 @@ func TestPlacementPhase(t *testing.T) {
 			phase: schedulingv1alpha1.PlacementBound,
 			ns:    &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "testns"}},
 			selectedLocation: &schedulingv1alpha1.LocationReference{
-				Path:         "root",
+				Path:         logicalcluster.NewPath("root"),
 				LocationName: "test-location",
 			},
 			expectedPhase: schedulingv1alpha1.PlacementUnbound,
@@ -73,7 +73,7 @@ func TestPlacementPhase(t *testing.T) {
 			phase: schedulingv1alpha1.PlacementBound,
 			ns:    &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "testns"}},
 			selectedLocation: &schedulingv1alpha1.LocationReference{
-				Path:         "root",
+				Path:         logicalcluster.NewPath("root"),
 				LocationName: "test-location",
 			},
 			expectedPhase: schedulingv1alpha1.PlacementUnbound,
@@ -84,7 +84,7 @@ func TestPlacementPhase(t *testing.T) {
 			namespaceSelector: &metav1.LabelSelector{},
 			ns:                &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "testns"}},
 			selectedLocation: &schedulingv1alpha1.LocationReference{
-				Path:         "root",
+				Path:         logicalcluster.NewPath("root"),
 				LocationName: "test-location",
 			},
 			expectedPhase: schedulingv1alpha1.PlacementBound,

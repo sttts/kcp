@@ -32,5 +32,5 @@ func indexByLocationWorkspace(obj interface{}) ([]string, error) {
 		return []string{}, nil
 	}
 
-	return []string{placement.Status.SelectedLocation.Path}, nil
+	return []string{placement.Status.SelectedLocation.Path.String()}, nil
 }

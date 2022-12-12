@@ -128,8 +128,7 @@ type APIExportReference struct {
 	//
 	// +required
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern:="^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-	Path string `json:"path"`
+	Path logicalcluster.Path `json:"path"`
 
 	// export is the name of the APIExport.
 	//
@@ -242,7 +241,7 @@ var (
 	// RootWorkspaceTypeReference is a reference to the root logical cluster, which has no cluster workspace type
 	RootWorkspaceTypeReference = ClusterWorkspaceTypeReference{
 		Name: RootWorkspaceTypeName,
-		Path: RootCluster.String(),
+		Path: RootCluster.Path(),
 	}
 
 	// RootWorkspaceType is the implicit type of the root logical cluster.
@@ -250,7 +249,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ObjectName(RootWorkspaceTypeReference.Name),
 			Annotations: map[string]string{
-				logicalcluster.AnnotationKey: RootWorkspaceTypeReference.Path,
+				logicalcluster.AnnotationKey: RootWorkspaceTypeReference.Path.String(),
 			},
 		},
 		Spec: ClusterWorkspaceTypeSpec{

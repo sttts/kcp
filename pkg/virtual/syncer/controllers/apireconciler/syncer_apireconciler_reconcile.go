@@ -168,7 +168,7 @@ func (c *APIReconciler) getAllAcceptedResourceSchemas(syncTarget *workloadv1alph
 
 	var errs []error
 	for _, exportRef := range syncTarget.Spec.SupportedAPIExports {
-		path := logicalcluster.NewPath(exportRef.Path)
+		path := exportRef.Path
 		if path.Empty() {
 			path = logicalcluster.From(syncTarget).Path()
 		}

@@ -221,7 +221,7 @@ func TestReconcile(t *testing.T) {
 						return nil, testCase.getErr
 					}
 					for _, cwt := range testCase.cwts {
-						if logicalcluster.From(cwt).String() == reference.Path && cwt.Name == string(reference.Name) {
+						if logicalcluster.From(cwt).Path() == reference.Path && cwt.Name == string(reference.Name) {
 							return cwt, nil
 						}
 					}

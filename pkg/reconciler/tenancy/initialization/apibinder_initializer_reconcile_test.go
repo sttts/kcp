@@ -51,7 +51,7 @@ func TestGenerateAPIBindingName(t *testing.T) {
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
 			clusterName := logicalcluster.Name("root:some:ws")
-			exportPath := "root:some:export:ws"
+			exportPath := logicalcluster.NewPath("root:some:export:ws")
 
 			generated := generateAPIBindingName(clusterName, exportPath, tc.exportName)
 			t.Logf("generated: %s", generated)
@@ -68,7 +68,7 @@ func TestGenerateAPIBindingNameWithMultipleSimilarLongNames(t *testing.T) {
 	t.Parallel()
 
 	clusterName := logicalcluster.Name("root:some:ws")
-	exportPath := "root:some:export:ws"
+	exportPath := logicalcluster.NewPath("root:some:export:ws")
 
 	// 252 chars
 	longName1 := "thisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongnamethisisareallylongname"
