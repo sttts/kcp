@@ -99,7 +99,7 @@ func (r *placementReconciler) reconcile(ctx context.Context, placement *scheduli
 	// consider whether placements in a workspace should always select different locations.
 	chosenLocation := candidates[rand.Intn(len(candidates))]
 	placement.Status.SelectedLocation = &schedulingv1alpha1.LocationReference{
-		Path:         locationWorkspace.String(),
+		Path:         locationWorkspace,
 		LocationName: chosenLocation,
 	}
 	placement.Status.Phase = schedulingv1alpha1.PlacementUnbound
@@ -142,7 +142,7 @@ func isValidLocationSelected(placement *schedulingv1alpha1.Placement, cluster lo
 		return false
 	}
 
-	if placement.Status.SelectedLocation.Path != cluster.String() {
+	if placement.Status.SelectedLocation.Path != cluster {
 		return false
 	}
 

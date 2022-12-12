@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	conditionsv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
@@ -107,8 +109,7 @@ type LocationReference struct {
 	//
 	// +required
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern:="^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-	Path string `json:"path"`
+	Path logicalcluster.Path `json:"path"`
 
 	// Name of the Location.
 	//

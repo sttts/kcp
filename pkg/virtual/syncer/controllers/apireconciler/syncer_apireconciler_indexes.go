@@ -59,7 +59,7 @@ func IndexSyncTargetsByExports(obj interface{}) ([]string, error) {
 			keys = append(keys, client.ToClusterAwareKey(clusterName.Path(), export.Export))
 			continue
 		}
-		keys = append(keys, client.ToClusterAwareKey(logicalcluster.Name(export.Path).Path(), export.Export))
+		keys = append(keys, client.ToClusterAwareKey(export.Path, export.Export))
 	}
 
 	return keys, nil

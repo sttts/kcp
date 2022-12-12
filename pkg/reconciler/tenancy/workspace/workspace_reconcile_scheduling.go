@@ -160,7 +160,7 @@ func (r *schedulingReconciler) reconcile(ctx context.Context, workspace *tenancy
 
 		u.Path = path.Join(u.Path, clusterName.Path().RequestPath())
 		workspace.Status.URL = u.String()
-		workspace.Status.Cluster = clusterName.String()
+		workspace.Status.Cluster = clusterName
 		conditions.MarkTrue(workspace, tenancyv1alpha1.WorkspaceScheduled)
 		logging.WithObject(logger, shard).Info("scheduled workspace to shard")
 	}
@@ -256,7 +256,7 @@ func (r *schedulingReconciler) createThisWorkspace(ctx context.Context, shard *t
 			Finalizers: []string{deletion.WorkspaceFinalizer},
 			Annotations: map[string]string{
 				tenancyv1alpha1.ExperimentalWorkspaceOwnerAnnotationKey: workspace.Annotations[tenancyv1alpha1.ExperimentalWorkspaceOwnerAnnotationKey],
-				tenancyv1alpha1.ThisWorkspaceTypeAnnotationKey:          logicalcluster.NewPath(workspace.Spec.Type.Path).Join(string(workspace.Spec.Type.Name)).String(),
+				tenancyv1alpha1.ThisWorkspaceTypeAnnotationKey:          workspace.Spec.Type.Path.Join(string(workspace.Spec.Type.Name)).String(),
 				tenancy.LogicalClusterPathAnnotationKey:                 canonicalPath.String(),
 			},
 		},
@@ -265,7 +265,7 @@ func (r *schedulingReconciler) createThisWorkspace(ctx context.Context, shard *t
 				APIVersion: tenancyv1beta1.SchemeGroupVersion.String(),
 				Resource:   "workspaces",
 				Name:       workspace.Name,
-				Cluster:    logicalcluster.From(workspace).String(),
+				Cluster:    logicalcluster.From(workspace),
 				UID:        workspace.UID,
 			},
 		},
@@ -278,7 +278,7 @@ func (r *schedulingReconciler) createThisWorkspace(ctx context.Context, shard *t
 	}
 
 	// add initializers
-	cwt, err := r.getClusterWorkspaceType(logicalcluster.NewPath(workspace.Spec.Type.Path), string(workspace.Spec.Type.Name))
+	cwt, err := r.getClusterWorkspaceType(workspace.Spec.Type.Path, string(workspace.Spec.Type.Name))
 	if err != nil {
 		return err
 	}

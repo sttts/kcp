@@ -103,7 +103,7 @@ func TestAdmit(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			}, &user.DefaultInfo{
@@ -124,7 +124,7 @@ func TestAdmit(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			},
@@ -145,7 +145,7 @@ func TestAdmit(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "Foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			}, &user.DefaultInfo{
@@ -166,7 +166,7 @@ func TestAdmit(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "Foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			},
@@ -187,7 +187,7 @@ func TestAdmit(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "Foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			}, &user.DefaultInfo{
@@ -208,7 +208,7 @@ func TestAdmit(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "Foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			},
@@ -332,7 +332,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			},
@@ -344,7 +344,7 @@ func TestValidate(t *testing.T) {
 					Spec: tenancyv1beta1.WorkspaceSpec{
 						Type: tenancyv1beta1.WorkspaceTypeReference{
 							Name: "universal",
-							Path: "root:org",
+							Path: logicalcluster.NewPath("root:org"),
 						},
 					},
 				}),
@@ -363,7 +363,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 				Status: tenancyv1beta1.WorkspaceStatus{}},
@@ -375,7 +375,7 @@ func TestValidate(t *testing.T) {
 					Spec: tenancyv1beta1.WorkspaceSpec{
 						Type: tenancyv1beta1.WorkspaceTypeReference{
 							Name: "foo",
-							Path: "root:org",
+							Path: logicalcluster.NewPath("root:org"),
 						},
 					},
 					Status: tenancyv1beta1.WorkspaceStatus{
@@ -397,7 +397,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 				Status: tenancyv1beta1.WorkspaceStatus{
@@ -415,7 +415,7 @@ func TestValidate(t *testing.T) {
 					Spec: tenancyv1beta1.WorkspaceSpec{
 						Type: tenancyv1beta1.WorkspaceTypeReference{
 							Name: "foo",
-							Path: "root:org",
+							Path: logicalcluster.NewPath("root:org"),
 						},
 					},
 					Status: tenancyv1beta1.WorkspaceStatus{
@@ -437,7 +437,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 				Status: tenancyv1beta1.WorkspaceStatus{
@@ -461,7 +461,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 				Status: tenancyv1beta1.WorkspaceStatus{
@@ -478,7 +478,7 @@ func TestValidate(t *testing.T) {
 					Spec: tenancyv1beta1.WorkspaceSpec{
 						Type: tenancyv1beta1.WorkspaceTypeReference{
 							Name: "foo",
-							Path: "root:org",
+							Path: logicalcluster.NewPath("root:org"),
 						},
 					},
 					Status: tenancyv1beta1.WorkspaceStatus{
@@ -525,7 +525,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			}, &user.DefaultInfo{
@@ -553,7 +553,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "Foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 				Status: tenancyv1beta1.WorkspaceStatus{
@@ -583,7 +583,7 @@ func TestValidate(t *testing.T) {
 				Spec: tenancyv1beta1.WorkspaceSpec{
 					Type: tenancyv1beta1.WorkspaceTypeReference{
 						Name: "Foo",
-						Path: "root:org",
+						Path: logicalcluster.NewPath("root:org"),
 					},
 				},
 			}, &user.DefaultInfo{

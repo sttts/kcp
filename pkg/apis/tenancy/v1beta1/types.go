@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
@@ -89,8 +91,7 @@ type WorkspaceTypeReference struct {
 	// path is an absolute reference to the workspace that owns this type, e.g. root:org:ws.
 	//
 	// +optional
-	// +kubebuilder:validation:Pattern:="^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-	Path string `json:"path,omitempty"`
+	Path logicalcluster.Path `json:"path,omitempty"`
 }
 
 type WorkspaceLocation struct {
@@ -117,7 +118,7 @@ type WorkspaceStatus struct {
 	//
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="cluster is immutable"
-	Cluster string `json:"cluster,omitempty"`
+	Cluster logicalcluster.Name `json:"cluster,omitempty"`
 
 	// Phase of the workspace (Scheduling, Initializing, Ready).
 	//

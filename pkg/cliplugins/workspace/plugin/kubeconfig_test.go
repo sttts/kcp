@@ -151,7 +151,7 @@ func TestCreate(t *testing.T) {
 			},
 			existingWorkspaces: []string{"bar"},
 			newWorkspaceName:   "bar",
-			newWorkspaceType:   tenancyv1beta1.WorkspaceTypeReference{Path: "root", Name: "universal"},
+			newWorkspaceType:   tenancyv1beta1.WorkspaceTypeReference{Path: logicalcluster.NewPath("root"), Name: "universal"},
 			useAfterCreation:   true,
 			markReady:          true,
 			ignoreExisting:     true,
@@ -201,7 +201,7 @@ func TestCreate(t *testing.T) {
 					Spec: tenancyv1beta1.WorkspaceSpec{
 						Type: tenancyv1beta1.WorkspaceTypeReference{
 							Name: "universal",
-							Path: "root",
+							Path: logicalcluster.NewPath("root"),
 						},
 					},
 					Status: tenancyv1beta1.WorkspaceStatus{
@@ -217,7 +217,7 @@ func TestCreate(t *testing.T) {
 			if workspaceType == empty {
 				workspaceType = tenancyv1beta1.WorkspaceTypeReference{
 					Name: "universal",
-					Path: "root",
+					Path: logicalcluster.NewPath("root"),
 				}
 			}
 
@@ -238,7 +238,7 @@ func TestCreate(t *testing.T) {
 
 			opts := NewCreateWorkspaceOptions(genericclioptions.NewTestIOStreamsDiscard())
 			opts.Name = tt.newWorkspaceName
-			opts.Type = workspaceType.Path + ":" + string(workspaceType.Name)
+			opts.Type = workspaceType.Path.Join(string(workspaceType.Name)).String()
 			opts.IgnoreExisting = tt.ignoreExisting
 			opts.EnterAfterCreate = tt.useAfterCreation
 			opts.ReadyWaitTimeout = time.Second
@@ -1197,7 +1197,7 @@ func TestUse(t *testing.T) {
 						Spec: tenancyv1beta1.WorkspaceSpec{
 							Type: tenancyv1beta1.WorkspaceTypeReference{
 								Name: "universal",
-								Path: "root",
+								Path: logicalcluster.NewPath("root"),
 							},
 						},
 					}
@@ -1222,7 +1222,7 @@ func TestUse(t *testing.T) {
 						Spec: tenancyv1beta1.WorkspaceSpec{
 							Type: tenancyv1beta1.WorkspaceTypeReference{
 								Name: "home",
-								Path: "root",
+								Path: logicalcluster.NewPath("root"),
 							},
 						},
 						Status: tenancyv1beta1.WorkspaceStatus{

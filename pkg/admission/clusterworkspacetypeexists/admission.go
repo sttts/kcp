@@ -172,8 +172,8 @@ func (o *clusterWorkspaceTypeExists) Admit(ctx context.Context, a admission.Attr
 		if err != nil {
 			return admission.NewForbidden(a, err)
 		}
-		if ws.Spec.Type.Path == "" {
-			ws.Spec.Type.Path = canonicalPathFrom(cwt).String()
+		if ws.Spec.Type.Path.Empty() {
+			ws.Spec.Type.Path = canonicalPathFrom(cwt)
 		}
 
 		addAdditionalWorkspaceLabels(cwt, ws)
@@ -209,8 +209,8 @@ func (o *clusterWorkspaceTypeExists) Admit(ctx context.Context, a admission.Attr
 }
 
 func (o *clusterWorkspaceTypeExists) resolveTypeRef(workspacePath logicalcluster.Path, ref tenancyv1alpha1.ClusterWorkspaceTypeReference) (*tenancyv1alpha1.ClusterWorkspaceType, error) {
-	if ref.Path != "" {
-		cwt, err := o.getType(logicalcluster.NewPath(ref.Path), string(ref.Name))
+	if !ref.Path.Empty() {
+		cwt, err := o.getType(ref.Path, string(ref.Name))
 		if err != nil {
 			return nil, apierrors.NewInternalError(err)
 		}
@@ -219,7 +219,7 @@ func (o *clusterWorkspaceTypeExists) resolveTypeRef(workspacePath logicalcluster
 	}
 
 	for {
-		cwt, err := o.getType(logicalcluster.NewPath(ref.Path), string(ref.Name))
+		cwt, err := o.getType(ref.Path, string(ref.Name))
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				var hasParent bool
@@ -294,7 +294,7 @@ func (o *clusterWorkspaceTypeExists) Validate(ctx context.Context, a admission.A
 			return admission.NewForbidden(a, err)
 		}
 
-		if cw.Spec.Type.Path == "" {
+		if cw.Spec.Type.Path.Empty() {
 			return admission.NewForbidden(a, fmt.Errorf("spec.type.path must be set"))
 		}
 
@@ -343,7 +343,7 @@ func (o *clusterWorkspaceTypeExists) Validate(ctx context.Context, a admission.A
 		}
 
 		thisTypePath := cwtWorkspace.Join(cwtName)
-		cwTypeString := logicalcluster.NewPath(cw.Spec.Type.Path).Join(string(cw.Spec.Type.Name))
+		cwTypeString := cw.Spec.Type.Path.Join(string(cw.Spec.Type.Name))
 		if err := validateAllowedParents(parentAliases, cwtAliases, thisTypePath, cwTypeString); err != nil {
 			return admission.NewForbidden(a, err)
 		}
@@ -447,7 +447,7 @@ func (r *transitiveTypeResolver) resolve(cwt *tenancyv1alpha1.ClusterWorkspaceTy
 
 	var ret []*tenancyv1alpha1.ClusterWorkspaceType
 	for _, baseTypeRef := range cwt.Spec.Extend.With {
-		qualifiedName := logicalcluster.NewPath(baseTypeRef.Path).Join(tenancyv1alpha1.ObjectName(baseTypeRef.Name)).String()
+		qualifiedName := baseTypeRef.Path.Join(tenancyv1alpha1.ObjectName(baseTypeRef.Name)).String()
 		if pathSeen[qualifiedName] {
 			// seen in this path already. That's a cycle.
 			for i, t := range path {
@@ -463,7 +463,7 @@ func (r *transitiveTypeResolver) resolve(cwt *tenancyv1alpha1.ClusterWorkspaceTy
 			continue // already seen trunk
 		}
 
-		baseType, err := r.getter(logicalcluster.NewPath(baseTypeRef.Path), tenancyv1alpha1.ObjectName(baseTypeRef.Name))
+		baseType, err := r.getter(baseTypeRef.Path, tenancyv1alpha1.ObjectName(baseTypeRef.Name))
 		if err != nil {
 			return nil, fmt.Errorf("unable to find inherited workspace type %s", qualifiedName)
 		}
@@ -491,7 +491,7 @@ func validateAllowedParents(parentAliases, childAliases []*tenancyv1alpha1.Clust
 		if !allOfTheFormerExistInTheLater(parentAliases, childAlias.Spec.LimitAllowedParents.Types) {
 			allowedSet := sets.NewString()
 			for _, allowedParent := range childAlias.Spec.LimitAllowedParents.Types {
-				allowedSet.Insert(logicalcluster.NewPath(allowedParent.Path).Join(string(allowedParent.Name)).String())
+				allowedSet.Insert(allowedParent.Path.Join(string(allowedParent.Name)).String())
 			}
 
 			implementedSet := sets.NewString()
@@ -528,7 +528,7 @@ func validateAllowedChildren(parentAliases, childAliases []*tenancyv1alpha1.Clus
 		if !allOfTheFormerExistInTheLater(childAliases, parentAlias.Spec.LimitAllowedChildren.Types) {
 			allowedSet := sets.NewString()
 			for _, allowedChild := range parentAlias.Spec.LimitAllowedChildren.Types {
-				allowedSet.Insert(logicalcluster.NewPath(allowedChild.Path).Join(string(allowedChild.Name)).String())
+				allowedSet.Insert(allowedChild.Path.Join(string(allowedChild.Name)).String())
 			}
 
 			implementedSet := sets.NewString()
@@ -553,7 +553,7 @@ func validateAllowedChildren(parentAliases, childAliases []*tenancyv1alpha1.Clus
 func allOfTheFormerExistInTheLater(objectAliases []*tenancyv1alpha1.ClusterWorkspaceType, allowedTypes []tenancyv1alpha1.ClusterWorkspaceTypeReference) bool {
 	allowedAliasSet := sets.NewString()
 	for _, allowed := range allowedTypes {
-		qualified := logicalcluster.NewPath(allowed.Path).Join(tenancyv1alpha1.ObjectName(allowed.Name)).String()
+		qualified := allowed.Path.Join(tenancyv1alpha1.ObjectName(allowed.Name)).String()
 		allowedAliasSet.Insert(qualified)
 	}
 

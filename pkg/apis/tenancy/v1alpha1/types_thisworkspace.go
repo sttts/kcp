@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -116,8 +118,7 @@ type ThisWorkspaceOwner struct {
 	//
 	// +required
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	Cluster string `json:"cluster"`
+	Cluster logicalcluster.Name `json:"cluster"`
 
 	// UID is the UID of the owner.
 	//

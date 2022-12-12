@@ -74,7 +74,7 @@ func TestReconcileScheduling(t *testing.T) {
 				initialWS.Annotations["internal.tenancy.kcp.dev/cluster"] = "root-foo"
 				initialWS.Annotations["internal.tenancy.kcp.dev/shard"] = "1pfxsevk"
 				initialWS.Finalizers = append(initialWS.Finalizers, "tenancy.kcp.dev/thisworkspace")
-				if !equality.Semantic.DeepEqual(ws, initialWS) {
+				if !cmp.Equal(ws, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(ws, initialWS)))
 				}
 			},
@@ -94,7 +94,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
 					Status: corev1.ConditionTrue,
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -127,7 +127,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
 					Status: corev1.ConditionTrue,
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -156,7 +156,7 @@ func TestReconcileScheduling(t *testing.T) {
 				clearLastTransitionTimeOnWsConditions(wsAfterReconciliation)
 				initialWS.CreationTimestamp = wsAfterReconciliation.CreationTimestamp
 				delete(initialWS.Annotations, "internal.tenancy.kcp.dev/cluster")
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -187,7 +187,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Type:   tenancyv1alpha1.WorkspaceScheduled,
 					Status: corev1.ConditionTrue,
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -213,7 +213,7 @@ func TestReconcileScheduling(t *testing.T) {
 					Reason:   tenancyv1alpha1.WorkspaceReasonUnschedulable,
 					Message:  "No available shards to schedule the workspace.",
 				})
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -236,7 +236,7 @@ func TestReconcileScheduling(t *testing.T) {
 				initialWS.Annotations["internal.tenancy.kcp.dev/cluster"] = "root-foo"
 				initialWS.Annotations["internal.tenancy.kcp.dev/shard"] = "29hdqnv7"
 				initialWS.Finalizers = append(initialWS.Finalizers, "tenancy.kcp.dev/thisworkspace")
-				if !equality.Semantic.DeepEqual(wsAfterReconciliation, initialWS) {
+				if !cmp.Equal(wsAfterReconciliation, initialWS) {
 					t.Fatal(fmt.Errorf("unexpected Workspace:\n%s", cmp.Diff(wsAfterReconciliation, initialWS)))
 				}
 			},
@@ -358,7 +358,7 @@ func wellKnownFooWSForPhaseTwo() *tenancyv1beta1.Workspace {
 	// type info is assigned by an admission plugin
 	ws.Spec.Type = tenancyv1beta1.WorkspaceTypeReference{
 		Name: "universal",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	return ws
 }
@@ -496,35 +496,38 @@ func wellKnownClusterWorkspaceTypes() []*tenancyv1alpha1.ClusterWorkspaceType {
 	type0 := workspaceType("root")
 	type0.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		Name: "organization",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	type1 := workspaceType("organization")
 	type1.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		Name: "universal",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	type1.Spec.Initializer = true
 	type2 := workspaceType("universal")
 	type2.Spec.DefaultChildWorkspaceType = &tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		Name: "universal",
-		Path: "root",
+		Path: logicalcluster.NewPath("root"),
 	}
 	type2.Spec.DefaultAPIBindings = []tenancyv1alpha1.APIExportReference{
 		{
-			"tenancy.kcp.dev",
+			logicalcluster.NewPath("tenancy.kcp.dev"),
 			"root",
 		},
 	}
 	type2.Spec.Extend.With = []tenancyv1alpha1.ClusterWorkspaceTypeReference{
 		{
 			Name: "organization",
-			Path: "root",
+			Path: logicalcluster.NewPath("root"),
 		},
 	}
 	return []*tenancyv1alpha1.ClusterWorkspaceType{type0, type1, type2}
 }
 
 func clearLastTransitionTimeOnWsConditions(ws *tenancyv1beta1.Workspace) {
+	if len(ws.Status.Conditions) == 0 {
+		return
+	}
 	newConditions := make([]conditionsapi.Condition, 0, len(ws.Status.Conditions))
 	for _, cond := range ws.Status.Conditions {
 		cond.LastTransitionTime = metav1.Time{}
