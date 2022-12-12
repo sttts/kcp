@@ -2,7 +2,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v221206-a089b65cd.synctargets.workload.kcp.dev
+  name: v221212-cf67ac73a.synctargets.workload.kcp.dev
 spec:
   group: workload.kcp.dev
   names:
@@ -94,7 +94,7 @@ spec:
                   path:
                     description: path is the fully-qualified path to the workspace
                       containing the APIExport.
-                    pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                     type: string
                 required:
                 - export

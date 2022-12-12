@@ -2,7 +2,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v221206-46974e3a0.clusterworkspacetypes.tenancy.kcp.dev
+  name: v221212-cf67ac73a.clusterworkspacetypes.tenancy.kcp.dev
 spec:
   group: tenancy.kcp.dev
   names:
@@ -63,7 +63,7 @@ spec:
                   path:
                     description: path is the fully-qualified path to the workspace
                       containing the APIExport.
-                    pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                     type: string
                 required:
                 - export
@@ -91,7 +91,7 @@ spec:
                 path:
                   description: path is an absolute reference to the workspace that
                     owns this type, e.g. root:org:ws.
-                  pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                  pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                   type: string
               required:
               - name
@@ -123,7 +123,7 @@ spec:
                       path:
                         description: path is an absolute reference to the workspace
                           that owns this type, e.g. root:org:ws.
-                        pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                     required:
                     - name
@@ -170,7 +170,7 @@ spec:
                       path:
                         description: path is an absolute reference to the workspace
                           that owns this type, e.g. root:org:ws.
-                        pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                     required:
                     - name
@@ -202,7 +202,7 @@ spec:
                       path:
                         description: path is an absolute reference to the workspace
                           that owns this type, e.g. root:org:ws.
-                        pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                     required:
                     - name

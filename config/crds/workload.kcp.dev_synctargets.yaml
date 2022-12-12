@@ -97,7 +97,7 @@ spec:
                     path:
                       description: path is the fully-qualified path to the workspace
                         containing the APIExport.
-                      pattern: ^root(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(:[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                       type: string
                   required:
                   - export
