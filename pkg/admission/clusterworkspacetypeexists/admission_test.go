@@ -110,6 +110,9 @@ func TestAdmit(t *testing.T) {
 		},
 		{
 			name: "adds additional workspace labels if missing",
+			thisWorkspaces: []*tenancyv1alpha1.ThisWorkspace{
+				newThisWorkspace("root:org:ws").withType("root:org", "parent").ThisWorkspace,
+			},
 			types: []*tenancyv1alpha1.ClusterWorkspaceType{
 				newType("root:org:foo").withAdditionalLabel(map[string]string{
 					"new-label":      "default",
@@ -153,7 +156,6 @@ func TestAdmit(t *testing.T) {
 				transitiveTypeResolver: NewTransitiveTypeResolver(typeLister.GetByPath),
 			}
 			ctx := request.WithCluster(context.Background(), request.Cluster{Name: tt.clusterName})
-			ctx = tenancy.WithCanonicalPath(ctx, tt.clusterName.Path())
 			if err := o.Admit(ctx, tt.a, nil); (err != nil) != tt.wantErr {
 				t.Fatalf("Admit() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err == nil {
@@ -404,7 +406,6 @@ func TestValidate(t *testing.T) {
 				transitiveTypeResolver: NewTransitiveTypeResolver(typeLister.GetByPath),
 			}
 			ctx := request.WithCluster(context.Background(), request.Cluster{Name: tt.clusterName})
-			ctx = tenancy.WithCanonicalPath(ctx, tt.clusterName.Path())
 			if err := o.Validate(ctx, tt.attr, nil); (err != nil) != tt.wantErr {
 				t.Fatalf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
