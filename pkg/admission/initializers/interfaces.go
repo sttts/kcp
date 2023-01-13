@@ -21,12 +21,19 @@ import (
 
 	kcpclientset "github.com/kcp-dev/kcp/pkg/client/clientset/versioned/cluster"
 	kcpinformers "github.com/kcp-dev/kcp/pkg/client/informers/externalversions"
+	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
 )
 
 // WantsKcpInformers interface should be implemented by admission plugins
-// that want to have a kcp informer factory injected.
+// that want to have both local and global kcp informer factories injected.
 type WantsKcpInformers interface {
 	SetKcpInformers(local, global kcpinformers.SharedInformerFactory)
+}
+
+// WantsKubeInformers interface should be implemented by admission plugins
+// that want to have both local and global kube informer factories injected.
+type WantsKubeInformers interface {
+	SetKubeInformers(local, global kcpkubernetesinformers.SharedInformerFactory)
 }
 
 // WantsKubeClusterClient interface should be implemented by admission plugins
