@@ -53,6 +53,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	corev1alpha1 "github.com/kcp-dev/kcp/pkg/apis/core/v1alpha1"
 	"github.com/kcp-dev/kcp/pkg/embeddedetcd"
 	"github.com/kcp-dev/kcp/pkg/server"
 	"github.com/kcp-dev/kcp/pkg/server/options"
@@ -140,7 +141,7 @@ func SharedKcpServer(t *testing.T) RunningServer {
 		// Use a persistent server
 
 		t.Logf("shared kcp server will target configuration %q", kubeconfig)
-		server, err := newPersistentKCPServer(serverName, kubeconfig, TestConfig.RootShardKubeconfig())
+		server, err := newPersistentKCPServer(serverName, kubeconfig, TestConfig.ShardKubeconfig())
 		require.NoError(t, err, "failed to create persistent server fixture")
 		return server
 	}
@@ -244,6 +245,7 @@ type RunningServer interface {
 	RawConfig() (clientcmdapi.Config, error)
 	BaseConfig(t *testing.T) *rest.Config
 	RootShardSystemMasterBaseConfig(t *testing.T) *rest.Config
+	ShardSystemMasterBaseConfig(t *testing.T, shard string) *rest.Config
 	Artifact(t *testing.T, producer func() (runtime.Object, error))
 }
 
@@ -642,6 +644,16 @@ func (c *kcpServer) RootShardSystemMasterBaseConfig(t *testing.T) *rest.Config {
 	return rest.AddUserAgent(cfg, t.Name())
 }
 
+// ShardSystemMasterBaseConfig returns a rest.Config for the "system:admin" context of a given shard. Client-side throttling is disabled (QPS=-1).
+func (c *kcpServer) ShardSystemMasterBaseConfig(t *testing.T, shard string) *rest.Config {
+	t.Helper()
+
+	if shard != corev1alpha1.RootShard {
+		t.Fatalf("only root shard is supported for now")
+	}
+	return c.RootShardSystemMasterBaseConfig(t)
+}
+
 // RawConfig exposes a copy of the client config for this server.
 func (c *kcpServer) RawConfig() (clientcmdapi.Config, error) {
 	c.lock.Lock()
@@ -813,10 +825,11 @@ func LoadKubeConfig(kubeconfigPath, contextName string) (clientcmd.ClientConfig,
 }
 
 type unmanagedKCPServer struct {
-	name                    string
-	kubeconfigPath          string
-	rootShardKubeconfigPath string
-	cfg, rootShardCfg       clientcmd.ClientConfig
+	name                 string
+	kubeconfigPath       string
+	shardKubeconfigPaths map[string]string
+	cfg                  clientcmd.ClientConfig
+	shardCfgs            map[string]clientcmd.ClientConfig
 }
 
 // newPersistentKCPServer returns a RunningServer for a kubeconfig
@@ -824,23 +837,28 @@ type unmanagedKCPServer struct {
 // kubeconfig is expected to exist prior to running tests against it,
 // the configuration can be loaded synchronously and no locking is
 // required to subsequently access it.
-func newPersistentKCPServer(name, kubeconfigPath, rootShardKubeconfigPath string) (RunningServer, error) {
+func newPersistentKCPServer(name, kubeconfigPath string, shardKubeconfigPaths map[string]string) (RunningServer, error) {
 	cfg, err := LoadKubeConfig(kubeconfigPath, "base")
 	if err != nil {
 		return nil, err
 	}
 
-	rootShardCfg, err := LoadKubeConfig(rootShardKubeconfigPath, "base")
-	if err != nil {
-		return nil, err
+	shardCfgs := map[string]clientcmd.ClientConfig{}
+	for shard, path := range shardKubeconfigPaths {
+		shardCfg, err := LoadKubeConfig(path, "base")
+		if err != nil {
+			return nil, err
+		}
+
+		shardCfgs[shard] = shardCfg
 	}
 
 	return &unmanagedKCPServer{
-		name:                    name,
-		kubeconfigPath:          kubeconfigPath,
-		rootShardKubeconfigPath: rootShardKubeconfigPath,
-		cfg:                     cfg,
-		rootShardCfg:            rootShardCfg,
+		name:                 name,
+		kubeconfigPath:       kubeconfigPath,
+		shardKubeconfigPaths: shardKubeconfigPaths,
+		cfg:                  cfg,
+		shardCfgs:            shardCfgs,
 	}, nil
 }
 
@@ -933,7 +951,19 @@ func (s *unmanagedKCPServer) BaseConfig(t *testing.T) *rest.Config {
 func (s *unmanagedKCPServer) RootShardSystemMasterBaseConfig(t *testing.T) *rest.Config {
 	t.Helper()
 
-	raw, err := s.rootShardCfg.RawConfig()
+	return s.ShardSystemMasterBaseConfig(t, corev1alpha1.RootShard)
+}
+
+// ShardSystemMasterBaseConfig returns a rest.Config for the "system:admin" context of the given shard. Client-side throttling is disabled (QPS=-1).
+func (s *unmanagedKCPServer) ShardSystemMasterBaseConfig(t *testing.T, shard string) *rest.Config {
+	t.Helper()
+
+	cfg, found := s.shardCfgs[shard]
+	if !found {
+		t.Fatalf("kubeconfig for shard %q not found", shard)
+	}
+
+	raw, err := cfg.RawConfig()
 	require.NoError(t, err)
 
 	config := clientcmd.NewNonInteractiveClientConfig(raw, "system:admin", nil, nil)
