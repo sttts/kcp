@@ -98,8 +98,7 @@ func NewController(
 	return c
 }
 
-// controller reconciles ClusterRoles by labelling them to be replicated when pointing to an
-// ClusterRole content or verb bind.
+// controller reconciles LogicalClusters by labelling them to be replicated when isRelevantLogicalCluster says so.
 type controller struct {
 	controllerName string
 	groupName      string
@@ -130,7 +129,7 @@ func (c *controller) enqueueLogicalCluster(obj interface{}, values ...interface{
 	}
 
 	logger := logging.WithQueueKey(logging.WithReconciler(klog.Background(), c.controllerName), key)
-	logger.V(4).WithValues(values...).Info("queueing ClusterRole")
+	logger.V(4).WithValues(values...).Info("queueing LogicalCluster")
 	c.queue.Add(key)
 }
 
