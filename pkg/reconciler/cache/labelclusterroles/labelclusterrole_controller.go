@@ -29,6 +29,7 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -45,6 +46,8 @@ import (
 
 type Controller interface {
 	Start(ctx context.Context, numThreads int)
+
+	EnqueueClusterRoles()
 }
 
 // NewController returns a new controller for labelling ClusterRole that should be replicated.
@@ -56,7 +59,7 @@ func NewController(
 	kubeClusterClient kcpkubernetesclientset.ClusterInterface,
 	clusterRoleInformer kcprbacinformers.ClusterRoleClusterInformer,
 	clusterRoleBindingInformer kcprbacinformers.ClusterRoleBindingClusterInformer,
-) (Controller, error) {
+) Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
 	c := &controller{
@@ -113,7 +116,7 @@ func NewController(
 		},
 	})
 
-	return c, nil
+	return c
 }
 
 // controller reconciles ClusterRoles by labelling them to be replicated when pointing to an
@@ -137,6 +140,17 @@ type controller struct {
 
 	// commit creates a patch and submits it, if needed.
 	commit func(ctx context.Context, new, old *rbacv1.ClusterRole) error
+}
+
+func (c *controller) EnqueueClusterRoles() {
+	clusterRoles, err := c.clusterRoleLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Error listing ClusterRoles: %v", err)
+		return
+	}
+	for _, cr := range clusterRoles {
+		c.enqueueClusterRole(cr)
+	}
 }
 
 // enqueueClusterRole enqueues an ClusterRole.
