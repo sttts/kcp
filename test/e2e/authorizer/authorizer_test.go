@@ -20,6 +20,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -72,7 +73,7 @@ func TestAuthorizer(t *testing.T) {
 	org2, _ := framework.NewPrivilegedOrganizationFixture(t, server, framework.WithRequiredGroups("empty-group"))
 
 	framework.NewWorkspaceFixture(t, server, org1, framework.WithName("workspace1"))
-	framework.NewWorkspaceFixture(t, server, org1, framework.WithName("workspace2"))
+	framework.NewWorkspaceFixture(t, server, org1, framework.WithName("workspace2"), framework.WithRootShard()) // on root for system:admin ClusterRole test
 	framework.NewWorkspaceFixture(t, server, org2, framework.WithName("workspace1"), framework.WithRootShard()) // on root for deep SAR test
 	framework.NewWorkspaceFixture(t, server, org2, framework.WithName("workspace2"))
 
@@ -216,12 +217,11 @@ func TestAuthorizer(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Eventually(t, func() bool {
+			framework.Eventually(t, func() (bool, string) {
 				if _, err := user3KubeClusterClient.Cluster(org1.Join("workspace2")).CoreV1().Namespaces().List(ctx, metav1.ListOptions{}); err != nil {
-					t.Logf("failed to create test namespace: %v", err)
-					return false
+					return false, fmt.Sprintf("failed to create test namespace: %v", err)
 				}
-				return true
+				return true, ""
 			}, wait.ForeverTestTimeout, time.Millisecond*100, "User-3 should now be able to list Namespaces in %s", org1.Join("workspace2"))
 		},
 		"without org access, a deep SAR with user-1 against org2 succeeds even without org access for user-1": func(t *testing.T) {
