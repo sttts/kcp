@@ -51,7 +51,7 @@ const (
 	ControllerName = "kcp-workspacetype"
 )
 
-// NewController returns a new controller for APIExports.
+// NewController returns a new controller for WorkspaceTypes.
 func NewController(
 	kcpClusterClient kcpclientset.ClusterInterface,
 	workspaceTypeInformer tenancyinformers.WorkspaceTypeClusterInformer,
@@ -108,7 +108,7 @@ func NewController(
 	return c, nil
 }
 
-// controller reconciles APIExports. It ensures an export's identity secret exists and is valid.
+// controller reconciles WorkspaceTypes. It ensures a WorkspaceType has assigned a virtual workspace URL address.
 type controller struct {
 	queue workqueue.RateLimitingInterface
 
