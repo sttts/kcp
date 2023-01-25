@@ -49,14 +49,14 @@ func TestDecorator(t *testing.T) {
 		wantReason   string
 	}{
 		"topAllows": {
-			authz: EnableAuditLogging(NewDecorator("top", alwaysAllow).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
+			authz: WithAuditLogging("domain", NewDecorator("top", alwaysAllow).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 
 			wantDecision: authorizer.DecisionAllow,
 			wantReason:   "top: access granted",
 
 			wantAudit: map[string]string{
-				"top/decision": "Allowed",
-				"top/reason":   "unanonymized allow",
+				"top.domain/decision": "Allowed",
+				"top.domain/reason":   "unanonymized allow",
 			},
 		},
 		"topAllowsWithoutAudit": {
@@ -68,29 +68,29 @@ func TestDecorator(t *testing.T) {
 			wantAudit: nil,
 		},
 		"topAllowsWithoutReasonAnnotation": {
-			authz: EnableAuditLogging(NewDecorator("top", alwaysAllow).AddAuditLogging().AddAnonymization()),
+			authz: WithAuditLogging("domain", NewDecorator("top", alwaysAllow).AddAuditLogging().AddAnonymization()),
 
 			wantDecision: authorizer.DecisionAllow,
 			wantReason:   "access granted",
 
 			wantAudit: map[string]string{
-				"top/decision": "Allowed",
-				"top/reason":   "unanonymized allow",
+				"top.domain/decision": "Allowed",
+				"top.domain/reason":   "unanonymized allow",
 			},
 		},
 		"topAllowsWithoutReasonAnnotationWithoutAnonymization": {
-			authz: EnableAuditLogging(NewDecorator("top", alwaysAllow).AddAuditLogging()),
+			authz: WithAuditLogging("domain", NewDecorator("top", alwaysAllow).AddAuditLogging()),
 
 			wantDecision: authorizer.DecisionAllow,
 			wantReason:   "unanonymized allow",
 
 			wantAudit: map[string]string{
-				"top/decision": "Allowed",
-				"top/reason":   "unanonymized allow",
+				"top.domain/decision": "Allowed",
+				"top.domain/reason":   "unanonymized allow",
 			},
 		},
 		"topAllowsWithoutReasonAnnotationWithoutAnonymizationWithoutAuditLogging": {
-			authz: EnableAuditLogging(NewDecorator("top", alwaysAllow)),
+			authz: WithAuditLogging("domain", NewDecorator("top", alwaysAllow)),
 
 			wantDecision: authorizer.DecisionAllow,
 			wantReason:   "unanonymized allow",
@@ -98,7 +98,7 @@ func TestDecorator(t *testing.T) {
 			wantAudit: nil,
 		},
 		"topDelegatesToAllow": {
-			authz: EnableAuditLogging(NewDecorator("top",
+			authz: WithAuditLogging("domain", NewDecorator("top",
 				DelegateAuthorization("top-to-bottom",
 					NewDecorator("bottom", alwaysAllow).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 			).AddAuditLogging().AddAnonymization()),
@@ -107,15 +107,15 @@ func TestDecorator(t *testing.T) {
 			wantReason:   "access granted",
 
 			wantAudit: map[string]string{
-				"bottom/decision": "Allowed",
-				"bottom/reason":   "unanonymized allow",
+				"bottom.domain/decision": "Allowed",
+				"bottom.domain/reason":   "unanonymized allow",
 
-				"top/decision": "Allowed",
-				"top/reason":   "delegating due to top-to-bottom: bottom: access granted",
+				"top.domain/decision": "Allowed",
+				"top.domain/reason":   "delegating due to top-to-bottom: bottom: access granted",
 			},
 		},
 		"topDelegatesToDeny": {
-			authz: EnableAuditLogging(NewDecorator("top",
+			authz: WithAuditLogging("domain", NewDecorator("top",
 				DelegateAuthorization("top-to-bottom",
 					NewDecorator("bottom", alwaysDeny).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 			).AddAuditLogging().AddAnonymization()),
@@ -124,15 +124,15 @@ func TestDecorator(t *testing.T) {
 			wantReason:   "access denied",
 
 			wantAudit: map[string]string{
-				"bottom/decision": "Denied",
-				"bottom/reason":   "unanonymized denial",
+				"bottom.domain/decision": "Denied",
+				"bottom.domain/reason":   "unanonymized denial",
 
-				"top/decision": "Denied",
-				"top/reason":   "delegating due to top-to-bottom: bottom: access denied",
+				"top.domain/decision": "Denied",
+				"top.domain/reason":   "delegating due to top-to-bottom: bottom: access denied",
 			},
 		},
 		"topDelegatesToDelegateDelegatesToDeny": {
-			authz: EnableAuditLogging(NewDecorator("top",
+			authz: WithAuditLogging("domain", NewDecorator("top",
 				DelegateAuthorization("top-to-middle", NewDecorator("middle",
 					DelegateAuthorization("middle-to-bottom", NewDecorator("bottom", alwaysDeny).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 				).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
@@ -142,18 +142,18 @@ func TestDecorator(t *testing.T) {
 			wantReason:   "access denied",
 
 			wantAudit: map[string]string{
-				"bottom/decision": "Denied",
-				"bottom/reason":   "unanonymized denial",
+				"bottom.domain/decision": "Denied",
+				"bottom.domain/reason":   "unanonymized denial",
 
-				"middle/decision": "Denied",
-				"middle/reason":   "delegating due to middle-to-bottom: bottom: access denied",
+				"middle.domain/decision": "Denied",
+				"middle.domain/reason":   "delegating due to middle-to-bottom: bottom: access denied",
 
-				"top/decision": "Denied",
-				"top/reason":   "delegating due to top-to-middle: middle: access denied",
+				"top.domain/decision": "Denied",
+				"top.domain/reason":   "delegating due to top-to-middle: middle: access denied",
 			},
 		},
 		"topDelegatesToDelegateDelegatesToAllow": {
-			authz: EnableAuditLogging(NewDecorator("top",
+			authz: WithAuditLogging("domain", NewDecorator("top",
 				DelegateAuthorization("top-to-middle", NewDecorator("middle",
 					DelegateAuthorization("middle-to-bottom", NewDecorator("bottom", alwaysAllow).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 				).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
@@ -163,18 +163,18 @@ func TestDecorator(t *testing.T) {
 			wantReason:   "access granted",
 
 			wantAudit: map[string]string{
-				"bottom/decision": "Allowed",
-				"bottom/reason":   "unanonymized allow",
+				"bottom.domain/decision": "Allowed",
+				"bottom.domain/reason":   "unanonymized allow",
 
-				"middle/decision": "Allowed",
-				"middle/reason":   "delegating due to middle-to-bottom: bottom: access granted",
+				"middle.domain/decision": "Allowed",
+				"middle.domain/reason":   "delegating due to middle-to-bottom: bottom: access granted",
 
-				"top/decision": "Allowed",
-				"top/reason":   "delegating due to top-to-middle: middle: access granted",
+				"top.domain/decision": "Allowed",
+				"top.domain/reason":   "delegating due to top-to-middle: middle: access granted",
 			},
 		},
 		"topDelegatesToDelegateDelegatesToNoOpinion": {
-			authz: EnableAuditLogging(NewDecorator("top",
+			authz: WithAuditLogging("domain", NewDecorator("top",
 				DelegateAuthorization("top-to-middle", NewDecorator("middle",
 					DelegateAuthorization("middle-to-bottom", NewDecorator("bottom", alwaysNoOpinion).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 				).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
@@ -184,18 +184,18 @@ func TestDecorator(t *testing.T) {
 			wantReason:   "access denied",
 
 			wantAudit: map[string]string{
-				"bottom/decision": "NoOpinion",
-				"bottom/reason":   "unanonymized no-opinion",
+				"bottom.domain/decision": "NoOpinion",
+				"bottom.domain/reason":   "unanonymized no-opinion",
 
-				"middle/decision": "NoOpinion",
-				"middle/reason":   "delegating due to middle-to-bottom: bottom: access denied",
+				"middle.domain/decision": "NoOpinion",
+				"middle.domain/reason":   "delegating due to middle-to-bottom: bottom: access denied",
 
-				"top/decision": "NoOpinion",
-				"top/reason":   "delegating due to top-to-middle: middle: access denied",
+				"top.domain/decision": "NoOpinion",
+				"top.domain/reason":   "delegating due to top-to-middle: middle: access denied",
 			},
 		},
 		"topDelegatesToDelegateDelegatesToError": {
-			authz: EnableAuditLogging(NewDecorator("top",
+			authz: WithAuditLogging("domain", NewDecorator("top",
 				DelegateAuthorization("top-to-middle", NewDecorator("middle",
 					DelegateAuthorization("middle-to-bottom", NewDecorator("bottom", alwaysError).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
 				).AddAuditLogging().AddAnonymization().AddReasonAnnotation()),
@@ -205,14 +205,14 @@ func TestDecorator(t *testing.T) {
 			wantReason:   "access denied",
 
 			wantAudit: map[string]string{
-				"bottom/decision": "NoOpinion",
-				"bottom/reason":   "reason: unanonymized failure, error: unanonymized error",
+				"bottom.domain/decision": "NoOpinion",
+				"bottom.domain/reason":   "reason: unanonymized failure, error: unanonymized error",
 
-				"middle/decision": "NoOpinion",
-				"middle/reason":   "reason: delegating due to middle-to-bottom: bottom: access denied, error: unanonymized error",
+				"middle.domain/decision": "NoOpinion",
+				"middle.domain/reason":   "reason: delegating due to middle-to-bottom: bottom: access denied, error: unanonymized error",
 
-				"top/decision": "NoOpinion",
-				"top/reason":   "reason: delegating due to top-to-middle: middle: access denied, error: unanonymized error",
+				"top.domain/decision": "NoOpinion",
+				"top.domain/reason":   "reason: delegating due to top-to-middle: middle: access denied, error: unanonymized error",
 			},
 		},
 	} {
