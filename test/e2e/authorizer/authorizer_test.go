@@ -255,9 +255,11 @@ func TestAuthorizer(t *testing.T) {
 			t.Logf("ask with deep SAR that user-1 hypothetically could list configmaps in %q if it had access", org2.Join("workspace1"))
 			deepSARClient, err := kcpkubernetesclientset.NewForConfig(authorization.WithDeepSARConfig(rest.CopyConfig(server.RootShardSystemMasterBaseConfig(t))))
 			require.NoError(t, err)
-			resp, err = deepSARClient.Cluster(org2.Join("workspace1")).AuthorizationV1().SubjectAccessReviews().Create(ctx, sar, metav1.CreateOptions{})
-			require.NoError(t, err)
-			require.Truef(t, resp.Status.Allowed, "SAR should answer hypothetically that user-1 could list configmaps in %q if it had access", org2.Join("workspace1"))
+			framework.Eventually(t, func() (bool, string) {
+				resp, err = deepSARClient.Cluster(org2.Join("workspace1")).AuthorizationV1().SubjectAccessReviews().Create(ctx, sar, metav1.CreateOptions{})
+				require.NoError(t, err)
+				return resp.Status.Allowed, resp.Status.Reason
+			}, wait.ForeverTestTimeout, time.Millisecond*100, "SAR should answer hypothetically that user-1 could list configmaps in %q if it had access", org2.Join("workspace1"))
 		}},
 	}
 
