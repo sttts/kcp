@@ -18,6 +18,12 @@ package server
 
 import (
 	"context"
+	"fmt"
+	extensionsapiserver "k8s.io/apiextensions-apiserver/pkg/apiserver"
+	genericapifilters "k8s.io/apiserver/pkg/endpoints/filters"
+	"k8s.io/apiserver/pkg/util/notfoundhandler"
+	"k8s.io/kubernetes/pkg/genericcontrolplane/aggregator"
+	"k8s.io/kubernetes/pkg/genericcontrolplane/apis"
 	"net/http"
 	_ "net/http/pprof"
 	"time"
@@ -32,7 +38,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/genericcontrolplane"
 
 	configroot "github.com/kcp-dev/kcp/config/root"
 	configrootphase0 "github.com/kcp-dev/kcp/config/root-phase0"
@@ -51,8 +56,10 @@ const resyncPeriod = 10 * time.Hour
 type Server struct {
 	CompletedConfig
 
-	*genericcontrolplane.ServerChain
-	virtual *virtualrootapiserver.Server
+	CustomResourceDefinitions *extensionsapiserver.CustomResourceDefinitions
+	GenericControlPlane       *apis.GenericControlPlane
+	MiniAggregator            *aggregator.MiniAggregatorServer
+	virtual                   *virtualrootapiserver.Server
 
 	syncedCh             chan struct{}
 	rootPhase1FinishedCh chan struct{}
@@ -73,7 +80,33 @@ func NewServer(c CompletedConfig) (*Server, error) {
 		rootPhase1FinishedCh: make(chan struct{}),
 	}
 
-	var err error
+	notFoundHandler := notfoundhandler.New(c.GenericConfig.Serializer, genericapifilters.NoMuxAndDiscoveryIncompleteKey)
+	apiExtensionsServer, err := c.ApiExtensions.New(genericapiserver.NewEmptyDelegateWithCustomHandler(notFoundHandler))
+	if err != nil {
+		return nil, fmt.Errorf("create api extensions: %v", err)
+	}
+	kubeAPIs, err := c.ControlPlane.New("sample-generic-controlplane", apiExtensionsServer.GenericAPIServer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create generic controlplane apiserver: %w", err)
+	}
+	storageProviders, err := config.ControlPlane.DefaultStorageProviders()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage providers: %w", err)
+	}
+	if err := kubeAPIs.InstallAPIs(storageProviders...); err != nil {
+		return nil, fmt.Errorf("failed to install APIs: %w", err)
+	}
+
+	kubeAPIServer, err := apisConfig.New(apiExtensionsServer.GenericAPIServer)
+	if err != nil {
+		return nil, err
+	}
+
+	miniAggregatorServer, err := miniAggregatorConfig.New(kubeAPIServer.GenericAPIServer, kubeAPIServer, apiExtensionsServer)
+	if err != nil {
+		return nil, err
+	}
+
 	s.ServerChain, err = genericcontrolplane.CreateServerChain(c.MiniAggregator, c.Apis, c.ApiExtensions)
 	if err != nil {
 		return nil, err

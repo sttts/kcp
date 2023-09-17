@@ -21,6 +21,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/util/webhook"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	controlplaneapiserver "k8s.io/kubernetes/pkg/controlplane/apiserver"
 	"net/http"
 	"net/http/httputil"
 	_ "net/http/pprof"
@@ -47,7 +51,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 	"k8s.io/kubernetes/pkg/genericcontrolplane/aggregator"
-	"k8s.io/kubernetes/pkg/genericcontrolplane/apis"
 	quotainstall "k8s.io/kubernetes/pkg/quota/v1/install"
 
 	kcpadmissioninitializers "github.com/kcp-dev/kcp/pkg/admission/initializers"
@@ -73,7 +76,7 @@ type Config struct {
 
 	GenericConfig   *genericapiserver.Config // the config embedded into MiniAggregator, the head of the delegation chain
 	MiniAggregator  *aggregator.MiniAggregatorConfig
-	Apis            *apis.Config
+	ControlPlane    *controlplaneapiserver.Config
 	ApiExtensions   *apiextensionsapiserver.Config
 	OptionalVirtual *VirtualConfig
 
@@ -130,7 +133,7 @@ type completedConfig struct {
 	GenericConfig   genericapiserver.CompletedConfig
 	EmbeddedEtcd    embeddedetcd.CompletedConfig
 	MiniAggregator  aggregator.CompletedMiniAggregatorConfig
-	Apis            apis.CompletedConfig
+	ControlPlane    controlplaneapiserver.CompletedConfig
 	ApiExtensions   apiextensionsapiserver.CompletedConfig
 	OptionalVirtual CompletedVirtualConfig
 
@@ -151,7 +154,7 @@ func (c *Config) Complete() (CompletedConfig, error) {
 		GenericConfig:  c.GenericConfig.Complete(informerfactoryhack.Wrap(c.KubeSharedInformerFactory)),
 		EmbeddedEtcd:   c.EmbeddedEtcd.Complete(),
 		MiniAggregator: miniAggregator,
-		Apis:           c.Apis.Complete(),
+		ControlPlane:   c.ControlPlane.Complete(),
 		ApiExtensions:  c.ApiExtensions.Complete(),
 		OptionalVirtual: c.OptionalVirtual.Complete(
 			miniAggregator.GenericConfig.Authentication,
@@ -186,7 +189,11 @@ func NewConfig(opts kcpserveroptions.CompletedOptions) (*Config, error) {
 
 	var err error
 	var storageFactory *serverstorage.DefaultStorageFactory
-	c.GenericConfig, storageFactory, c.KubeSharedInformerFactory, c.KubeClusterClient, err = genericcontrolplane.BuildGenericConfig(opts.GenericControlPlane)
+	c.GenericConfig, c.KubeSharedInformerFactory, _, c.KubeClusterClient, storageFactory, err = controlplaneapiserver.BuildGenericConfig(
+		opts.GenericControlPlane,
+		[]*runtime.Schema{legacyscheme.Scheme, apiextensionsapiserver.Scheme},
+
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -478,14 +485,17 @@ func NewConfig(opts kcpserveroptions.CompletedOptions) (*Config, error) {
 		return "https://" + c.GenericConfig.ExternalAddress
 	}
 
-	c.Apis, err = genericcontrolplane.CreateKubeAPIServerConfig(c.GenericConfig, opts.GenericControlPlane, c.KubeSharedInformerFactory, admissionPluginInitializers, storageFactory)
+	serviceResolver := webhook.NewDefaultServiceResolver()
+	kubeAPIs, kubePluginInitializer, err := controlplaneapiserver.CreateConfig(opts.GenericControlPlane, c.GenericConfig, c.KubeSharedInformerFactory, storageFactory, serviceResolver, admissionPluginInitializers)
 	if err != nil {
 		return nil, err
 	}
+	c.ControlPlane = kubeAPIs
+	admissionPluginInitializers = append(admissionPluginInitializers, kubePluginInitializer...)
 
 	// If additional API servers are added, they should be gated.
 	c.ApiExtensions, err = genericcontrolplane.CreateAPIExtensionsConfig(
-		*c.Apis.GenericConfig,
+		*c.GenericConfig,
 		informerfactoryhack.Wrap(c.Apis.ExtraConfig.VersionedInformers),
 		admissionPluginInitializers,
 		opts.GenericControlPlane,
@@ -498,6 +508,7 @@ func NewConfig(opts kcpserveroptions.CompletedOptions) (*Config, error) {
 		c.KcpSharedInformerFactory.Apis().V1alpha1().APIConversions(),
 		opts.Extra.ConversionCELTransformationTimeout,
 	)
+
 	// make sure the informer gets started, otherwise conversions will not work!
 	_ = c.KcpSharedInformerFactory.Apis().V1alpha1().APIConversions().Informer()
 
