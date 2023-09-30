@@ -836,11 +836,13 @@ type crdGVRSource struct {
 var builtInInformableTypes map[schema.GroupVersionResource]GVRPartialMetadata = map[schema.GroupVersionResource]GVRPartialMetadata{
 	gvrFor("", "v1", "configmaps"):                                                          withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "ConfigMap", "configmap"),
 	gvrFor("", "v1", "events"):                                                              withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "Event", "event"),
+	gvrFor("", "v1", "limitranges"):                                                         withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "LimitRange", "limitranges"),
 	gvrFor("", "v1", "namespaces"):                                                          withGVRPartialMetadata(apiextensionsv1.ClusterScoped, "Namespace", "namespace"),
 	gvrFor("", "v1", "resourcequotas"):                                                      withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "ResourceQuota", "resourcequota"),
 	gvrFor("", "v1", "secrets"):                                                             withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "Secret", "secret"),
 	gvrFor("", "v1", "serviceaccounts"):                                                     withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "ServiceAccount", "serviceaccount"),
 	gvrFor("certificates.k8s.io", "v1", "certificatesigningrequests"):                       withGVRPartialMetadata(apiextensionsv1.ClusterScoped, "CertificateSigningRequest", "certificatesigningrequest"),
+	gvrFor("certificates.k8s.io", "v1alpha1", "clustertrustbundles"):                        withGVRPartialMetadata(apiextensionsv1.ClusterScoped, "ClusterTrustBundle", "clustertrustbundles"),
 	gvrFor("coordination.k8s.io", "v1", "leases"):                                           withGVRPartialMetadata(apiextensionsv1.NamespaceScoped, "Lease", "lease"),
 	gvrFor("rbac.authorization.k8s.io", "v1", "clusterroles"):                               withGVRPartialMetadata(apiextensionsv1.ClusterScoped, "ClusterRole", "clusterrole"),
 	gvrFor("rbac.authorization.k8s.io", "v1", "clusterrolebindings"):                        withGVRPartialMetadata(apiextensionsv1.ClusterScoped, "ClusterRoleBinding", "clusterrolebinding"),

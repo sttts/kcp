@@ -58,6 +58,7 @@ func TestBuiltInInformableTypes(t *testing.T) {
 		{Version: "v1", Kind: "SerializedReference"}:                                     {},
 		{Version: "v1", Kind: "Status"}:                                                  {},
 		{Group: "authentication.k8s.io", Version: "v1alpha1", Kind: "SelfSubjectReview"}: {},
+		{Group: "authentication.k8s.io", Version: "v1", Kind: "SelfSubjectReview"}:       {},
 		{Group: "authentication.k8s.io", Version: "v1", Kind: "TokenRequest"}:            {},
 		{Group: "authentication.k8s.io", Version: "v1", Kind: "TokenReview"}:             {},
 		{Group: "authorization.k8s.io", Version: "v1", Kind: "LocalSubjectAccessReview"}: {},
