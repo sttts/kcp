@@ -1,6 +1,6 @@
 module github.com/kcp-dev/kcp
 
-go 1.19
+go 1.20
 
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
@@ -174,6 +174,7 @@ require (
 )
 
 replace (
+	github.com/kcp-dev/client-go => ../client-go
 	github.com/kcp-dev/kcp/sdk => ./sdk
 	k8s.io/api => ../../../k8s.io/kubernetes/vendor/k8s.io/api
 	k8s.io/apiextensions-apiserver => ../../../k8s.io/kubernetes/vendor/k8s.io/apiextensions-apiserver
