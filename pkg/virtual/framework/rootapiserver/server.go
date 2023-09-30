@@ -80,7 +80,7 @@ func NewServer(c CompletedConfig, delegationTarget genericapiserver.DelegationTa
 
 func getRootHandlerChain(c CompletedConfig, delegateAPIServer genericapiserver.DelegationTarget) func(http.Handler, *genericapiserver.Config) http.Handler {
 	return func(apiHandler http.Handler, genericConfig *genericapiserver.Config) http.Handler {
-		delegateAfterDefaultHandlerChain := genericapiserver.DefaultBuildHandlerChain(
+		delegateAfterDefaultHandlerChain := genericapiserver.DefaultBuildHandlerChainBeforeAuthz( // Question:: should this be before or after authz?
 			http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if _, virtualWorkspaceNameExists := virtualcontext.VirtualWorkspaceNameFrom(req.Context()); virtualWorkspaceNameExists {
 					delegatedHandler := delegateAPIServer.UnprotectedHandler()
