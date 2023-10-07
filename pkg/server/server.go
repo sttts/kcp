@@ -551,7 +551,7 @@ func (s *Server) Run(ctx context.Context) error {
 			// set up a special *rest.Config that points to the (shard-)local admin cluster.
 			leaderElectionConfig := rest.CopyConfig(s.GenericConfig.LoopbackClientConfig)
 			leaderElectionConfig = rest.AddUserAgent(leaderElectionConfig, "kcp-leader-election")
-			leaderElectionConfig.Host, err = url.JoinPath(leaderElectionConfig.Host, genericcontrolplane.LocalAdminCluster.Path().RequestPath())
+			leaderElectionConfig.Host, err = url.JoinPath(leaderElectionConfig.Host, controlplaneapiserver.LocalAdminCluster.Path().RequestPath())
 			if err != nil {
 				return fmt.Errorf("failed to determine local shard admin workspace: %w", err)
 			}
