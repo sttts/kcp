@@ -94,6 +94,7 @@ func TestBuiltInInformableTypes(t *testing.T) {
 		{Group: "admissionregistration.k8s.io", Version: "v1beta1"}: {},
 		{Group: "authentication.k8s.io", Version: "v1beta1"}:        {},
 		{Group: "authorization.k8s.io", Version: "v1beta1"}:         {},
+		{Group: "certificates.k8s.io", Version: "v1alpha1"}:         {},
 		{Group: "certificates.k8s.io", Version: "v1beta1"}:          {},
 		{Group: "coordination.k8s.io", Version: "v1beta1"}:          {},
 		{Group: "events.k8s.io", Version: "v1beta1"}:                {},
