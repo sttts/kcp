@@ -25,8 +25,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-
 	extensionsapiserver "k8s.io/apiextensions-apiserver/pkg/apiserver"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +41,7 @@ import (
 	"k8s.io/klog/v2"
 	controlplaneapiserver "k8s.io/kubernetes/pkg/controlplane/apiserver"
 	"k8s.io/kubernetes/pkg/controlplane/apiserver/miniaggregator"
+	autoscalingrest "k8s.io/kubernetes/pkg/registry/autoscaling/rest"
 	flowcontrolrest "k8s.io/kubernetes/pkg/registry/flowcontrol/rest"
 
 	configroot "github.com/kcp-dev/kcp/config/root"
@@ -55,6 +54,7 @@ import (
 	virtualrootapiserver "github.com/kcp-dev/kcp/pkg/virtual/framework/rootapiserver"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 const resyncPeriod = 10 * time.Hour
@@ -111,7 +111,8 @@ func NewServer(c CompletedConfig) (*Server, error) {
 	for i := range allStorageProviders {
 		switch allStorageProviders[i].(type) {
 		case flowcontrolrest.RESTStorageProvider:
-			// TODO(sttts): remove this code when P&F is wired
+		// TODO(sttts): remove this code when P&F is wired
+		case autoscalingrest.RESTStorageProvider:
 		default:
 			storageProviders = append(storageProviders, allStorageProviders[i])
 		}
