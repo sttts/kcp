@@ -24,6 +24,7 @@ import (
 
 	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	kcpapiextensionsinformers "github.com/kcp-dev/client-go/apiextensions/informers"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver"

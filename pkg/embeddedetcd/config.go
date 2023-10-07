@@ -24,7 +24,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"go.uber.org/zap"
 	"math/big"
 	"net/url"
 	"os"
@@ -35,6 +34,7 @@ import (
 	"go.etcd.io/etcd/client/pkg/v3/fileutil"
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/wal"
+	"go.uber.org/zap"
 
 	"github.com/kcp-dev/kcp/pkg/embeddedetcd/options"
 )

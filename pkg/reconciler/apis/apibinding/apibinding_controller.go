@@ -23,10 +23,10 @@ import (
 
 	"github.com/go-logr/logr"
 	kcpcache "github.com/kcp-dev/apimachinery/v2/pkg/cache"
-	"github.com/kcp-dev/logicalcluster/v3"
-
 	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	kcpapiextensionsv1informers "github.com/kcp-dev/client-go/apiextensions/informers/apiextensions/v1"
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

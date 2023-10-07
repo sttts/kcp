@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
+	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
-	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	v1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

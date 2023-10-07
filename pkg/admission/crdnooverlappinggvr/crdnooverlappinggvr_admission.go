@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apiserver/pkg/admission"
@@ -31,7 +33,6 @@ import (
 	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
 	apisv1alpha1listers "github.com/kcp-dev/kcp/sdk/client/listers/apis/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 const (

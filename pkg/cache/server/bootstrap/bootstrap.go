@@ -21,16 +21,17 @@ import (
 	"fmt"
 	"time"
 
+	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
-	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	configcrds "github.com/kcp-dev/kcp/config/crds"
 	cacheclient "github.com/kcp-dev/kcp/pkg/cache/client"
 	"github.com/kcp-dev/kcp/pkg/logging"
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 // SystemCRDLogicalCluster holds a logical cluster name under which we store system-related CRDs.

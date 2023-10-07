@@ -40,12 +40,12 @@ import (
 	"testing"
 	"time"
 
+	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/martinlindhe/base36"
 	"github.com/stretchr/testify/require"
 
-	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

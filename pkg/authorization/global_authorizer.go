@@ -20,15 +20,16 @@ import (
 	"context"
 	"fmt"
 
+	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	controlplaneapiserver "k8s.io/kubernetes/pkg/controlplane/apiserver"
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
-	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
 	rbacwrapper "github.com/kcp-dev/kcp/pkg/virtual/framework/wrappers/rbac"
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type GlobalAuthorizer struct {

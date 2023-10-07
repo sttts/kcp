@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	"github.com/kcp-dev/client-go/dynamic"
 	"github.com/kcp-dev/client-go/metadata"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/stretchr/testify/require"
 
-	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

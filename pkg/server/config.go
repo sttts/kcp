@@ -29,6 +29,12 @@ import (
 
 	kcpapiextensionsclientset "github.com/kcp-dev/client-go/apiextensions/client"
 	kcpapiextensionsinformers "github.com/kcp-dev/client-go/apiextensions/informers"
+	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
+	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
+	kcpkubernetesclient "github.com/kcp-dev/client-go/kubernetes"
+	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
+	"github.com/kcp-dev/logicalcluster/v3"
+
 	apiextensionsapiserver "k8s.io/apiextensions-apiserver/pkg/apiserver"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,10 +56,6 @@ import (
 	generatedopenapi "k8s.io/kubernetes/pkg/generated/openapi"
 	quotainstall "k8s.io/kubernetes/pkg/quota/v1/install"
 
-	kcpdynamic "github.com/kcp-dev/client-go/dynamic"
-	kcpkubernetesinformers "github.com/kcp-dev/client-go/informers"
-	kcpkubernetesclient "github.com/kcp-dev/client-go/kubernetes"
-	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
 	kcpadmissioninitializers "github.com/kcp-dev/kcp/pkg/admission/initializers"
 	"github.com/kcp-dev/kcp/pkg/authorization"
 	bootstrappolicy "github.com/kcp-dev/kcp/pkg/authorization/bootstrap"
@@ -67,7 +69,6 @@ import (
 	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	kcpclientset "github.com/kcp-dev/kcp/sdk/client/clientset/versioned/cluster"
 	kcpinformers "github.com/kcp-dev/kcp/sdk/client/informers/externalversions"
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type Config struct {
