@@ -223,6 +223,24 @@ func TestCheckImpersonation(t *testing.T) {
 			requestedGroups: []string{nonExistingGroup},
 			expectedResult:  true,
 		},
+		{
+			name:            "user is in requesting 'system:authenticated' group without having 'system:authenticated' group",
+			userGroups:      []string{"bob"},
+			requestedGroups: []string{user.AllAuthenticated},
+			expectedResult:  false,
+		},
+		{
+			name:            "user is in requesting 'system:authenticated' group with 'system:authenticated' group",
+			userGroups:      []string{"bob", user.AllAuthenticated},
+			requestedGroups: []string{user.AllAuthenticated},
+			expectedResult:  true,
+		},
+		{
+			name:            "user is in requesting 'system:authenticated' group with priviledged group",
+			userGroups:      []string{"bob", authorizationbootstrap.SystemMastersGroup},
+			requestedGroups: []string{user.AllAuthenticated},
+			expectedResult:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -433,6 +451,136 @@ func TestWithImpersonationGatekeeper(t *testing.T) {
 			ctx := req.Context()
 			if tt.user != nil {
 				ctx = request.WithUser(ctx, tt.user)
+			}
+			req = req.WithContext(ctx)
+
+			// Create a ResponseRecorder to capture the response
+			rr := httptest.NewRecorder()
+
+			// Serve the HTTP request
+			wrappedHandler.ServeHTTP(rr, req)
+
+			// Assert the expected status code
+			assert.Equal(t, tt.expectedStatus, rr.Code, "Unexpected status code")
+
+			// Assert whether the handler was called
+			assert.Equal(t, tt.handlerCalled, handlerCalledFlag, "Handler called state mismatch")
+		})
+	}
+}
+
+// TestWithScoping tests the WithScoping middleware.
+func TestWithScoping(t *testing.T) {
+	// Define test cases
+	tests := []struct {
+		name               string
+		user               user.Info
+		cluster            *request.Cluster
+		expectedStatus     int
+		handlerCalled      bool
+		expectedExtraScope string
+		skipScopingMarker  bool
+	}{
+		{
+			name:              "no scoping marker. Programmers error.",
+			user:              &mockUser{Name: "test-user", UID: "uid-123", Groups: []string{"group1"}, Extra: nil},
+			cluster:           &request.Cluster{Name: "cluster-1"},
+			expectedStatus:    http.StatusOK,
+			handlerCalled:     true,
+			skipScopingMarker: true,
+		},
+		{
+			name:           "No user in context",
+			user:           nil,
+			cluster:        &request.Cluster{Name: "cluster-1"},
+			expectedStatus: http.StatusForbidden,
+			handlerCalled:  false,
+		},
+		{
+			name: "No cluster in context",
+			user: &mockUser{
+				Name:   "test-user",
+				UID:    "uid-123",
+				Groups: []string{"group1"},
+				Extra:  nil,
+			},
+			expectedStatus: http.StatusForbidden,
+			handlerCalled:  false,
+		},
+		{
+			name: "Valid user and cluster with no existing extra scopes",
+			user: &mockUser{
+				Name:   "test-user",
+				UID:    "uid-456",
+				Groups: []string{"group1"},
+				Extra:  nil,
+			},
+			cluster:            &request.Cluster{Name: "cluster-2"},
+			expectedStatus:     http.StatusOK,
+			handlerCalled:      true,
+			expectedExtraScope: "cluster:cluster-2",
+		},
+		{
+			name: "Valid user and cluster with existing extra scopes",
+			user: &mockUser{
+				Name:   "test-user",
+				UID:    "uid-789",
+				Groups: []string{"group1"},
+				Extra: map[string][]string{
+					"existing.key": {"value1"},
+				},
+			},
+			cluster:            &request.Cluster{Name: "cluster-3"},
+			expectedStatus:     http.StatusOK,
+			handlerCalled:      true,
+			expectedExtraScope: "cluster:cluster-3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handlerCalledFlag := false
+
+			// Create a mock handler that sets the flag when called
+			mockHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				handlerCalledFlag = true
+
+				// Retrieve the user from the context to verify extra scopes
+				userFromCtx, exists := request.UserFrom(r.Context())
+				if !exists {
+					t.Errorf("Expected user in context, but not found")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+				// Verify that the extra scope is correctly added
+				extra := userFromCtx.GetExtra()
+				expectedScope := tt.expectedExtraScope
+				if expectedScope != "" {
+					scopes, ok := extra["authentication.kcp.io/scopes"]
+					assert.True(t, ok, "Expected 'authentication.kcp.io/scopes' in user extra")
+					assert.Contains(t, scopes, expectedScope, "Expected scope not found in user extra")
+				}
+
+				w.WriteHeader(http.StatusOK)
+			})
+
+			// Wrap the handler with WithScoping
+			wrappedHandler := withScoping(mockHandler)
+
+			// Create a new HTTP request
+			req := httptest.NewRequest(http.MethodGet, "http://kcp.io/foo", http.NoBody)
+			if !tt.skipScopingMarker {
+				req.Header.Set(kcpImpersonationHeader, "true")
+			}
+
+			// Set up context with user and cluster if provided
+			ctx := req.Context()
+			if tt.user != nil {
+				ctx = request.WithUser(ctx, tt.user)
+			}
+			if tt.cluster != nil {
+				ctx = request.WithCluster(ctx, *tt.cluster)
 			}
 			req = req.WithContext(ctx)
 
