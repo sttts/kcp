@@ -21,13 +21,17 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+	"time"
 
 	kcpkubernetesclientset "github.com/kcp-dev/client-go/kubernetes"
 	"github.com/stretchr/testify/require"
 
 	authorizationv1 "k8s.io/api/authorization/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
+	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/registry/rbac/validation"
 
@@ -155,10 +159,49 @@ func TestSelfSubjectRulesReview(t *testing.T) {
 	t.Parallel()
 	framework.Suite(t, "control-plane")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	server := framework.SharedKcpServer(t)
 	cfg := server.BaseConfig(t)
 	wsPath, ws := framework.NewOrganizationFixture(t, server)
 
+	t.Log("Service account of other workspace has no access in the beginning")
+	otherSaConfig := rest.CopyConfig(cfg)
+	otherSaConfig.Impersonate = rest.ImpersonationConfig{
+		UserName: "system:serviceaccount:default:default",
+		Groups:   []string{user.AllAuthenticated},
+		Extra:    map[string][]string{serviceaccount.ClusterNameKey: {"other"}}}
+	otherSaClusterClient, err := kcpkubernetesclientset.NewForConfig(otherSaConfig)
+	require.NoError(t, err)
+	req := &authorizationv1.SelfSubjectRulesReview{Spec: authorizationv1.SelfSubjectRulesReviewSpec{Namespace: "default"}}
+	_, err = otherSaClusterClient.Cluster(wsPath).AuthorizationV1().SelfSubjectRulesReviews().Create(ctx, req, metav1.CreateOptions{})
+	require.Error(t, err)
+
+	t.Log("Give everybody authenticated access to the workspace")
+	kubeClusterClient, err := kcpkubernetesclientset.NewForConfig(cfg)
+	require.NoError(t, err)
+	_, err = kubeClusterClient.Cluster(wsPath).RbacV1().ClusterRoles().Create(ctx, &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: "sa-access"},
+		Rules:      []rbacv1.PolicyRule{{Verbs: []string{"access"}, NonResourceURLs: []string{"/"}}},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err, "failed to create cluster role")
+	_, err = kubeClusterClient.Cluster(wsPath).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: "sa-access"},
+		Subjects:   []rbacv1.Subject{{Kind: "Group", APIGroup: "rbac.authorization.k8s.io", Name: "system:authenticated"}},
+		RoleRef:    rbacv1.RoleRef{Kind: "ClusterRole", Name: "sa-access", APIGroup: rbacv1.GroupName},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err, "failed to create cluster role binding")
+
+	t.Log("Wait until the cluster role binding is effective, i.e. the foreign service account can access too")
+	require.NoError(t, err)
+	framework.Eventually(t, func() (bool, string) {
+		req := &authorizationv1.SelfSubjectRulesReview{Spec: authorizationv1.SelfSubjectRulesReviewSpec{Namespace: "default"}}
+		_, err := otherSaClusterClient.Cluster(wsPath).AuthorizationV1().SelfSubjectRulesReviews().Create(ctx, req, metav1.CreateOptions{})
+		return err == nil, fmt.Sprintf("%v", err)
+	}, wait.ForeverTestTimeout, time.Millisecond*100)
+
+	// These rules will always exist as soon as a user has access
 	authenticatedBaseRules := []authorizationv1.ResourceRule{
 		{Verbs: []string{"create"}, APIGroups: []string{"authentication.k8s.io"}, Resources: []string{"selfsubjectreviews"}},
 		{Verbs: []string{"create"}, APIGroups: []string{"authorization.k8s.io"}, Resources: []string{"selfsubjectaccessreviews", "selfsubjectrulesreviews"}},
@@ -188,7 +231,7 @@ func TestSelfSubjectRulesReview(t *testing.T) {
 		},
 		{
 			name: "out-of-scoped users",
-			user: "user", groups: []string{"system:kcp:admin"}, extra: map[string][]string{validation.ScopeExtraKey: {"cluster:root"}},
+			user: "user", groups: []string{"system:kcp:admin"}, extra: map[string][]string{validation.ScopeExtraKey: {"cluster:other"}},
 			wantRules: authenticatedBaseRules,
 		},
 		{
@@ -207,13 +250,13 @@ func TestSelfSubjectRulesReview(t *testing.T) {
 		},
 		{
 			name: "service account with other cluster",
-			user: "system:serviceaccount:default:default", groups: []string{"system:kcp:admin"}, extra: map[string][]string{serviceaccount.ClusterNameKey: {"root"}},
+			user: "system:serviceaccount:default:default", groups: []string{"system:kcp:admin"}, extra: map[string][]string{serviceaccount.ClusterNameKey: {"other"}},
 			wantRules: authenticatedBaseRules,
 		},
 		{
 			name: "service account with other cluster and warrant",
 			user: "system:serviceaccount:default:default", groups: []string{"system:kcp:admin"}, extra: map[string][]string{
-				serviceaccount.ClusterNameKey: {"root"},
+				serviceaccount.ClusterNameKey: {"other"},
 				validation.WarrantExtraKey:    {`{"user":"user","groups":["system:kcp:admin"]}`},
 			},
 			wantRules: append([]authorizationv1.ResourceRule{
@@ -235,8 +278,6 @@ func TestSelfSubjectRulesReview(t *testing.T) {
 			if impersonationConfig.Impersonate.Extra == nil {
 				impersonationConfig.Impersonate.Extra = map[string][]string{}
 			}
-			impersonationConfig.Impersonate.Extra[validation.WarrantExtraKey] = append(impersonationConfig.Impersonate.Extra[validation.WarrantExtraKey],
-				fmt.Sprintf(`{"user":"system:serviceaccount:default:default","groups":["system:authenticated"],"extra":{"authentication.kubernetes.io/cluster-name":[%q]}}`, ws.Spec.Cluster))
 			impersonatedClient, err := kcpkubernetesclientset.NewForConfig(impersonationConfig)
 			require.NoError(t, err)
 
