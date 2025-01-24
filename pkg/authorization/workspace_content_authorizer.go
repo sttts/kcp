@@ -26,12 +26,11 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	controlplaneapiserver "k8s.io/kubernetes/pkg/controlplane/apiserver"
-	"k8s.io/kubernetes/pkg/registry/rbac/validation"
+	rbacregistryvalidation "k8s.io/kubernetes/pkg/registry/rbac/validation"
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 
 	"github.com/kcp-dev/kcp/pkg/authorization/bootstrap"
@@ -89,10 +88,12 @@ func (a *workspaceContentAuthorizer) Authorize(ctx context.Context, attr authori
 		return authorizer.DecisionNoOpinion, "empty or system workspace", nil
 	}
 
-	isServiceAccount := validation.IsServiceAccount(attr.GetUser())
-	isAuthenticated := sets.New[string](attr.GetUser().GetGroups()...).Has("system:authenticated")
-	isForeign := validation.IsForeign(attr.GetUser(), cluster.Name)
-	isInScope := validation.IsInScope(attr.GetUser(), cluster.Name)
+	effGroups := rbacregistryvalidation.EffectiveGroups(ctx, attr.GetUser())
+
+	isServiceAccount := rbacregistryvalidation.IsServiceAccount(attr.GetUser())
+	isAuthenticated := effGroups.Has("system:authenticated")
+	isForeign := rbacregistryvalidation.IsForeign(attr.GetUser(), cluster.Name)
+	isInScope := rbacregistryvalidation.IsInScope(attr.GetUser(), cluster.Name)
 
 	if IsDeepSubjectAccessReviewFrom(ctx, attr) {
 		attr := deepCopyAttributes(attr)
@@ -110,7 +111,7 @@ func (a *workspaceContentAuthorizer) Authorize(ctx context.Context, attr authori
 	}
 
 	// always let logical-cluster-admins through
-	if !isServiceAccount && isInScope && sets.New[string](attr.GetUser().GetGroups()...).Has(bootstrap.SystemLogicalClusterAdmin) {
+	if !isServiceAccount && isInScope && effGroups.Has(bootstrap.SystemLogicalClusterAdmin) {
 		return DelegateAuthorization("logical cluster admin access", a.delegate).Authorize(ctx, attr)
 	}
 
