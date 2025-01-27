@@ -89,6 +89,7 @@ func newShard(ctx context.Context, n int, args []string, standaloneVW bool, serv
 		"--requestheader-extra-headers-prefix=X-Remote-Extra-",
 		fmt.Sprintf("--service-account-key-file=%s", filepath.Join(workDirPath, ".kcp/service-account.crt")),
 		fmt.Sprintf("--service-account-private-key-file=%s", filepath.Join(workDirPath, ".kcp/service-account.key")),
+		fmt.Sprintf("--service-account-signing-key-file=%s", filepath.Join(workDirPath, ".kcp/service-account.key")),
 		"--audit-log-path", auditFilePath,
 		fmt.Sprintf("--shard-external-url=https://%s:%d", hostIP, 6443),
 		fmt.Sprintf("--tls-cert-file=%s", filepath.Join(workDirPath, fmt.Sprintf(".kcp-%d/apiserver.crt", n))),
